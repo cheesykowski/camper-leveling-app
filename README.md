@@ -45,11 +45,13 @@ npm run preview
 
 ## Hosting
 
-Das Projekt ist für den späteren Einsatz unter einer GitHub-Pages-Projektadresse vorgesehen. Die Veröffentlichungsadresse wäre:
+Pushes auf `main` starten automatisch den GitHub-Actions-Workflow unter `.github/workflows/deploy-pages.yml`. Er installiert die Abhängigkeiten, erstellt den Vite-Build und veröffentlicht `dist` auf GitHub Pages. Der Vite-Basispfad wird im Actions-Build auf den Projektnamen gesetzt; lokal bleibt die App unter der Vite-Root-Adresse erreichbar.
+
+Aktuelle Veröffentlichungsadresse:
 
 <https://cheesykowski.github.io/camper-leveling-app/>
 
-Der Link ist erst nutzbar, wenn der GitHub-Actions-Workflow erfolgreich gelaufen ist und GitHub Pages die Veröffentlichung bestätigt. Die Vite-Basisadresse und der Pages-Workflow müssen im Repository entsprechend eingerichtet sein.
+Falls Pages für das Repository noch nicht aktiviert ist, in **Settings → Pages** als Build-Quelle **GitHub Actions** auswählen. Der Link ist nutzbar, sobald der erste Actions-Workflow erfolgreich abgeschlossen wurde.
 
 ## Weiterentwicklung
 

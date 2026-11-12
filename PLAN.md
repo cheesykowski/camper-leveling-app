@@ -15,7 +15,7 @@ Eine Android-taugliche Web-App, die die Neigung eines geparkten Wohnmobils misst
 - [x] Konfigurierbare Werte für Radstand, Spurweite und Keilhöhen
 - [x] Einfache Empfehlung für eine Achse oder Fahrzeugseite
 - [ ] Browserberechtigungen und tatsächliche Sensororientierung auf dem Ziel-Android-Gerät verifizieren
-- [ ] GitHub-Pages-Workflow und Vite-Basis-Pfad im Repository prüfen; Veröffentlichung gilt erst nach erfolgreichem Actions-Deployment als erledigt
+- [x] GitHub-Pages-Workflow und Vite-Basis-Pfad für Actions eingerichtet; erfolgreicher erster Deployment-Lauf und Android-Test stehen noch aus
 - [ ] Keilempfehlungen mit realen Messdaten und dem tatsächlichen Fahrzeug validieren
 
 Die voreingestellten Fahrzeug- und Keilwerte sind Platzhalter. Aktuelle Berechnung und Sensorkonventionen sind Prototyp-Logik, keine validierte Fahrzeugmesstechnik.
@@ -49,7 +49,7 @@ Benötigt werden Arduino-Projekt bzw. BLE-Protokoll, Gerätedaten, Service- und 
 
 ### 4. Hosting und Qualität
 
-- GitHub Pages über GitHub Actions bauen und veröffentlichen.
+- Den ersten GitHub-Pages-Workflow erfolgreich ausführen und die Pages-URL prüfen.
 - `npm run build` in CI ausführen.
 - Auf Android Chrome testen: HTTPS, Sensorberechtigung, Layout, Kalibrierung und Offline-/Netzwerkverhalten.
 - Hosting-Link erst dann als live markieren, wenn GitHub Pages einen erfolgreichen Deployment-Status zeigt.
