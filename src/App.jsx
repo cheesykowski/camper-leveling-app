@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const STORAGE_KEY = 'camper-leveling-demo-v1';
 
@@ -75,9 +75,17 @@ function App() {
 
   const [calibration, setCalibration] = useState(loadedState.calibration);
   const [vehicle, setVehicle] = useState(loadedState.vehicle);
+  const [wedgeHeightsInput, setWedgeHeightsInput] = useState(
+    loadedState.vehicle.wedgeHeightsCm.join(', '),
+  );
   const [sensorData, setSensorData] = useState({ pitch: 0, roll: 0, supported: false, permissionGranted: false });
+  const sensorDataRef = useRef(sensorData);
   const [simulatedTilt, setSimulatedTilt] = useState({ pitch: 0, roll: 0 });
   const [usingDemoMode, setUsingDemoMode] = useState(false);
+  const [activeMenu, setActiveMenu] = useState(null);
+  const [isHoldingCalibration, setIsHoldingCalibration] = useState(false);
+  const [calibrationComplete, setCalibrationComplete] = useState(false);
+  const calibrationTimeout = useRef(null);
 
   useEffect(() => {
     localStorage.setItem(
@@ -102,13 +110,15 @@ function App() {
     const onOrientation = (event) => {
       const pitch = Number.isFinite(event.beta) ? event.beta : 0;
       const roll = Number.isFinite(event.gamma) ? event.gamma : 0;
-
-      setSensorData({
+      const nextSensorData = {
         pitch,
         roll,
         supported: true,
         permissionGranted: true,
-      });
+      };
+
+      sensorDataRef.current = nextSensorData;
+      setSensorData(nextSensorData);
     };
 
     window.addEventListener('deviceorientation', onOrientation, true);
@@ -117,6 +127,26 @@ function App() {
       window.removeEventListener('deviceorientation', onOrientation, true);
     };
   }, []);
+
+  useEffect(() => {
+    if (!activeMenu) return undefined;
+
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setActiveMenu(null);
+    };
+
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [activeMenu]);
+
+  useEffect(
+    () => () => {
+      if (calibrationTimeout.current !== null) {
+        window.clearTimeout(calibrationTimeout.current);
+      }
+    },
+    [],
+  );
 
   const currentRoll = usingDemoMode ? simulatedTilt.roll : sensorData.roll - calibration.roll;
   const currentPitch = usingDemoMode ? simulatedTilt.pitch : sensorData.pitch - calibration.pitch;
@@ -172,172 +202,107 @@ function App() {
     };
   }, [currentPitch, currentRoll, vehicle]);
 
-  const handleCalibration = () => {
-    setCalibration({
-      pitch: sensorData.pitch,
-      roll: sensorData.roll,
-    });
+  const startCalibrationHold = () => {
+    if (calibrationTimeout.current !== null) return;
+
+    setCalibrationComplete(false);
+    setIsHoldingCalibration(true);
+    calibrationTimeout.current = window.setTimeout(() => {
+      setCalibration({
+        pitch: sensorDataRef.current.pitch,
+        roll: sensorDataRef.current.roll,
+      });
+      calibrationTimeout.current = null;
+      setIsHoldingCalibration(false);
+      setCalibrationComplete(true);
+    }, 3000);
   };
 
-  const handleReset = () => {
-    setCalibration(defaultCalibration);
-    setSimulatedTilt({ pitch: 0, roll: 0 });
+  const cancelCalibrationHold = () => {
+    if (calibrationTimeout.current !== null) {
+      window.clearTimeout(calibrationTimeout.current);
+      calibrationTimeout.current = null;
+      setIsHoldingCalibration(false);
+    }
   };
 
   const vehicleInputs = {
     wheelbaseCm: vehicle.wheelbaseCm,
     trackWidthCm: vehicle.trackWidthCm,
-    wedgeHeightsCm: vehicle.wedgeHeightsCm.join(', '),
+  };
+
+  const handleWheelbaseChange = (event) => {
+    setVehicle((current) => ({
+      ...current,
+      wheelbaseCm: clamp(Number(event.target.value) || 0, 100, 500),
+    }));
+  };
+
+  const handleTrackWidthChange = (event) => {
+    setVehicle((current) => ({
+      ...current,
+      trackWidthCm: clamp(Number(event.target.value) || 0, 80, 400),
+    }));
+  };
+
+  const handleWedgeHeightsChange = (event) => {
+    const value = event.target.value;
+    setWedgeHeightsInput(value);
+    const list = parseListInput(value);
+    if (list.length) {
+      setVehicle((current) => ({
+        ...current,
+        wedgeHeightsCm: list,
+      }));
+    }
   };
 
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div>
-          <p className="eyebrow">Camper leveling helper</p>
-          <h1>Vehicle levelling guide</h1>
+        <div className="brand">
+          <div className="brand-mark" aria-hidden="true">CL</div>
+          <div>
+            <p className="eyebrow">FIELD UNIT · 01</p>
+            <h1>CAMPER<span>LEVEL</span></h1>
+          </div>
         </div>
-        <button className="secondary" onClick={handleReset}>Reset</button>
+        <span className={`status-pill ${usingDemoMode ? 'demo' : 'live'}`}>
+          <span className="status-dot" />
+          {usingDemoMode ? 'DEMO MODE' : sensorData.supported ? 'SENSOR LIVE' : 'SEARCHING'}
+        </span>
       </header>
 
-      <main className="layout">
-        <section className="panel">
-          <div className="panel-header">
-            <h2>Sensor</h2>
-            <span className={`status ${sensorData.supported || usingDemoMode ? 'good' : 'bad'}`}>
-              {usingDemoMode ? 'Demo mode' : sensorData.supported ? 'Live sensor' : 'No sensor'}
-            </span>
+      <main className="main-screen">
+        <div className="telemetry">
+          <div className="telemetry-item">
+            <span className="eyebrow">PITCH</span>
+            <strong>{currentPitch.toFixed(1)}<small>°</small></strong>
           </div>
-
-          <div className="metrics-grid">
-            <div className="metric-card">
-              <span>Pitch</span>
-              <strong>{currentPitch.toFixed(1)}°</strong>
-            </div>
-            <div className="metric-card">
-              <span>Roll</span>
-              <strong>{currentRoll.toFixed(1)}°</strong>
-            </div>
-            <div className="metric-card">
-              <span>Wheelbase</span>
-              <strong>{vehicle.wheelbaseCm} cm</strong>
-            </div>
-            <div className="metric-card">
-              <span>Track width</span>
-              <strong>{vehicle.trackWidthCm} cm</strong>
-            </div>
+          <span className="telemetry-divider" />
+          <div className="telemetry-item">
+            <span className="eyebrow">ROLL</span>
+            <strong>{currentRoll.toFixed(1)}<small>°</small></strong>
           </div>
+        </div>
 
-          <div className="sensor-actions">
-            <button onClick={handleCalibration}>Calibrate on level ground</button>
-            <button className="ghost" onClick={() => setUsingDemoMode((prev) => !prev)}>
-              {usingDemoMode ? 'Use live sensor' : 'Use demo values'}
-            </button>
+        <section className="hero-panel" aria-label="Leveling recommendation">
+          <div className="hero-heading">
+            <span className="eyebrow">LEVELING SYSTEM / 01</span>
+            <h2>{recommendation.title}</h2>
           </div>
-
-          {usingDemoMode && (
-            <div className="demo-panel">
-              <label>
-                Pitch
-                <input
-                  type="range"
-                  min={-15}
-                  max={15}
-                  step={0.5}
-                  value={simulatedTilt.pitch}
-                  onChange={(event) =>
-                    setSimulatedTilt((current) => ({ ...current, pitch: Number(event.target.value) }))
-                  }
-                />
-                <span>{simulatedTilt.pitch.toFixed(1)}°</span>
-              </label>
-              <label>
-                Roll
-                <input
-                  type="range"
-                  min={-15}
-                  max={15}
-                  step={0.5}
-                  value={simulatedTilt.roll}
-                  onChange={(event) =>
-                    setSimulatedTilt((current) => ({ ...current, roll: Number(event.target.value) }))
-                  }
-                />
-                <span>{simulatedTilt.roll.toFixed(1)}°</span>
-              </label>
-            </div>
-          )}
-        </section>
-
-        <section className="panel">
-          <div className="panel-header">
-            <h2>Vehicle setup</h2>
-          </div>
-
-          <div className="input-group">
-            <label>
-              Wheelbase (cm)
-              <input
-                type="number"
-                value={vehicleInputs.wheelbaseCm}
-                min={100}
-                max={500}
-                onChange={(event) =>
-                  setVehicle((current) => ({
-                    ...current,
-                    wheelbaseCm: clamp(Number(event.target.value) || 0, 100, 500),
-                  }))
-                }
-              />
-            </label>
-            <label>
-              Track width (cm)
-              <input
-                type="number"
-                value={vehicleInputs.trackWidthCm}
-                min={80}
-                max={400}
-                onChange={(event) =>
-                  setVehicle((current) => ({
-                    ...current,
-                    trackWidthCm: clamp(Number(event.target.value) || 0, 80, 400),
-                  }))
-                }
-              />
-            </label>
-            <label>
-              Wedge heights (cm, comma separated)
-              <input
-                type="text"
-                value={vehicleInputs.wedgeHeightsCm}
-                onChange={(event) => {
-                  const list = parseListInput(event.target.value);
-                  setVehicle((current) => ({
-                    ...current,
-                    wedgeHeightsCm: list.length ? list : [...defaultVehicle.wedgeHeightsCm],
-                  }));
-                }}
-              />
-            </label>
-          </div>
-        </section>
-
-        <section className="panel recommendation-panel">
-          <div className="panel-header">
-            <h2>Recommendation</h2>
-            <span className="tag">{recommendation.axis === 'level' ? 'Level' : recommendation.axis}</span>
-          </div>
-
-          <h3>{recommendation.title}</h3>
-          <p>{recommendation.description}</p>
 
           <div className="vehicle-diagram">
             <div className="diagram-heading">
-              <strong>Top-down view</strong>
-              <span>Front of vehicle ↑</span>
+              <span>TOP VIEW</span>
+              <span className="diagram-direction">FRONT ↑</span>
             </div>
             <svg
               className="vehicle-svg"
+              style={{
+                '--pitch-tilt': `${clamp(currentPitch * 0.15, -3, 3)}deg`,
+                '--roll-tilt': `${clamp(currentRoll * 0.15, -3, 3)}deg`,
+              }}
               viewBox="0 0 360 420"
               role="img"
               aria-labelledby="vehicle-diagram-title vehicle-diagram-description"
@@ -406,38 +371,246 @@ function App() {
                 REAR
               </text>
             </svg>
-            <p className="diagram-note">
-              {recommendation.axis === 'level'
-                ? 'No wedges needed.'
-                : `Place ${recommendation.level.toFixed(1)} cm wedges at the highlighted wheels.`}
-            </p>
           </div>
 
-          {recommendation.level > 0 ? (
-            <div className="recommendation-box">
-              <strong>Use wedge level: {recommendation.level.toFixed(1)} cm</strong>
-              <span>Required lift ≈ {recommendation.requiredLiftCm.toFixed(1)} cm</span>
-            </div>
-          ) : (
-            <div className="recommendation-box neutral">
-              <strong>No wedge adjustment required.</strong>
-            </div>
-          )}
-
-          <div className="wheel-grid">
-            {wheelPositions.map((wheel) => {
-              const active =
-                recommendation.axis !== 'level' && recommendation.wheels.includes(wheel.id);
-              return (
-                <div key={wheel.id} className={`wheel-card ${active ? 'active' : ''}`}>
-                  <span>{wheel.label}</span>
-                  <strong>{active ? `${recommendation.level.toFixed(1)} cm` : '—'}</strong>
-                </div>
-              );
-            })}
+          <div className={`level-readout ${recommendation.axis === 'level' ? 'is-level' : ''}`}>
+            <span>{recommendation.axis === 'level' ? 'STATUS' : 'RECOMMENDED STEP'}</span>
+            <strong>
+              {recommendation.axis === 'level'
+                ? 'NO WEDGES NEEDED'
+                : `${recommendation.level.toFixed(1)} CM`}
+            </strong>
+            {recommendation.axis !== 'level' && (
+              <small>Required lift ≈ {recommendation.requiredLiftCm.toFixed(1)} cm</small>
+            )}
           </div>
         </section>
+
+        <div className="action-area">
+          <button
+            className={`calibrate-button ${isHoldingCalibration ? 'is-holding' : ''} ${
+              calibrationComplete ? 'is-complete' : ''
+            }`}
+            type="button"
+            aria-label="Hold for 3 seconds to calibrate on level ground"
+            aria-describedby="calibration-hint"
+            onPointerDown={(event) => {
+              event.currentTarget.setPointerCapture(event.pointerId);
+              startCalibrationHold();
+            }}
+            onPointerUp={cancelCalibrationHold}
+            onPointerCancel={cancelCalibrationHold}
+            onLostPointerCapture={cancelCalibrationHold}
+            onKeyDown={(event) => {
+              if (event.key === ' ' || event.key === 'Enter') {
+                event.preventDefault();
+                if (!event.repeat) startCalibrationHold();
+              }
+            }}
+            onKeyUp={(event) => {
+              if (event.key === ' ' || event.key === 'Enter') {
+                event.preventDefault();
+                cancelCalibrationHold();
+              }
+            }}
+            onContextMenu={(event) => event.preventDefault()}
+          >
+            <span className="calibrate-icon" aria-hidden="true">
+              {calibrationComplete ? '✓' : isHoldingCalibration ? '···' : '◎'}
+            </span>
+            <span>
+              {calibrationComplete
+                ? 'CALIBRATION STORED'
+                : isHoldingCalibration
+                  ? 'KEEP HOLDING'
+                  : 'HOLD TO CALIBRATE'}
+            </span>
+            {!calibrationComplete && <span className="hold-duration">3 SEC</span>}
+          </button>
+          <p className="hold-hint" id="calibration-hint" aria-live="polite">
+            {calibrationComplete
+              ? 'Zero point saved.'
+              : isHoldingCalibration
+                ? 'Keep holding to save the current zero point'
+                : 'Park on level ground, then hold to set zero'}
+          </p>
+        </div>
       </main>
+
+      <nav className="bottom-menu" aria-label="Configuration">
+        <button
+          className={activeMenu === 'vehicle' ? 'menu-button selected' : 'menu-button'}
+          type="button"
+          aria-haspopup="dialog"
+          onClick={() => setActiveMenu('vehicle')}
+        >
+          <span className="menu-icon" aria-hidden="true">▤</span>
+          <span>VEHICLE</span>
+        </button>
+        <span className="menu-divider" />
+        <button
+          className={activeMenu === 'wedges' ? 'menu-button selected' : 'menu-button'}
+          type="button"
+          aria-haspopup="dialog"
+          onClick={() => setActiveMenu('wedges')}
+        >
+          <span className="menu-icon" aria-hidden="true">▰</span>
+          <span>WEDGES</span>
+        </button>
+      </nav>
+
+      {activeMenu && (
+        <div
+          className="menu-backdrop"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setActiveMenu(null);
+          }}
+        >
+          <section
+            className="menu-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="menu-title"
+          >
+            <header className="menu-header">
+              <div>
+                <span className="eyebrow">CONFIGURATION</span>
+                <h2 id="menu-title">{activeMenu === 'vehicle' ? 'Vehicle setup' : 'Wedge setup'}</h2>
+              </div>
+              <button
+                className="close-menu"
+                type="button"
+                aria-label="Close configuration"
+                onClick={() => setActiveMenu(null)}
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="menu-tabs" role="tablist" aria-label="Configuration sections">
+              <button
+                className={activeMenu === 'vehicle' ? 'menu-tab active' : 'menu-tab'}
+                type="button"
+                role="tab"
+                aria-selected={activeMenu === 'vehicle'}
+                onClick={() => setActiveMenu('vehicle')}
+              >
+                VEHICLE
+              </button>
+              <button
+                className={activeMenu === 'wedges' ? 'menu-tab active' : 'menu-tab'}
+                type="button"
+                role="tab"
+                aria-selected={activeMenu === 'wedges'}
+                onClick={() => setActiveMenu('wedges')}
+              >
+                WEDGES
+              </button>
+            </div>
+
+            {activeMenu === 'vehicle' ? (
+              <div className="menu-content">
+                <div className="settings-card input-group">
+                  <label>
+                    Wheelbase <span>CM</span>
+                    <input
+                      type="number"
+                      value={vehicleInputs.wheelbaseCm}
+                      min={100}
+                      max={500}
+                      onChange={handleWheelbaseChange}
+                    />
+                  </label>
+                  <label>
+                    Track width <span>CM</span>
+                    <input
+                      type="number"
+                      value={vehicleInputs.trackWidthCm}
+                      min={80}
+                      max={400}
+                      onChange={handleTrackWidthChange}
+                    />
+                  </label>
+                </div>
+
+                <div className="settings-card sensor-settings">
+                  <div className="setting-copy">
+                    <strong>Input source</strong>
+                    <span>{usingDemoMode ? 'Manual demo controls' : 'Phone orientation sensor'}</span>
+                  </div>
+                  <button
+                    className="source-toggle"
+                    type="button"
+                    onClick={() => setUsingDemoMode((current) => !current)}
+                  >
+                    {usingDemoMode ? 'USE LIVE SENSOR' : 'USE DEMO MODE'}
+                  </button>
+
+                  {usingDemoMode && (
+                    <div className="demo-controls">
+                      <label>
+                        Pitch <output>{simulatedTilt.pitch.toFixed(1)}°</output>
+                        <input
+                          type="range"
+                          min={-15}
+                          max={15}
+                          step={0.5}
+                          value={simulatedTilt.pitch}
+                          onChange={(event) =>
+                            setSimulatedTilt((current) => ({
+                              ...current,
+                              pitch: Number(event.target.value),
+                            }))
+                          }
+                        />
+                      </label>
+                      <label>
+                        Roll <output>{simulatedTilt.roll.toFixed(1)}°</output>
+                        <input
+                          type="range"
+                          min={-15}
+                          max={15}
+                          step={0.5}
+                          value={simulatedTilt.roll}
+                          onChange={(event) =>
+                            setSimulatedTilt((current) => ({
+                              ...current,
+                              roll: Number(event.target.value),
+                            }))
+                          }
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="menu-content">
+                <div className="settings-card input-group">
+                  <label>
+                    Available wedge heights <span>CM · COMMA SEPARATED</span>
+                    <input
+                      type="text"
+                      value={wedgeHeightsInput}
+                      onChange={handleWedgeHeightsChange}
+                      placeholder="2.5, 5.5, 8.5"
+                      aria-invalid={parseListInput(wedgeHeightsInput).length === 0}
+                    />
+                  </label>
+                  {parseListInput(wedgeHeightsInput).length === 0 && (
+                    <p className="settings-error" role="status">
+                      Enter at least one positive height to update the wedge steps.
+                    </p>
+                  )}
+                  <p className="settings-hint">
+                    Enter the step heights available for your wedges. Settings are saved on this device.
+                  </p>
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
     </div>
   );
 }
