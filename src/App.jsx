@@ -52,6 +52,11 @@ function App() {
 
     try {
       const parsed = JSON.parse(raw);
+      const savedWedgeHeights = Array.isArray(parsed.vehicle?.wedgeHeightsCm)
+        ? parsed.vehicle.wedgeHeightsCm
+            .map(Number)
+            .filter((height) => Number.isFinite(height) && height > 0)
+        : [];
       return {
         calibration: {
           pitch: Number(parsed.calibration?.pitch ?? defaultCalibration.pitch),
@@ -60,8 +65,8 @@ function App() {
         vehicle: {
           wheelbaseCm: Number(parsed.vehicle?.wheelbaseCm ?? defaultVehicle.wheelbaseCm),
           trackWidthCm: Number(parsed.vehicle?.trackWidthCm ?? defaultVehicle.trackWidthCm),
-          wedgeHeightsCm: Array.isArray(parsed.vehicle?.wedgeHeightsCm)
-            ? parsed.vehicle.wedgeHeightsCm.map(Number).filter((n) => Number.isFinite(n) && n > 0)
+          wedgeHeightsCm: savedWedgeHeights.length
+            ? savedWedgeHeights
             : [...defaultVehicle.wedgeHeightsCm],
         },
       };
@@ -172,6 +177,7 @@ function App() {
       const targetAxle = frontHigh ? 'rear' : 'front';
       const requiredLiftCm = (vehicle.wheelbaseCm / 2) * Math.tan((pitchAbs * Math.PI) / 180);
       const selectedLevel = chooseNearestHeight(wedgeHeights, requiredLiftCm);
+      const step = Math.max(0, wedgeHeights.indexOf(selectedLevel) + 1);
 
       return {
         axis: 'pitch',
@@ -181,6 +187,7 @@ function App() {
           : 'The rear is higher than the front. Place the wedges under the front axle to lift the front and bring the vehicle level.',
         wheels: targetAxle === 'rear' ? ['rear-left', 'rear-right'] : ['front-left', 'front-right'],
         level: selectedLevel,
+        step,
         requiredLiftCm,
       };
     }
@@ -189,6 +196,7 @@ function App() {
     const targetSide = rightLow ? 'right' : 'left';
     const requiredLiftCm = (vehicle.trackWidthCm / 2) * Math.tan((rollAbs * Math.PI) / 180);
     const selectedLevel = chooseNearestHeight(wedgeHeights, requiredLiftCm);
+    const step = Math.max(0, wedgeHeights.indexOf(selectedLevel) + 1);
 
     return {
       axis: 'roll',
@@ -198,6 +206,7 @@ function App() {
         : 'The left side is lower than the right. Place wedges under the left-side wheels to lift the left side.',
       wheels: targetSide === 'right' ? ['front-right', 'rear-right'] : ['front-left', 'rear-left'],
       level: selectedLevel,
+      step,
       requiredLiftCm,
     };
   }, [currentPitch, currentRoll, vehicle]);
@@ -335,7 +344,7 @@ function App() {
                   <g key={wheel.id} className={active ? 'diagram-wheel active' : 'diagram-wheel'}>
                     <title>
                       {active
-                        ? `${wheel.label}: place a ${recommendation.level.toFixed(1)} cm wedge here`
+                        ? `${wheel.label}: place wedge step ${recommendation.step} (${recommendation.level.toFixed(1)} cm) here`
                         : `${wheel.label}: no wedge recommended`}
                     </title>
                     <rect className="diagram-tire" x={wheel.x} y={wheel.y} width="34" height="48" rx="10" />
@@ -356,7 +365,7 @@ function App() {
                           y={wheel.y + 28}
                           textAnchor="middle"
                         >
-                          {recommendation.level.toFixed(1)} cm
+                          {recommendation.step}
                         </text>
                       </>
                     )}
@@ -378,10 +387,13 @@ function App() {
             <strong>
               {recommendation.axis === 'level'
                 ? 'NO WEDGES NEEDED'
-                : `${recommendation.level.toFixed(1)} CM`}
+                : `STEP ${recommendation.step}`}
             </strong>
             {recommendation.axis !== 'level' && (
-              <small>Required lift ≈ {recommendation.requiredLiftCm.toFixed(1)} cm</small>
+              <small>
+                {recommendation.level.toFixed(1)} cm wedge · required lift ≈{' '}
+                {recommendation.requiredLiftCm.toFixed(1)} cm
+              </small>
             )}
           </div>
         </section>

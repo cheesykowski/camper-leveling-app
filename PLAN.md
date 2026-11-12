@@ -14,7 +14,7 @@ Eine Android-taugliche Web-App, die die Neigung eines geparkten Wohnmobils misst
 - [x] Kalibrierungs-Offset und Fahrzeugdaten werden im Browser-`localStorage` gespeichert
 - [x] Konfigurierbare Werte für Radstand, Spurweite und Keilhöhen
 - [x] Einfache Empfehlung für eine Achse oder Fahrzeugseite
-- [x] Fahrzeug-Draufsicht mit markierten Keilpositionen und empfohlener Höhe
+- [x] Fahrzeug-Draufsicht mit markierten Keilpositionen, empfohlenem Keilschritt und Höhe
 - [x] Retro-Dashboard mit Menü für Fahrzeug-/Keilparameter und Drei-Sekunden-Kalibrierung
 - [ ] Browserberechtigungen und tatsächliche Sensororientierung auf dem Ziel-Android-Gerät verifizieren
 - [x] GitHub-Pages-Workflow und Vite-Basis-Pfad für Actions eingerichtet; erfolgreicher erster Deployment-Lauf und Android-Test stehen noch aus
