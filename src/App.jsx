@@ -261,10 +261,10 @@ function App() {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
-          <div className="brand-mark" aria-hidden="true">CL</div>
+          <div className="brand-mark" aria-hidden="true">KM</div>
           <div>
             <p className="eyebrow">FIELD UNIT · 01</p>
-            <h1>CAMPER<span>LEVEL</span></h1>
+            <h1>KEIL<span>OMAT</span></h1>
           </div>
         </div>
         <span className={`status-pill ${usingDemoMode ? 'demo' : 'live'}`}>

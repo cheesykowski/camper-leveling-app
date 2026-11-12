@@ -1,6 +1,6 @@
-# Camper Leveling App
+# KEILOMAT
 
-Eine mobile-first Web-App, die dabei hilft, ein Wohnmobil beim Parken auszurichten. Der aktuelle Prototyp verwendet die Bewegungssensoren des Smartphones oder Demo-Regler. Eine Verbindung zu einer externen Bluetooth-IMU ist für einen späteren Entwicklungsschritt vorgesehen.
+KEILOMAT ist eine mobile-first Web-App, die dabei hilft, ein Wohnmobil beim Parken auszurichten. Der aktuelle Prototyp verwendet die Bewegungssensoren des Smartphones oder Demo-Regler. Eine Verbindung zu einer externen Bluetooth-IMU ist für einen späteren Entwicklungsschritt vorgesehen.
 
 > **Status:** früher Prototyp. Die Sensorausrichtung und Keil-Empfehlungen müssen mit dem realen Fahrzeug und den tatsächlichen Keilen überprüft werden. Die App ist derzeit keine sicherheitskritische Mess- oder Fahrhilfe.
 
