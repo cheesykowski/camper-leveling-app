@@ -11,6 +11,7 @@ Eine mobile-first Web-App, die dabei hilft, ein Wohnmobil beim Parken auszuricht
 - Demo-Modus mit Reglern, falls kein Sensor verfügbar ist
 - Eingabe und lokale Speicherung von Radstand, Spurweite und Keilhöhen
 - Einfache Empfehlung, welche Achse oder Fahrzeugseite angehoben werden sollte
+- Draufsicht des Fahrzeugs mit markierten Keilpositionen und empfohlener Keilhöhe
 - Speicherung der Einstellungen im `localStorage` des verwendeten Browsers
 
 Die Standardwerte für Fahrzeug und Keile sind nur Beispielwerte und müssen vor einer realen Verwendung angepasst werden.

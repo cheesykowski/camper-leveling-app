@@ -228,6 +228,105 @@ input:focus-visible {
   line-height: 1.6;
 }
 
+.vehicle-diagram {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  margin: 1.25rem 0;
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  background: #f8fafc;
+}
+
+.diagram-heading {
+  display: flex;
+  width: min(100%, 360px);
+  justify-content: space-between;
+  gap: 1rem;
+  color: #334155;
+  font-size: 0.9rem;
+}
+
+.diagram-heading span,
+.diagram-note {
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.vehicle-svg {
+  display: block;
+  width: min(100%, 360px);
+  height: auto;
+  overflow: visible;
+}
+
+.vehicle-body {
+  fill: #dbeafe;
+  stroke: #64748b;
+  stroke-width: 3;
+}
+
+.vehicle-glass {
+  fill: #94a3b8;
+  stroke: #64748b;
+  stroke-width: 2;
+}
+
+.vehicle-roof {
+  fill: #bfdbfe;
+  stroke: #93c5fd;
+  stroke-width: 2;
+}
+
+.vehicle-seam {
+  stroke: #64748b;
+  stroke-dasharray: 4 4;
+  stroke-width: 2;
+}
+
+.diagram-tire {
+  fill: #334155;
+  stroke: #0f172a;
+  stroke-width: 2;
+}
+
+.diagram-wheel.active .diagram-tire {
+  fill: #b45309;
+  stroke: #92400e;
+}
+
+.diagram-wedge {
+  fill: #f59e0b;
+  stroke: #b45309;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.diagram-height-bg {
+  fill: #ffedd5;
+  stroke: #f59e0b;
+  stroke-width: 1.5;
+}
+
+.diagram-height {
+  fill: #7c2d12;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.diagram-axle-label {
+  fill: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.diagram-note {
+  margin: 0;
+  text-align: center;
+}
+
 .recommendation-box {
   margin-bottom: 1rem;
   background: #eff6ff;

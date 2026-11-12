@@ -13,6 +13,13 @@ const defaultCalibration = {
   roll: 0,
 };
 
+const wheelPositions = [
+  { id: 'front-left', label: 'Front left', x: 92, y: 104, side: 'left' },
+  { id: 'front-right', label: 'Front right', x: 234, y: 104, side: 'right' },
+  { id: 'rear-left', label: 'Rear left', x: 92, y: 286, side: 'left' },
+  { id: 'rear-right', label: 'Rear right', x: 234, y: 286, side: 'right' },
+];
+
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 const parseListInput = (value) =>
@@ -183,13 +190,6 @@ function App() {
     wedgeHeightsCm: vehicle.wedgeHeightsCm.join(', '),
   };
 
-  const wheelCardMap = {
-    'front-left': 'Front left',
-    'front-right': 'Front right',
-    'rear-left': 'Rear left',
-    'rear-right': 'Rear right',
-  };
-
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -331,6 +331,88 @@ function App() {
           <h3>{recommendation.title}</h3>
           <p>{recommendation.description}</p>
 
+          <div className="vehicle-diagram">
+            <div className="diagram-heading">
+              <strong>Top-down view</strong>
+              <span>Front of vehicle ↑</span>
+            </div>
+            <svg
+              className="vehicle-svg"
+              viewBox="0 0 360 420"
+              role="img"
+              aria-labelledby="vehicle-diagram-title vehicle-diagram-description"
+            >
+              <title id="vehicle-diagram-title">Recommended wedge positions</title>
+              <desc id="vehicle-diagram-description">
+                {recommendation.axis === 'level'
+                  ? 'The vehicle is level; no wedges are needed.'
+                  : `Place ${recommendation.level.toFixed(1)} centimeter wedges at ${recommendation.wheels
+                      .map((wheel) => wheelPositions.find((position) => position.id === wheel)?.label)
+                      .join(' and ')}.`}
+              </desc>
+
+              <rect className="vehicle-body" x="116" y="25" width="128" height="370" rx="45" />
+              <path className="vehicle-glass" d="M130 80 Q180 52 230 80 L222 130 Q180 143 138 130 Z" />
+              <path className="vehicle-roof" d="M133 147 Q180 136 227 147 L227 272 Q180 284 133 272 Z" />
+              <path className="vehicle-glass" d="M138 289 Q180 278 222 289 L230 337 Q180 360 130 337 Z" />
+              <line className="vehicle-seam" x1="124" y1="279" x2="236" y2="279" />
+
+              {wheelPositions.map((wheel) => {
+                const active =
+                  recommendation.axis !== 'level' && recommendation.wheels.includes(wheel.id);
+                const labelX = wheel.side === 'left' ? 8 : 292;
+                const wedgePoints =
+                  wheel.side === 'left'
+                    ? `${wheel.x - 19},${wheel.y + 24} ${wheel.x},${wheel.y + 16} ${wheel.x},${wheel.y + 36}`
+                    : `${wheel.x + 53},${wheel.y + 24} ${wheel.x + 34},${wheel.y + 16} ${wheel.x + 34},${wheel.y + 36}`;
+
+                return (
+                  <g key={wheel.id} className={active ? 'diagram-wheel active' : 'diagram-wheel'}>
+                    <title>
+                      {active
+                        ? `${wheel.label}: place a ${recommendation.level.toFixed(1)} cm wedge here`
+                        : `${wheel.label}: no wedge recommended`}
+                    </title>
+                    <rect className="diagram-tire" x={wheel.x} y={wheel.y} width="34" height="48" rx="10" />
+                    {active && (
+                      <>
+                        <polygon className="diagram-wedge" points={wedgePoints} />
+                        <rect
+                          className="diagram-height-bg"
+                          x={labelX}
+                          y={wheel.y + 12}
+                          width="60"
+                          height="24"
+                          rx="12"
+                        />
+                        <text
+                          className="diagram-height"
+                          x={labelX + 30}
+                          y={wheel.y + 28}
+                          textAnchor="middle"
+                        >
+                          {recommendation.level.toFixed(1)} cm
+                        </text>
+                      </>
+                    )}
+                  </g>
+                );
+              })}
+
+              <text className="diagram-axle-label" x="180" y="20" textAnchor="middle">
+                FRONT
+              </text>
+              <text className="diagram-axle-label" x="180" y="413" textAnchor="middle">
+                REAR
+              </text>
+            </svg>
+            <p className="diagram-note">
+              {recommendation.axis === 'level'
+                ? 'No wedges needed.'
+                : `Place ${recommendation.level.toFixed(1)} cm wedges at the highlighted wheels.`}
+            </p>
+          </div>
+
           {recommendation.level > 0 ? (
             <div className="recommendation-box">
               <strong>Use wedge level: {recommendation.level.toFixed(1)} cm</strong>
@@ -343,11 +425,12 @@ function App() {
           )}
 
           <div className="wheel-grid">
-            {['front-left', 'front-right', 'rear-left', 'rear-right'].map((wheel) => {
-              const active = recommendation.wheels.includes(wheel);
+            {wheelPositions.map((wheel) => {
+              const active =
+                recommendation.axis !== 'level' && recommendation.wheels.includes(wheel.id);
               return (
-                <div key={wheel} className={`wheel-card ${active ? 'active' : ''}`}>
-                  <span>{wheelCardMap[wheel]}</span>
+                <div key={wheel.id} className={`wheel-card ${active ? 'active' : ''}`}>
+                  <span>{wheel.label}</span>
                   <strong>{active ? `${recommendation.level.toFixed(1)} cm` : '—'}</strong>
                 </div>
               );
