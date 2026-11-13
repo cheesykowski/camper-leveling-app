@@ -25,15 +25,11 @@ const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 const getVehicleWheelPositions = ({ wheelbaseCm, trackWidthCm }) => {
   const wheelSpacingScale = 1.15;
-  const trackHalfWidth = clamp(
-    (58 + ((trackWidthCm - 80) / 320) * 38) * wheelSpacingScale,
-    58,
-    108,
-  );
+  const trackHalfWidth = clamp(68 + ((trackWidthCm - 80) / 320) * 10, 68, 78);
   const axleHalfSpacing = clamp(
     (60 + ((wheelbaseCm - 100) / 400) * 90) * wheelSpacingScale,
     60,
-    160,
+    157,
   );
   const frontY = 219 - axleHalfSpacing;
   const rearY = 219 + axleHalfSpacing;
@@ -67,11 +63,14 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
           : recommendation?.description}
       </desc>
 
-      <rect className="vehicle-body" x="116" y="25" width="128" height="370" rx="45" />
-      <path className="vehicle-glass" d="M130 80 Q180 52 230 80 L222 130 Q180 143 138 130 Z" />
-      <path className="vehicle-roof" d="M133 147 Q180 136 227 147 L227 272 Q180 284 133 272 Z" />
-      <path className="vehicle-glass" d="M138 289 Q180 278 222 289 L230 337 Q180 360 130 337 Z" />
-      <text className="diagram-axle-label" x="180" y="20" textAnchor="middle">
+      <path
+        className="vehicle-body"
+        d="M122 18 Q180 6 238 18 Q264 23 270 50 L276 86 V382 Q276 400 258 400 H102 Q84 400 84 382 V86 L90 50 Q96 23 122 18Z"
+      />
+      <path className="vehicle-glass" d="M125 62 Q180 45 235 62 L232 105 Q180 117 128 105 Z" />
+      <path className="vehicle-roof" d="M112 134 Q180 127 248 134 V282 Q180 289 112 282 Z" />
+      <path className="vehicle-glass" d="M130 306 H230 V354 Q180 364 130 354 Z" />
+      <text className="diagram-axle-label" x="180" y="34" textAnchor="middle">
         FRONT
       </text>
       <text className="diagram-axle-label" x="180" y="413" textAnchor="middle">
@@ -902,7 +901,7 @@ function App() {
                         {wedgeIllustrationHeights[2] ?? '—'}
                       </text>
                     </svg>
-                    <span>Side view · lowest step at ramp toe</span>
+                    <span>Side view</span>
                   </div>
                   <div className="wedge-list">
                     {wedgeHeightInputs.map((height, index) => (
@@ -935,7 +934,7 @@ function App() {
                     + ADD STEP
                   </button>
                   <p className="settings-hint">
-                    Set each step height in centimeters; decimal values are allowed. Recommendations show whole step numbers.
+                    Configure the steps and set the height.
                   </p>
                 </div>
               </div>
