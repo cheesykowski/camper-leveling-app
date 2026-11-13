@@ -80,7 +80,7 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
           <g key={wheel.id} className={active ? 'diagram-wheel active' : 'diagram-wheel'}>
             <title>
               {active
-                ? `${wheel.label}: step ${placement.step}, ${placement.selectedHeightCm} cm`
+                ? `${wheel.label}: step ${placement.step}`
                 : `${wheel.label}: no wedge recommended`}
             </title>
             <rect className="diagram-tire" x={wheel.x} y={wheel.y} width="34" height="48" rx="10" />
@@ -164,9 +164,7 @@ function App() {
       const savedWedgeHeights = Array.isArray(parsed.vehicle?.wedgeHeightsCm)
         ? parsed.vehicle.wedgeHeightsCm
             .map(Number)
-            .filter(Number.isFinite)
-            .map(Math.round)
-            .filter((height) => height > 0)
+            .filter((height) => Number.isFinite(height) && height > 0)
             .sort((a, b) => a - b)
         : [];
       return {
@@ -443,8 +441,8 @@ function App() {
   };
 
   const saveWedgeHeight = (index) => {
-    const height = Number(wedgeHeightInputs[index]);
-    if (!Number.isInteger(height) || height <= 0) {
+    const height = Number(wedgeHeightInputs[index].replace(',', '.'));
+    if (!Number.isFinite(height) || height <= 0) {
       setWedgeHeightInputs(vehicle.wedgeHeightsCm.map(String));
       return;
     }
@@ -915,9 +913,8 @@ function App() {
                       <label className="wedge-row" key={`wedge-${index}`}>
                         <span>STEP {index + 1}</span>
                         <input
-                          type="number"
-                          min="1"
-                          step="1"
+                          type="text"
+                          inputMode="decimal"
                           value={height}
                           aria-label={`Height of step ${index + 1} in centimeters`}
                           onChange={(event) => handleWedgeHeightChange(index, event.target.value)}
@@ -940,7 +937,7 @@ function App() {
                     + ADD STEP
                   </button>
                   <p className="settings-hint">
-                    Set each available step height as a whole number of centimeters. Changes are saved on this device.
+                    Set each step height in centimeters; decimal values are allowed. Recommendations show whole step numbers.
                   </p>
                 </div>
               </div>

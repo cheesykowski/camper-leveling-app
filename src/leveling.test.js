@@ -96,3 +96,17 @@ test('does not recommend a fractional or higher step when lift is below the firs
     ),
   );
 });
+
+test('accepts fractional wedge heights while returning integer step numbers', () => {
+  const plan = calculateTwoWedgePlan({
+    ...dimensions,
+    wedgeHeightsCm: [2.5, 5.5, 8.5],
+    pitchDegrees: 1.5,
+    rollDegrees: 0,
+  });
+
+  assert.ok(plan.wedgePlacements.every(({ step }) => Number.isInteger(step) && step === 2));
+  assert.ok(
+    plan.wedgePlacements.every(({ selectedHeightCm }) => selectedHeightCm === 5.5),
+  );
+});
