@@ -11,7 +11,8 @@ KEILOMAT ist eine mobile-first Web-App, die dabei hilft, ein Wohnmobil beim Park
 - Interaktive 3D-Neigungssimulation mit begrenztem Pitch- und Roll-Winkel von bis zu ±30°, falls kein Sensor verfügbar ist
 - Auswahl zwischen Simulation, Smartphone-Sensor und (derzeit nicht verfügbarer) externer Sensorquelle
 - Eingabe und lokale Speicherung von Radstand, Spurweite und Keilhöhen
-- Einfache Empfehlung, welche Achse oder Fahrzeugseite angehoben werden sollte
+- Berechnung des erforderlichen Hubs für jedes Rad aus Pitch, Roll, Radstand und Spurweite
+- Anzeige der nächsten konfigurierten Keilstufe je Rad und der danach verbleibenden Neigung
 - Draufsicht des Fahrzeugs mit markierten Keilpositionen, empfohlenem Schritt und Keilhöhe
 - Gemeinsame Fahrzeug-Draufsicht in der Hauptansicht und Fahrzeugkonfiguration
 - Reduzierte Retro-Oberfläche mit Live-Neigungsanzeige und einer Drei-Sekunden-Halteaktion zur Kalibrierung
@@ -19,6 +20,8 @@ KEILOMAT ist eine mobile-first Web-App, die dabei hilft, ein Wohnmobil beim Park
 - Speicherung der Einstellungen im `localStorage` des verwendeten Browsers
 
 Die Standardwerte für Fahrzeug und Keile sind nur Beispielwerte und müssen vor einer realen Verwendung angepasst werden.
+
+Die Hubberechnung behandelt das Fahrzeug als starre Ebene auf ebenem Untergrund. Radstand und Spurweite sind dabei die horizontalen Abstände zwischen den Radaufstandspunkten; die eingetragenen Keilhöhen sind verfügbare absolute Höhen je Rad. Reifenverformung, Federweg, unebener Untergrund und Verwindung des Fahrgestells sind nicht modelliert. Sensorachsen und Vorzeichen müssen vor einem realen Einsatz am Fahrzeug überprüft werden.
 
 ## Lokal entwickeln
 

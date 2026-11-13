@@ -626,32 +626,32 @@ input:focus-visible {
 }
 
 .diagram-wheel.active .diagram-tire {
-  fill: #71521a;
-  stroke: var(--amber);
-  filter: drop-shadow(0 0 5px rgb(255 200 87 / 55%));
+  fill: #1d472b;
+  stroke: var(--glow);
+  filter: drop-shadow(0 0 5px rgb(167 255 117 / 35%));
 }
 
 .diagram-wedge {
-  fill: var(--amber);
-  stroke: #fff0a8;
+  fill: rgb(119 223 128 / 60%);
+  stroke: var(--glow);
   stroke-linejoin: round;
   stroke-width: 1.5;
-  filter: drop-shadow(0 0 6px rgb(255 200 87 / 65%));
+  filter: drop-shadow(0 0 6px rgb(167 255 117 / 40%));
   animation: wedge-pulse 1.6s steps(2, start) infinite;
 }
 
 .diagram-height-bg {
-  fill: #211a0d;
-  stroke: var(--amber);
+  fill: #122218;
+  stroke: var(--glow);
   stroke-width: 1.5;
-  filter: drop-shadow(0 0 5px rgb(255 200 87 / 25%));
+  filter: drop-shadow(0 0 5px rgb(167 255 117 / 20%));
 }
 
 .diagram-height {
-  fill: #ffe8a6;
-  font-size: 15px;
+  fill: var(--glow);
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
 }
 
 .level-readout {
@@ -681,11 +681,57 @@ input:focus-visible {
 .level-readout small {
   color: var(--dim);
   font-size: 0.62rem;
-  white-space: nowrap;
+  flex-basis: 100%;
+  white-space: normal;
 }
 
 .level-readout.is-level strong {
   color: var(--glow);
+}
+
+.wheel-lift-plan {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.wheel-lift-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px 8px;
+  padding: 8px 9px;
+  border: 1px solid var(--line);
+  background: #0b130e;
+}
+
+.wheel-lift-item.needs-lift {
+  border-color: rgb(119 223 128 / 45%);
+}
+
+.wheel-lift-item > span {
+  color: var(--dim);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wheel-lift-item > strong {
+  color: var(--text);
+  font-size: 0.69rem;
+  white-space: nowrap;
+}
+
+.wheel-lift-item.needs-lift > strong {
+  color: var(--glow);
+}
+
+.wheel-lift-item > small {
+  grid-column: 1 / -1;
+  color: var(--dim);
+  font-size: 0.58rem;
 }
 
 .action-area {
@@ -991,41 +1037,62 @@ input:focus-visible {
 
 .wedge-illustration svg {
   display: block;
-  width: min(100%, 220px);
+  width: min(100%, 320px);
   height: auto;
 }
 
 .wedge-example-body {
-  fill: rgb(255 200 87 / 75%);
-  stroke: #ffe8a6;
+  fill: rgb(119 223 128 / 18%);
+  stroke: #77df80;
   stroke-linejoin: round;
-  stroke-width: 1.5;
+  stroke-width: 2;
 }
 
 .wedge-example-seams {
   fill: none;
-  stroke: #fff0a8;
-  stroke-width: 1.2;
+  stroke: rgb(167 255 117 / 35%);
+  stroke-dasharray: 3 4;
+  stroke-width: 1;
+}
+
+.wedge-example-car {
+  fill: none;
+  stroke: #77df80;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
 }
 
 .wedge-example-label {
-  fill: #211a0d;
+  fill: var(--glow);
   font-family: inherit;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
   text-anchor: middle;
 }
 
 .wedge-example-wheel {
-  fill: #101d16;
-  stroke: #b6d6bd;
-  stroke-width: 3;
+  fill: #0b130e;
+  stroke: #77df80;
+  stroke-width: 2.5;
+}
+
+.wedge-example-rim {
+  fill: #122218;
+  stroke: #77df80;
+  stroke-width: 1.5;
+}
+
+.wedge-example-spokes {
+  fill: none;
+  stroke: rgb(167 255 117 / 55%);
+  stroke-width: 1.5;
 }
 
 .wedge-example-hub {
   fill: #31533a;
-  stroke: #77df80;
-  stroke-width: 1.5;
+  stroke: var(--glow);
+  stroke-width: 1;
 }
 
 .wedge-illustration > span {
@@ -1125,7 +1192,7 @@ input:focus-visible {
 @keyframes wedge-pulse {
   50% {
     opacity: 0.68;
-    filter: drop-shadow(0 0 2px rgb(255 200 87 / 32%));
+    filter: drop-shadow(0 0 2px rgb(167 255 117 / 24%));
   }
 }
 

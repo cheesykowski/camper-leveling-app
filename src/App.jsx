@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { calculateWheelLiftPlan, wheelCorners } from './leveling.js';
 
 const STORAGE_KEY = 'camper-leveling-demo-v1';
 const SIMULATION_MAX_TILT = 30;
@@ -22,29 +23,17 @@ const defaultCalibrations = {
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
-const chooseNearestHeight = (heights, target) => {
-  if (!heights.length) return 0;
-  const sorted = [...heights].sort((a, b) => a - b);
-  return sorted.reduce((best, current) => {
-    if (current >= target) {
-      return best === null || current - target < Math.abs(best - target) ? current : best;
-    }
-    return best === null || Math.abs(current - target) < Math.abs(best - target) ? current : best;
-  }, null) ?? sorted[sorted.length - 1];
-};
-
 const getVehicleWheelPositions = ({ wheelbaseCm, trackWidthCm }) => {
   const trackHalfWidth = clamp(58 + ((trackWidthCm - 80) / 320) * 38, 58, 96);
   const axleHalfSpacing = clamp(60 + ((wheelbaseCm - 100) / 400) * 90, 60, 150);
   const frontY = 219 - axleHalfSpacing;
   const rearY = 219 + axleHalfSpacing;
 
-  return [
-    { id: 'front-left', label: 'Front left', x: 180 - trackHalfWidth - 17, y: frontY - 24, side: 'left' },
-    { id: 'front-right', label: 'Front right', x: 180 + trackHalfWidth - 17, y: frontY - 24, side: 'right' },
-    { id: 'rear-left', label: 'Rear left', x: 180 - trackHalfWidth - 17, y: rearY - 24, side: 'left' },
-    { id: 'rear-right', label: 'Rear right', x: 180 + trackHalfWidth - 17, y: rearY - 24, side: 'right' },
-  ];
+  return wheelCorners.map((wheel) => ({
+    ...wheel,
+    x: 180 + (wheel.side === 'left' ? -trackHalfWidth : trackHalfWidth) - 17,
+    y: (wheel.axle === 'front' ? frontY : rearY) - 24,
+  }));
 };
 
 function VehicleDiagram({ className, vehicle, recommendation, showMeasurements = false }) {
@@ -70,9 +59,10 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
             ? recommendation.description
             : recommendation?.axis === 'level'
               ? 'The vehicle is level; no wedges are needed.'
-              : `Place ${recommendation?.level.toFixed(1)} centimeter wedges at ${recommendation?.wheels
-                  .map((wheel) => wheels.find((position) => position.id === wheel)?.label)
-                  .join(' and ')}.`}
+              : `Required lifts: ${recommendation?.wheelLifts
+                  .filter((wheel) => wheel.requiredLiftCm > 0.05)
+                  .map((wheel) => `${wheel.label} ${wheel.requiredLiftCm.toFixed(1)} centimeters`)
+                  .join(', ')}.`}
       </desc>
 
       <rect className="vehicle-body" x="116" y="25" width="128" height="370" rx="45" />
@@ -82,16 +72,13 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
       <line className="vehicle-seam" x1="124" y1="279" x2="236" y2="279" />
 
       {wheels.map((wheel) => {
-        const active = Boolean(
-          recommendation &&
-            recommendation.axis !== 'level' &&
-            recommendation.axis !== 'unavailable' &&
-            recommendation.wheels.includes(wheel.id),
-        );
+        const lift = recommendation?.wheelLifts?.find((item) => item.id === wheel.id);
+        const active = Boolean(lift && lift.requiredLiftCm > 0.05);
+        const selectedWedge = Boolean(lift && lift.selectedHeightCm > 0);
         const labelX =
           wheel.side === 'left'
-            ? Math.max(4, wheel.x - 60)
-            : Math.min(316, wheel.x + 56);
+            ? Math.max(2, wheel.x - 62)
+            : Math.min(312, wheel.x + 52);
         const wedgePoints =
           wheel.side === 'left'
             ? `${wheel.x - 19},${wheel.y + 24} ${wheel.x},${wheel.y + 16} ${wheel.x},${wheel.y + 36}`
@@ -101,23 +88,25 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
           <g key={wheel.id} className={active ? 'diagram-wheel active' : 'diagram-wheel'}>
             <title>
               {active
-                ? `${wheel.label}: place wedge step ${recommendation.step} (${recommendation.level.toFixed(1)} cm) here`
+                ? `${wheel.label}: required lift ${lift.requiredLiftCm.toFixed(1)} cm; nearest available step ${
+                    lift.step
+                  } is ${lift.selectedHeightCm.toFixed(1)} cm`
                 : `${wheel.label}: no wedge recommended`}
             </title>
             <rect className="diagram-tire" x={wheel.x} y={wheel.y} width="34" height="48" rx="10" />
             {active && (
               <>
-                <polygon className="diagram-wedge" points={wedgePoints} />
+                {selectedWedge && <polygon className="diagram-wedge" points={wedgePoints} />}
                 <rect
                   className="diagram-height-bg"
                   x={labelX}
                   y={wheel.y + 12}
-                  width="40"
+                  width="46"
                   height="24"
                   rx="12"
                 />
-                <text className="diagram-height" x={labelX + 20} y={wheel.y + 28} textAnchor="middle">
-                  {recommendation.step}
+                <text className="diagram-height" x={labelX + 23} y={wheel.y + 28} textAnchor="middle">
+                  {lift.requiredLiftCm.toFixed(1)}
                 </text>
               </>
             )}
@@ -360,63 +349,50 @@ function App() {
           source === 'external'
             ? 'The external Bluetooth connection is not available yet.'
             : 'Choose simulation or wait for a signal from the phone sensor.',
-        wheels: [],
-        level: 0,
-        requiredLiftCm: 0,
+        wheelLifts: [],
       };
     }
 
     const pitchAbs = Math.abs(currentPitch);
     const rollAbs = Math.abs(currentRoll);
-    const wedgeHeights = [...vehicle.wedgeHeightsCm].sort((a, b) => a - b);
 
     if (pitchAbs < 0.2 && rollAbs < 0.2) {
       return {
         axis: 'level',
         title: 'Vehicle is level',
         description: 'The app is within the target tolerance. No wedge adjustment needed right now.',
-        wheels: ['front-left', 'front-right', 'rear-left', 'rear-right'],
-        level: 0,
-        requiredLiftCm: 0,
+        wheelLifts: [],
       };
     }
 
-    if (pitchAbs >= rollAbs) {
-      const frontHigh = currentPitch > 0;
-      const targetAxle = frontHigh ? 'rear' : 'front';
-      const requiredLiftCm = (vehicle.wheelbaseCm / 2) * Math.tan((pitchAbs * Math.PI) / 180);
-      const selectedLevel = chooseNearestHeight(wedgeHeights, requiredLiftCm);
-      const step = Math.max(0, wedgeHeights.indexOf(selectedLevel) + 1);
-
-      return {
-        axis: 'pitch',
-        title: frontHigh ? 'Front is high' : 'Rear is high',
-        description: frontHigh
-          ? 'The front is higher than the rear. Place the wedges under the rear axle to lift the rear and bring the vehicle level.'
-          : 'The rear is higher than the front. Place the wedges under the front axle to lift the front and bring the vehicle level.',
-        wheels: targetAxle === 'rear' ? ['rear-left', 'rear-right'] : ['front-left', 'front-right'],
-        level: selectedLevel,
-        step,
-        requiredLiftCm,
-      };
-    }
-
-    const rightLow = currentRoll > 0;
-    const targetSide = rightLow ? 'right' : 'left';
-    const requiredLiftCm = (vehicle.trackWidthCm / 2) * Math.tan((rollAbs * Math.PI) / 180);
-    const selectedLevel = chooseNearestHeight(wedgeHeights, requiredLiftCm);
-    const step = Math.max(0, wedgeHeights.indexOf(selectedLevel) + 1);
+    const plan = calculateWheelLiftPlan({
+      pitchDegrees: currentPitch,
+      rollDegrees: currentRoll,
+      wheelbaseCm: vehicle.wheelbaseCm,
+      trackWidthCm: vehicle.trackWidthCm,
+      wedgeHeightsCm: vehicle.wedgeHeightsCm,
+    });
+    const pitchActive = pitchAbs >= 0.2;
+    const rollActive = rollAbs >= 0.2;
+    const axis = pitchActive && rollActive ? 'combined' : pitchActive ? 'pitch' : 'roll';
+    const title =
+      axis === 'combined'
+        ? 'Vehicle is tilted in both directions'
+        : axis === 'pitch'
+          ? currentPitch > 0
+            ? 'Front is high'
+            : 'Rear is high'
+          : currentRoll > 0
+            ? 'Right side is low'
+            : 'Left side is low';
 
     return {
-      axis: 'roll',
-      title: rightLow ? 'Right side is low' : 'Left side is low',
-      description: rightLow
-        ? 'The right side is lower than the left. Place wedges under the right-side wheels to lift the right side.'
-        : 'The left side is lower than the right. Place wedges under the left-side wheels to lift the left side.',
-      wheels: targetSide === 'right' ? ['front-right', 'rear-right'] : ['front-left', 'rear-left'],
-      level: selectedLevel,
-      step,
-      requiredLiftCm,
+      axis,
+      title,
+      description: `Lift each wheel by its required amount. The selected wedge steps leave ${Math.abs(
+        plan.residualPitchDegrees,
+      ).toFixed(1)}° pitch and ${Math.abs(plan.residualRollDegrees).toFixed(1)}° roll.`,
+      ...plan,
     };
   }, [currentPitch, currentRoll, source, vehicle]);
 
@@ -751,22 +727,49 @@ function App() {
             <span>
               {recommendation.axis === 'level' || recommendation.axis === 'unavailable'
                 ? 'STATUS'
-                : 'RECOMMENDED STEP'}
+                : 'PER-WHEEL PLAN'}
             </span>
             <strong>
               {recommendation.axis === 'level'
                 ? 'NO WEDGES NEEDED'
                 : recommendation.axis === 'unavailable'
                   ? 'SOURCE UNAVAILABLE'
-                  : `STEP ${recommendation.step}`}
+                  : Math.abs(recommendation.residualPitchDegrees) < 0.2 &&
+                      Math.abs(recommendation.residualRollDegrees) < 0.2
+                    ? 'LEVELING TARGET MET'
+                    : 'AVAILABLE STEPS LEAVE A TILT'}
             </strong>
             {recommendation.axis !== 'level' && recommendation.axis !== 'unavailable' && (
               <small>
-                {recommendation.level.toFixed(1)} cm wedge · required lift ≈{' '}
-                {recommendation.requiredLiftCm.toFixed(1)} cm
+                Remaining tilt after selected steps: pitch{' '}
+                {recommendation.residualPitchDegrees.toFixed(1)}° · roll{' '}
+                {recommendation.residualRollDegrees.toFixed(1)}°
               </small>
             )}
           </div>
+          {recommendation.axis !== 'level' && recommendation.axis !== 'unavailable' && (
+            <div className="wheel-lift-plan" role="list" aria-label="Per-wheel lift plan">
+              {recommendation.wheelLifts.map((wheelLift) => (
+                <div
+                  className={
+                    wheelLift.requiredLiftCm > 0.05
+                      ? 'wheel-lift-item needs-lift'
+                      : 'wheel-lift-item'
+                  }
+                  key={wheelLift.id}
+                  role="listitem"
+                >
+                  <span>{wheelLift.label}</span>
+                  <strong>{wheelLift.requiredLiftCm.toFixed(1)} cm required</strong>
+                  <small>
+                    {wheelLift.selectedHeightCm > 0
+                      ? `Use step ${wheelLift.step} · ${wheelLift.selectedHeightCm.toFixed(1)} cm`
+                      : 'No wedge needed'}
+                  </small>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <div className="action-area">
@@ -931,25 +934,28 @@ function App() {
               <div className="menu-content">
                 <div className="settings-card wedge-settings">
                   <div className="wedge-illustration">
-                    <svg viewBox="0 0 220 110" role="img" aria-labelledby="wedge-example-title">
+                    <svg viewBox="0 0 320 200" role="img" aria-labelledby="wedge-example-title">
                       <title id="wedge-example-title">
-                        Three example wedge levels with a wheel resting on the highest step
+                        Side view of a vehicle wheel resting on a three-level wedge
                       </title>
-                      <path className="wedge-example-body" d="M24 96H54V78H90V60H126V42H180V96Z" />
-                      <path className="wedge-example-seams" d="M54 96V78H90V60H126V42H180" />
-                      <text className="wedge-example-label" x="38" y="91">
+                      <path className="wedge-example-body" d="M20 123 300 190V197H20Z" />
+                      <path className="wedge-example-seams" d="M112 145V197M205 167V197" />
+                      <path className="wedge-example-car" d="M0 58H64C70 26 96 10 138 10S206 26 212 58H320" />
+                      <circle className="wedge-example-wheel" cx="138" cy="83" r="66" />
+                      <circle className="wedge-example-rim" cx="138" cy="83" r="42" />
+                      <path className="wedge-example-spokes" d="M138 41V125M96 83H180M108 53 168 113M168 53 108 113" />
+                      <circle className="wedge-example-hub" cx="138" cy="83" r="8" />
+                      <text className="wedge-example-label" x="65" y="184">
                         {vehicle.wedgeHeightsCm[0]?.toFixed(1) ?? '—'}
                       </text>
-                      <text className="wedge-example-label" x="72" y="73">
+                      <text className="wedge-example-label" x="158" y="189">
                         {vehicle.wedgeHeightsCm[1]?.toFixed(1) ?? '—'}
                       </text>
-                      <text className="wedge-example-label" x="108" y="55">
+                      <text className="wedge-example-label" x="250" y="194">
                         {vehicle.wedgeHeightsCm[2]?.toFixed(1) ?? '—'}
                       </text>
-                      <circle className="wedge-example-wheel" cx="180" cy="22" r="20" />
-                      <circle className="wedge-example-hub" cx="180" cy="22" r="7" />
                     </svg>
-                    <span>Example step heights in cm · wheel shown on the highest step</span>
+                    <span>Side view · example step heights in cm</span>
                   </div>
                   <div className="wedge-list">
                     {wedgeHeightInputs.map((height, index) => (
