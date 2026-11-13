@@ -30,7 +30,7 @@ const vehicleDimensionLimits = {
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 const getVehicleWheelPositions = ({ wheelbaseCm, trackWidthCm }) => {
-  const trackHalfWidth = clamp(68 + ((trackWidthCm - 80) / 320) * 10, 68, 78);
+  const trackHalfWidth = clamp(66 + ((trackWidthCm - 80) / 320) * 10, 66, 76);
   const axleHalfSpacing = clamp(
     60 + ((wheelbaseCm - 100) / 400) * 90,
     60,

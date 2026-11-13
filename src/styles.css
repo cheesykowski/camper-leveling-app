@@ -1323,9 +1323,9 @@ input:focus-visible {
 
   .vehicle-preview .vehicle-svg {
     width: auto;
-    height: min(30svh, 190px);
+    height: min(34svh, 210px);
     max-width: 100%;
-    max-height: 190px;
+    max-height: 210px;
   }
 
   .input-group {
@@ -1365,9 +1365,9 @@ input:focus-visible {
 
   .wedge-illustration svg {
     width: auto;
-    height: min(20svh, 112px);
+    height: min(23svh, 128px);
     max-width: 100%;
-    max-height: 112px;
+    max-height: 128px;
   }
 
   .wedge-list {
