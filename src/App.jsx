@@ -65,12 +65,12 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
 
       <path
         className="vehicle-body"
-        d="M122 18 Q180 6 238 18 Q264 23 270 50 L276 86 V382 Q276 400 258 400 H102 Q84 400 84 382 V86 L90 50 Q96 23 122 18Z"
+        d="M116 25 H244 Q276 25 276 70 V350 Q276 395 244 395 H116 Q84 395 84 350 V70 Q84 25 116 25Z"
       />
-      <path className="vehicle-glass" d="M125 62 Q180 45 235 62 L232 105 Q180 117 128 105 Z" />
-      <path className="vehicle-roof" d="M112 134 Q180 127 248 134 V282 Q180 289 112 282 Z" />
-      <path className="vehicle-glass" d="M130 306 H230 V354 Q180 364 130 354 Z" />
-      <text className="diagram-axle-label" x="180" y="34" textAnchor="middle">
+      <path className="vehicle-glass" d="M130 80 Q180 52 230 80 L222 130 Q180 143 138 130 Z" />
+      <path className="vehicle-roof" d="M133 147 Q180 136 227 147 L227 272 Q180 284 133 272 Z" />
+      <path className="vehicle-glass" d="M138 289 Q180 278 222 289 L230 337 Q180 360 130 337 Z" />
+      <text className="diagram-axle-label" x="180" y="20" textAnchor="middle">
         FRONT
       </text>
       <text className="diagram-axle-label" x="180" y="413" textAnchor="middle">
@@ -80,10 +80,7 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
       {wheels.map((wheel) => {
         const placement = recommendation?.wedgePlacements?.find((item) => item.id === wheel.id);
         const active = Boolean(placement && placement.step > 0);
-        const labelX =
-          wheel.side === 'left'
-            ? Math.max(2, wheel.x - 62)
-            : Math.min(302, wheel.x + 52);
+        const labelX = wheel.side === 'left' ? 8 : 292;
         const wedgePoints =
           wheel.side === 'left'
             ? `${wheel.x - 19},${wheel.y + 24} ${wheel.x},${wheel.y + 16} ${wheel.x},${wheel.y + 36}`
@@ -104,11 +101,11 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
                   className="diagram-height-bg"
                   x={labelX}
                   y={wheel.y + 12}
-                  width="56"
+                  width="60"
                   height="24"
                   rx="12"
                 />
-                <text className="diagram-height" x={labelX + 28} y={wheel.y + 28} textAnchor="middle">
+                <text className="diagram-height" x={labelX + 30} y={wheel.y + 28} textAnchor="middle">
                   STEP {placement.step}
                 </text>
               </>
@@ -119,9 +116,6 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
 
       {showMeasurements && (
         <g className="vehicle-measurements">
-          <text className="vehicle-dimension-label" x="180" y="58" textAnchor="middle">
-            TRACK WIDTH · {vehicle.trackWidthCm} CM
-          </text>
           <line
             className="vehicle-dimension"
             x1={leftWheelCenterX}
@@ -135,6 +129,14 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
               rightWheelCenterX + 6
             } 68 ${rightWheelCenterX - 2} 64v8z`}
           />
+          <text
+            className="vehicle-dimension-label"
+            x="180"
+            y="58"
+            textAnchor="middle"
+          >
+            TRACK WIDTH · {vehicle.trackWidthCm} CM
+          </text>
           <line
             className="vehicle-dimension"
             x1="44"
