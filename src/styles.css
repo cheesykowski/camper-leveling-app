@@ -598,6 +598,16 @@ input:focus-visible {
   gap: 4px;
 }
 
+.quick-calibrations-label {
+  margin: 0;
+  color: var(--dim);
+  font-size: 0.53rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-align: left;
+}
+
 .quick-calibration-button {
   min-width: 0;
   min-height: 30px;

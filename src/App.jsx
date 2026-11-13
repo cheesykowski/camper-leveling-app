@@ -673,6 +673,7 @@ function App() {
   };
 
   const sortedWedgeHeights = [...vehicle.wedgeHeightsCm].sort((a, b) => a - b);
+  const hasPhoneCalibrationProfiles = calibrationProfiles.phone.length > 0;
   const recentCalibrationProfiles = calibrationProfiles.phone.slice(0, 3);
   const selectedPhoneCalibration = calibrationProfiles.phone.find(
     (profile) => profile.id === calibrationProfileIds.phone,
@@ -1044,7 +1045,10 @@ function App() {
                   ? 'Keep holding to save the current zero point'
                   : 'Park on level ground, then hold to set zero'}
           </p>
-          {calibrationProfiles.phone.length > 0 && (
+          {hasPhoneCalibrationProfiles && (
+            <p className="quick-calibrations-label">PICK CALIBRATION</p>
+          )}
+          {hasPhoneCalibrationProfiles && (
             <div
               className="quick-calibrations"
               role="group"
