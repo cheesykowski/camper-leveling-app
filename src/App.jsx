@@ -21,6 +21,11 @@ const formatCalibrationTimestamp = (timestamp) =>
 const getCalibrationProfileName = (profile) =>
   profile.name || `Calibration · ${formatCalibrationTimestamp(profile.createdAt)}`;
 
+const formatCalibrationAngle = (angle) => `${angle >= 0 ? '+' : ''}${angle.toFixed(1)}°`;
+
+const getCalibrationOffsetLabel = ({ pitch, roll }) =>
+  `Pitch ${formatCalibrationAngle(pitch)} · Roll ${formatCalibrationAngle(roll)}`;
+
 const getQuickCalibrationLabel = (profile) =>
   profile.name ||
   new Date(profile.createdAt).toLocaleTimeString('en-GB', {
@@ -537,12 +542,6 @@ function App() {
         calibrationProfileIds,
       )
     : defaultCalibration;
-  const profileManagementCalibration = getActiveCalibration(
-    calibrationProfileSource,
-    calibrations,
-    calibrationProfiles,
-    calibrationProfileIds,
-  );
   const currentRoll =
     source === 'simulation'
       ? simulatedTilt.roll
@@ -1061,13 +1060,21 @@ function App() {
                     : 'quick-calibration-button selected'
                 }
                 type="button"
+                aria-label={`Use latest calibration, ${getCalibrationOffsetLabel(
+                  calibrations.phone,
+                )}`}
                 aria-pressed={!calibrationProfileIds.phone}
+                title={`Latest · ${getCalibrationOffsetLabel(calibrations.phone)}`}
                 onClick={() => {
                   setCalibrationProfileIds((current) => ({ ...current, phone: null }));
                   setCalibrationComplete(false);
                 }}
               >
-                LATEST
+                <span className="quick-calibration-name">LATEST</span>
+                <span className="quick-calibration-offsets" aria-hidden="true">
+                  <span>Pitch {formatCalibrationAngle(calibrations.phone.pitch)}</span>
+                  <span>Roll {formatCalibrationAngle(calibrations.phone.roll)}</span>
+                </span>
               </button>
               {quickCalibrationProfiles.map((profile) => (
                 <button
@@ -1078,15 +1085,25 @@ function App() {
                   }
                   key={profile.id}
                   type="button"
-                  aria-label={`Use ${getCalibrationProfileName(profile)} calibration`}
+                  aria-label={`Use ${getCalibrationProfileName(
+                    profile,
+                  )} calibration, ${getCalibrationOffsetLabel(profile)}`}
                   aria-pressed={calibrationProfileIds.phone === profile.id}
-                  title={getCalibrationProfileName(profile)}
+                  title={`${getCalibrationProfileName(profile)} · ${getCalibrationOffsetLabel(
+                    profile,
+                  )}`}
                   onClick={() => {
                     setCalibrationProfileIds((current) => ({ ...current, phone: profile.id }));
                     setCalibrationComplete(false);
                   }}
                 >
-                  {getQuickCalibrationLabel(profile)}
+                  <span className="quick-calibration-name">
+                    {getQuickCalibrationLabel(profile)}
+                  </span>
+                  <span className="quick-calibration-offsets" aria-hidden="true">
+                    <span>Pitch {formatCalibrationAngle(profile.pitch)}</span>
+                    <span>Roll {formatCalibrationAngle(profile.roll)}</span>
+                  </span>
                 </button>
               ))}
               {hasMoreCalibrationProfiles && (
@@ -1367,7 +1384,7 @@ function App() {
                     </select>
                   </label>
                   <label>
-                    Active offset
+                    Calibration profile
                     <select
                       value={calibrationProfileIds[calibrationProfileSource] ?? ''}
                       onChange={(event) => {
@@ -1378,22 +1395,18 @@ function App() {
                         setCalibrationComplete(false);
                       }}
                     >
-                      <option value="">Most recent calibration</option>
+                      <option value="">
+                        Most recent ·{' '}
+                        {getCalibrationOffsetLabel(calibrations[calibrationProfileSource])}
+                      </option>
                       {calibrationProfiles[calibrationProfileSource].map((profile) => (
                         <option key={profile.id} value={profile.id}>
-                          {getCalibrationProfileName(profile)}
+                          {getCalibrationProfileName(profile)} ·{' '}
+                          {getCalibrationOffsetLabel(profile)}
                         </option>
                       ))}
                     </select>
                   </label>
-                  <p className="calibration-offset-readout">
-                    Active offset: pitch {profileManagementCalibration.pitch.toFixed(1)}° · roll{' '}
-                    {profileManagementCalibration.roll.toFixed(1)}°
-                  </p>
-                  <p className="calibration-latest-readout">
-                    Most recent: pitch {calibrations[calibrationProfileSource].pitch.toFixed(1)}° ·
-                    roll {calibrations[calibrationProfileSource].roll.toFixed(1)}°
-                  </p>
                   <form className="calibration-profile-save" onSubmit={saveCalibrationProfile}>
                     <label>
                       Save latest calibration <small>OPTIONAL NAME</small>

@@ -609,11 +609,16 @@ input:focus-visible {
 }
 
 .quick-calibration-button {
+  display: flex;
   min-width: 0;
-  min-height: 30px;
+  min-height: 44px;
   flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
   overflow: hidden;
-  padding: 0 6px;
+  padding: 2px 3px;
   border: 1px solid var(--line);
   background: #0c1511;
   color: var(--dim);
@@ -621,7 +626,24 @@ input:focus-visible {
   font-size: 0.53rem;
   font-weight: 700;
   letter-spacing: 0.04em;
+  line-height: 1;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-calibration-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quick-calibration-offsets {
+  display: grid;
+  color: var(--dim);
+  font-size: 0.39rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.1;
   white-space: nowrap;
 }
 
@@ -671,18 +693,6 @@ input:focus-visible {
 
 .calibration-profile-settings select {
   color-scheme: dark;
-}
-
-.calibration-offset-readout {
-  margin: 0;
-  color: var(--glow);
-  font-size: 0.62rem;
-}
-
-.calibration-latest-readout {
-  margin: -6px 0 0;
-  color: var(--dim);
-  font-size: 0.58rem;
 }
 
 .calibration-profile-actions {
