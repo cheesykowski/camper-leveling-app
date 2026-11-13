@@ -1,12 +1,13 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
+  calibrationSlotIds as calibrationSlotKeys,
   defaultCalibration,
-  defaultCalibrationProfileIds,
-  defaultCalibrationProfiles,
-  defaultCalibrations,
+  defaultCalibrationSlotIds,
+  defaultCalibrationSlots,
   getActiveCalibration,
-  normalizeCalibrationProfileIds,
-  normalizeCalibrationProfiles,
+  normalizeCalibrationSlotIds,
+  normalizeCalibrationSlots,
+  replaceCalibrationSlotOffsets,
 } from './calibration.js';
 import { calculateTwoWedgePlan, wheelCorners } from './leveling.js';
 
@@ -15,24 +16,10 @@ const SIMULATION_MAX_TILT = 30;
 const SENSOR_STALE_TIMEOUT_MS = 10000;
 const FORMSPREE_ENDPOINT = import.meta.env.VITE_FORMSPREE_ENDPOINT?.trim() || '';
 
-const formatCalibrationTimestamp = (timestamp) =>
-  new Date(timestamp).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
-
-const getCalibrationProfileName = (profile) =>
-  profile.name || `Calibration · ${formatCalibrationTimestamp(profile.createdAt)}`;
-
 const formatCalibrationAngle = (angle) => `${angle >= 0 ? '+' : ''}${angle.toFixed(1)}°`;
 
 const getCalibrationOffsetLabel = ({ pitch, roll }) =>
   `Pitch ${formatCalibrationAngle(pitch)} · Roll ${formatCalibrationAngle(roll)}`;
-
-const getQuickCalibrationLabel = (profile) =>
-  profile.name ||
-  new Date(profile.createdAt).toLocaleTimeString('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
 
 const defaultVehicle = {
   wheelbaseCm: 240,
@@ -344,9 +331,8 @@ function App() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
       return {
-        calibrations: defaultCalibrations,
-        calibrationProfiles: defaultCalibrationProfiles,
-        calibrationProfileIds: defaultCalibrationProfileIds,
+        calibrationSlots: defaultCalibrationSlots,
+        calibrationSlotIds: defaultCalibrationSlotIds,
         vehicle: defaultVehicle,
       };
     }
@@ -359,31 +345,33 @@ function App() {
             .filter((height) => Number.isFinite(height) && height > 0)
             .sort((a, b) => a - b)
         : [];
-      const calibrationProfiles = normalizeCalibrationProfiles(parsed.calibrationProfiles);
-      return {
-        calibrations: {
-          phone: {
-            pitch: Number(
-              parsed.calibrations?.phone?.pitch ??
-                parsed.calibration?.pitch ??
-                defaultCalibration.pitch,
-            ),
-            roll: Number(
-              parsed.calibrations?.phone?.roll ??
-                parsed.calibration?.roll ??
-                defaultCalibration.roll,
-            ),
-          },
-          external: {
-            pitch: Number(parsed.calibrations?.external?.pitch ?? defaultCalibration.pitch),
-            roll: Number(parsed.calibrations?.external?.roll ?? defaultCalibration.roll),
-          },
+      const calibrations = {
+        phone: {
+          pitch: Number(
+            parsed.calibrations?.phone?.pitch ??
+              parsed.calibration?.pitch ??
+              defaultCalibration.pitch,
+          ),
+          roll: Number(
+            parsed.calibrations?.phone?.roll ??
+              parsed.calibration?.roll ??
+              defaultCalibration.roll,
+          ),
         },
-        calibrationProfiles,
-        calibrationProfileIds: normalizeCalibrationProfileIds(
-          parsed.calibrationProfileIds,
-          calibrationProfiles,
-        ),
+        external: {
+          pitch: Number(parsed.calibrations?.external?.pitch ?? defaultCalibration.pitch),
+          roll: Number(parsed.calibrations?.external?.roll ?? defaultCalibration.roll),
+        },
+      };
+      const calibrationSlots = normalizeCalibrationSlots(
+        parsed.calibrationSlots,
+        calibrations,
+        parsed.calibrationProfiles,
+        parsed.calibrationProfileIds,
+      );
+      return {
+        calibrationSlots,
+        calibrationSlotIds: normalizeCalibrationSlotIds(parsed.calibrationSlotIds),
         vehicle: {
           wheelbaseCm: Number(parsed.vehicle?.wheelbaseCm ?? defaultVehicle.wheelbaseCm),
           trackWidthCm: Number(parsed.vehicle?.trackWidthCm ?? defaultVehicle.trackWidthCm),
@@ -394,23 +382,20 @@ function App() {
       };
     } catch {
       return {
-        calibrations: defaultCalibrations,
-        calibrationProfiles: defaultCalibrationProfiles,
-        calibrationProfileIds: defaultCalibrationProfileIds,
+        calibrationSlots: defaultCalibrationSlots,
+        calibrationSlotIds: defaultCalibrationSlotIds,
         vehicle: defaultVehicle,
       };
     }
   }, []);
 
-  const [calibrations, setCalibrations] = useState(loadedState.calibrations);
-  const [calibrationProfiles, setCalibrationProfiles] = useState(
-    loadedState.calibrationProfiles,
+  const [calibrationSlots, setCalibrationSlots] = useState(
+    loadedState.calibrationSlots,
   );
-  const [calibrationProfileIds, setCalibrationProfileIds] = useState(
-    loadedState.calibrationProfileIds,
+  const [calibrationSlotIds, setCalibrationSlotIds] = useState(
+    loadedState.calibrationSlotIds,
   );
-  const [calibrationProfileSource, setCalibrationProfileSource] = useState('phone');
-  const [calibrationProfileName, setCalibrationProfileName] = useState('');
+  const [calibrationSettingsSource, setCalibrationSettingsSource] = useState('phone');
   const [vehicle, setVehicle] = useState(loadedState.vehicle);
   const [vehicleInputs, setVehicleInputs] = useState({
     wheelbaseCm: String(loadedState.vehicle.wheelbaseCm),
@@ -443,14 +428,12 @@ function App() {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        calibrations,
-        calibrationProfiles,
-        calibrationProfileIds,
-        calibration: calibrations.phone,
+        calibrationSlots,
+        calibrationSlotIds,
         vehicle,
       }),
     );
-  }, [calibrations, calibrationProfiles, calibrationProfileIds, vehicle]);
+  }, [calibrationSlots, calibrationSlotIds, vehicle]);
 
   useEffect(() => {
     const hasSensorAPI = 'DeviceOrientationEvent' in window;
@@ -537,9 +520,8 @@ function App() {
   const activeCalibration = calibrationSource
     ? getActiveCalibration(
         calibrationSource,
-        calibrations,
-        calibrationProfiles,
-        calibrationProfileIds,
+        calibrationSlots,
+        calibrationSlotIds,
       )
     : defaultCalibration;
   const currentRoll =
@@ -608,15 +590,13 @@ function App() {
 
     setCalibrationComplete(false);
     setIsHoldingCalibration(true);
+    const selectedSlotId = calibrationSlotIds.phone;
     calibrationTimeout.current = window.setTimeout(() => {
-      setCalibrations((current) => ({
+      const { pitch, roll } = sensorDataRef.current;
+      setCalibrationSlots((current) => ({
         ...current,
-        phone: {
-          pitch: sensorDataRef.current.pitch,
-          roll: sensorDataRef.current.roll,
-        },
+        phone: replaceCalibrationSlotOffsets(current.phone, selectedSlotId, { pitch, roll }),
       }));
-      setCalibrationProfileIds((current) => ({ ...current, phone: null }));
       calibrationTimeout.current = null;
       setIsHoldingCalibration(false);
       setCalibrationComplete(true);
@@ -631,59 +611,18 @@ function App() {
     }
   };
 
-  const saveCalibrationProfile = (event) => {
-    event.preventDefault();
-    if (calibrationProfileSource !== 'phone') return;
-
-    const createdAt = Date.now();
-    const profile = {
-      id: `${createdAt}-${Math.random().toString(36).slice(2, 8)}`,
-      name: calibrationProfileName.trim(),
-      pitch: calibrations[calibrationProfileSource].pitch,
-      roll: calibrations[calibrationProfileSource].roll,
-      createdAt,
-    };
-
-    setCalibrationProfiles((current) => ({
+  const updateCalibrationSlotName = (sourceName, slotId, name) => {
+    setCalibrationSlots((current) => ({
       ...current,
-      [calibrationProfileSource]: [profile, ...current[calibrationProfileSource]],
-    }));
-    setCalibrationProfileIds((current) => ({
-      ...current,
-      [calibrationProfileSource]: profile.id,
-    }));
-    setCalibrationProfileName('');
-  };
-
-  const deleteSelectedCalibrationProfile = () => {
-    const selectedId = calibrationProfileIds[calibrationProfileSource];
-    if (!selectedId) return;
-
-    setCalibrationProfiles((current) => ({
-      ...current,
-      [calibrationProfileSource]: current[calibrationProfileSource].filter(
-        (profile) => profile.id !== selectedId,
+      [sourceName]: current[sourceName].map((slot) =>
+        slot.id === slotId ? { ...slot, name: name.slice(0, 60) } : slot,
       ),
-    }));
-    setCalibrationProfileIds((current) => ({
-      ...current,
-      [calibrationProfileSource]: null,
     }));
   };
 
   const sortedWedgeHeights = [...vehicle.wedgeHeightsCm].sort((a, b) => a - b);
-  const hasPhoneCalibrationProfiles = calibrationProfiles.phone.length > 0;
-  const recentCalibrationProfiles = calibrationProfiles.phone.slice(0, 3);
-  const selectedPhoneCalibration = calibrationProfiles.phone.find(
-    (profile) => profile.id === calibrationProfileIds.phone,
-  );
-  const quickCalibrationProfiles =
-    selectedPhoneCalibration &&
-    !recentCalibrationProfiles.some((profile) => profile.id === selectedPhoneCalibration.id)
-      ? [selectedPhoneCalibration, ...recentCalibrationProfiles.slice(0, 2)]
-      : recentCalibrationProfiles;
-  const hasMoreCalibrationProfiles =
-    calibrationProfiles.phone.length > quickCalibrationProfiles.length;
+  const calibrationSlotSource = source === 'external' ? 'external' : 'phone';
+  const activeSlotId = calibrationSlotIds[calibrationSlotSource];
   const wedgeIllustrationHeights = [
     sortedWedgeHeights[sortedWedgeHeights.length - 1],
     sortedWedgeHeights[Math.floor((sortedWedgeHeights.length - 1) / 2)],
@@ -1000,7 +939,6 @@ function App() {
             }`}
             type="button"
             disabled={source !== 'phone' || !sensorData.available}
-            aria-label="Hold for 3 seconds to calibrate on level ground"
             aria-describedby="calibration-hint"
             onPointerDown={(event) => {
               event.currentTarget.setPointerCapture(event.pointerId);
@@ -1022,104 +960,81 @@ function App() {
               }
             }}
             onContextMenu={(event) => event.preventDefault()}
+            aria-label={`Hold for 3 seconds to overwrite calibration slot ${
+              calibrationSlotKeys.indexOf(activeSlotId) + 1
+            } on level ground`}
           >
             <span className="calibrate-icon" aria-hidden="true">
               {calibrationComplete ? '✓' : isHoldingCalibration ? '···' : '◎'}
             </span>
             <span>
               {calibrationComplete
-                ? 'CALIBRATION STORED'
+                ? 'SLOT UPDATED'
                 : isHoldingCalibration
                   ? 'KEEP HOLDING'
-                  : 'HOLD TO CALIBRATE'}
+                  : `HOLD TO SET SLOT ${calibrationSlotKeys.indexOf(activeSlotId) + 1}`}
             </span>
             {!calibrationComplete && <span className="hold-duration">3 SEC</span>}
           </button>
           <p className="hold-hint" id="calibration-hint" aria-live="polite">
             {source !== 'phone' || !sensorData.available
-              ? 'Select the phone sensor and wait for a signal to calibrate.'
+              ? source === 'external'
+                ? 'Select an external sensor signal to calibrate its selected slot.'
+                : 'Select the phone sensor and wait for a signal to calibrate.'
               : calibrationComplete
-                ? 'Zero point saved.'
+                ? `Slot ${calibrationSlotKeys.indexOf(activeSlotId) + 1} updated.`
                 : isHoldingCalibration
-                  ? 'Keep holding to save the current zero point'
-                  : 'Park on level ground, then hold to set zero'}
+                  ? 'Keep holding to overwrite the selected slot'
+                  : 'Park on level ground, then hold to overwrite the selected slot'}
           </p>
-          {hasPhoneCalibrationProfiles && (
-            <p className="quick-calibrations-label">PICK CALIBRATION</p>
-          )}
-          {hasPhoneCalibrationProfiles && (
-            <div
-              className="quick-calibrations"
-              role="group"
-              aria-label="Quick phone calibration selection"
-            >
-              <button
-                className={
-                  calibrationProfileIds.phone
-                    ? 'quick-calibration-button'
-                    : 'quick-calibration-button selected'
-                }
-                type="button"
-                aria-label={`Use latest calibration, ${getCalibrationOffsetLabel(
-                  calibrations.phone,
-                )}`}
-                aria-pressed={!calibrationProfileIds.phone}
-                title={`Latest · ${getCalibrationOffsetLabel(calibrations.phone)}`}
-                onClick={() => {
-                  setCalibrationProfileIds((current) => ({ ...current, phone: null }));
-                  setCalibrationComplete(false);
-                }}
-              >
-                <span className="quick-calibration-name">LATEST</span>
-                <span className="quick-calibration-offsets" aria-hidden="true">
-                  <span>Pitch {formatCalibrationAngle(calibrations.phone.pitch)}</span>
-                  <span>Roll {formatCalibrationAngle(calibrations.phone.roll)}</span>
-                </span>
-              </button>
-              {quickCalibrationProfiles.map((profile) => (
+          <p className="quick-calibrations-label">
+            PICK {calibrationSlotSource === 'phone' ? 'PHONE' : 'EXTERNAL'} CALIBRATION SLOT
+          </p>
+          <div
+            className="quick-calibrations"
+            role="group"
+            aria-label={`Select ${calibrationSlotSource} calibration slot`}
+          >
+            {calibrationSlots[calibrationSlotSource].map((slot, index) => {
+              const isSelected = slot.id === activeSlotId;
+              const isCalibrated = slot.pitch !== null && slot.roll !== null;
+              const label = slot.name || `SLOT ${index + 1}`;
+
+              return (
                 <button
-                  className={
-                    calibrationProfileIds.phone === profile.id
-                      ? 'quick-calibration-button selected'
-                      : 'quick-calibration-button'
-                  }
-                  key={profile.id}
+                  className={`quick-calibration-button${isSelected ? ' selected' : ''}${
+                    isCalibrated ? ' calibrated' : ' empty'
+                  }`}
+                  key={slot.id}
                   type="button"
-                  aria-label={`Use ${getCalibrationProfileName(
-                    profile,
-                  )} calibration, ${getCalibrationOffsetLabel(profile)}`}
-                  aria-pressed={calibrationProfileIds.phone === profile.id}
-                  title={`${getCalibrationProfileName(profile)} · ${getCalibrationOffsetLabel(
-                    profile,
-                  )}`}
+                  aria-label={`${label}, ${
+                    isCalibrated ? getCalibrationOffsetLabel(slot) : 'not calibrated'
+                  }${isSelected ? ', selected' : ''}`}
+                  aria-pressed={isSelected}
+                  title={`${label} · ${
+                    isCalibrated ? getCalibrationOffsetLabel(slot) : 'Not calibrated'
+                  }`}
                   onClick={() => {
-                    setCalibrationProfileIds((current) => ({ ...current, phone: profile.id }));
+                    setCalibrationSlotIds((current) => ({
+                      ...current,
+                      [calibrationSlotSource]: slot.id,
+                    }));
                     setCalibrationComplete(false);
                   }}
                 >
-                  <span className="quick-calibration-name">
-                    {getQuickCalibrationLabel(profile)}
-                  </span>
-                  <span className="quick-calibration-offsets" aria-hidden="true">
-                    <span>Pitch {formatCalibrationAngle(profile.pitch)}</span>
-                    <span>Roll {formatCalibrationAngle(profile.roll)}</span>
-                  </span>
+                  <span className="quick-calibration-name">{label}</span>
+                  {isCalibrated ? (
+                    <span className="quick-calibration-offsets" aria-hidden="true">
+                      <span>Pitch {formatCalibrationAngle(slot.pitch)}</span>
+                      <span>Roll {formatCalibrationAngle(slot.roll)}</span>
+                    </span>
+                  ) : (
+                    <span className="quick-calibration-empty">NOT CALIBRATED</span>
+                  )}
                 </button>
-              ))}
-              {hasMoreCalibrationProfiles && (
-                <button
-                  className="quick-calibration-button"
-                  type="button"
-                  onClick={() => {
-                    setCalibrationProfileSource('phone');
-                    setActiveMenu('calibration');
-                  }}
-                >
-                  MORE
-                </button>
-              )}
-            </div>
-          )}
+              );
+            })}
+          </div>
         </div>
       </main>
 
@@ -1149,7 +1064,7 @@ function App() {
           type="button"
           aria-haspopup="dialog"
           onClick={() => {
-            setCalibrationProfileSource(source === 'external' ? 'external' : 'phone');
+            setCalibrationSettingsSource(source === 'external' ? 'external' : 'phone');
             setActiveMenu('calibration');
           }}
         >
@@ -1201,7 +1116,7 @@ function App() {
                     : activeMenu === 'wedges'
                       ? 'Wedge setup'
                       : activeMenu === 'calibration'
-                        ? 'Calibration profiles'
+                      ? 'Calibration slots'
                         : 'Send feedback'}
                 </h2>
               </div>
@@ -1369,80 +1284,80 @@ function App() {
             ) : activeMenu === 'calibration' ? (
               <div className="menu-content calibration-content">
                 <p className="settings-hint">
-                  The most recent calibration is used automatically unless you select a saved
-                  profile.
+                  Choose a slot on the main screen. Holding calibrate overwrites that slot.
                 </p>
-                <div className="settings-card calibration-profile-settings">
+                <div className="settings-card calibration-settings-card">
                   <label>
                     Sensor
                     <select
-                      value={calibrationProfileSource}
-                      onChange={(event) => setCalibrationProfileSource(event.target.value)}
+                      value={calibrationSettingsSource}
+                      onChange={(event) => setCalibrationSettingsSource(event.target.value)}
                     >
                       <option value="phone">Phone sensor</option>
                       <option value="external">External sensor</option>
                     </select>
                   </label>
-                  <label>
-                    Calibration profile
-                    <select
-                      value={calibrationProfileIds[calibrationProfileSource] ?? ''}
-                      onChange={(event) => {
-                        setCalibrationProfileIds((current) => ({
-                          ...current,
-                          [calibrationProfileSource]: event.target.value || null,
-                        }));
-                        setCalibrationComplete(false);
-                      }}
-                    >
-                      <option value="">
-                        Most recent ·{' '}
-                        {getCalibrationOffsetLabel(calibrations[calibrationProfileSource])}
-                      </option>
-                      {calibrationProfiles[calibrationProfileSource].map((profile) => (
-                        <option key={profile.id} value={profile.id}>
-                          {getCalibrationProfileName(profile)} ·{' '}
-                          {getCalibrationOffsetLabel(profile)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <form className="calibration-profile-save" onSubmit={saveCalibrationProfile}>
-                    <label>
-                      Save latest calibration <small>OPTIONAL NAME</small>
-                      <input
-                        type="text"
-                        maxLength={60}
-                        placeholder="Leave blank to use a timestamp"
-                        value={calibrationProfileName}
-                        disabled={calibrationProfileSource !== 'phone'}
-                        onChange={(event) => setCalibrationProfileName(event.target.value)}
-                      />
-                    </label>
-                    <div className="calibration-profile-actions">
-                      <button
-                        className="calibration-profile-action"
-                        type="submit"
-                        disabled={calibrationProfileSource !== 'phone'}
-                      >
-                        SAVE AS PROFILE
-                      </button>
-                      {calibrationProfileIds[calibrationProfileSource] && (
-                        <button
-                          className="calibration-profile-action delete"
-                          type="button"
-                          onClick={deleteSelectedCalibrationProfile}
+                  <div className="calibration-slot-settings">
+                    {calibrationSlots[calibrationSettingsSource].map((slot, index) => {
+                      const hasCalibration = slot.pitch !== null && slot.roll !== null;
+                      const isSelected =
+                        calibrationSlotIds[calibrationSettingsSource] === slot.id;
+
+                      return (
+                        <div
+                          className={`calibration-slot-card${isSelected ? ' selected' : ''}`}
+                          key={slot.id}
                         >
-                          DELETE SELECTED
-                        </button>
-                      )}
-                    </div>
-                  </form>
+                          <div className="calibration-slot-heading">
+                            <span>SLOT {index + 1}</span>
+                            <small>{isSelected ? 'SELECTED ON MAIN SCREEN' : ''}</small>
+                          </div>
+                          <div className="calibration-slot-detail">
+                            <label className="calibration-slot-name">
+                              <span>Name <small>OPTIONAL</small></span>
+                              <input
+                                type="text"
+                                maxLength={60}
+                                placeholder={`Slot ${index + 1}`}
+                                value={slot.name}
+                                aria-label={`Name for ${calibrationSettingsSource} slot ${
+                                  index + 1
+                                }`}
+                                onChange={(event) =>
+                                  updateCalibrationSlotName(
+                                    calibrationSettingsSource,
+                                    slot.id,
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                            </label>
+                            <p
+                              className={
+                                hasCalibration
+                                  ? 'calibration-slot-offsets'
+                                  : 'calibration-slot-offsets empty'
+                              }
+                            >
+                              {hasCalibration ? (
+                                <>
+                                  <span>Pitch {formatCalibrationAngle(slot.pitch)}</span>
+                                  <span>Roll {formatCalibrationAngle(slot.roll)}</span>
+                                </>
+                              ) : (
+                                'Not calibrated'
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
                 <p className="settings-hint">
-                  {calibrationProfileSource === 'phone'
-                    ? 'Hold the calibration button on level ground to update the most recent phone offset.'
-                    : 'External sensor calibration is not available until external sensor support is connected.'}
+                  {calibrationSettingsSource === 'phone'
+                    ? 'The phone sensor is calibrated on the main screen.'
+                    : 'External sensor calibration is unavailable until external sensor support is connected.'}
                 </p>
               </div>
             ) : (

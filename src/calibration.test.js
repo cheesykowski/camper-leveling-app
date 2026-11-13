@@ -1,68 +1,147 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  calibrationSlotIds,
   defaultCalibration,
+  defaultCalibrations,
+  defaultCalibrationSlotIds,
   getActiveCalibration,
-  normalizeCalibrationProfileIds,
-  normalizeCalibrationProfiles,
+  normalizeCalibrationSlotIds,
+  normalizeCalibrationSlots,
+  replaceCalibrationSlotOffsets,
 } from './calibration.js';
 
-test('normalizes saved profiles and ignores invalid entries', () => {
-  const profiles = normalizeCalibrationProfiles({
-    phone: [
-      { id: 'cab', name: '  Cab  ', pitch: '2.5', roll: -1, createdAt: 123 },
-      { id: '', name: 'Missing ID', pitch: 0, roll: 0 },
-      { id: 'bad-offset', pitch: 'not a number', roll: 0 },
-    ],
-  });
+test('normalizes three named slots and clears invalid offsets', () => {
+  const slots = normalizeCalibrationSlots(
+    {
+      phone: [
+        { name: '  Console  ', pitch: '2.5', roll: -1 },
+        { name: 'Broken', pitch: 'bad', roll: 0 },
+      ],
+    },
+    defaultCalibrations,
+  );
 
-  assert.deepEqual(profiles.phone, [
-    { id: 'cab', name: 'Cab', pitch: 2.5, roll: -1, createdAt: 123 },
+  assert.deepEqual(slots.phone, [
+    { id: 'slot-1', name: 'Console', pitch: 2.5, roll: -1 },
+    { id: 'slot-2', name: 'Broken', pitch: null, roll: null },
+    { id: 'slot-3', name: '', pitch: null, roll: null },
   ]);
-  assert.deepEqual(profiles.external, []);
+  assert.deepEqual(slots.external, [
+    { id: 'slot-1', name: '', pitch: null, roll: null },
+    { id: 'slot-2', name: '', pitch: null, roll: null },
+    { id: 'slot-3', name: '', pitch: null, roll: null },
+  ]);
 });
 
-test('uses the selected profile, otherwise falling back to the latest calibration', () => {
-  const profiles = normalizeCalibrationProfiles({
-    phone: [{ id: 'bed', name: 'Bed', pitch: 4, roll: -2, createdAt: 123 }],
-  });
-  const latest = { phone: { pitch: 1, roll: 0.5 }, external: defaultCalibration };
-  const selected = normalizeCalibrationProfileIds({ phone: 'bed' }, profiles);
-  const invalidSelection = normalizeCalibrationProfileIds({ phone: 'missing' }, profiles);
-
-  assert.deepEqual(
-    getActiveCalibration('phone', latest, profiles, selected),
-    { pitch: 4, roll: -2, id: 'bed', name: 'Bed', createdAt: 123 },
+test('uses the selected slot offset and zero for an empty slot', () => {
+  const slots = normalizeCalibrationSlots(
+    {
+      phone: [
+        { name: 'Console', pitch: 4, roll: -2 },
+        { name: 'Bed', pitch: null, roll: null },
+      ],
+    },
+    defaultCalibrations,
   );
-  assert.deepEqual(getActiveCalibration('phone', latest, profiles, invalidSelection), {
+  const selectedIds = normalizeCalibrationSlotIds({
+    phone: calibrationSlotIds[0],
+    external: 'invalid',
+  });
+
+  assert.deepEqual(getActiveCalibration('phone', slots, selectedIds), {
+    pitch: 4,
+    roll: -2,
+  });
+  assert.deepEqual(getActiveCalibration('external', slots, selectedIds), defaultCalibration);
+  assert.deepEqual(selectedIds, defaultCalibrationSlotIds);
+});
+
+test('keeps phone and external slot values and selections independent', () => {
+  const slots = normalizeCalibrationSlots(
+    {
+      phone: [{ name: 'Cab', pitch: 1, roll: 2 }],
+      external: [{ name: 'Sensor', pitch: -3, roll: 4 }],
+    },
+    defaultCalibrations,
+  );
+  const selectedIds = normalizeCalibrationSlotIds({
+    phone: 'slot-1',
+    external: 'slot-1',
+  });
+
+  assert.deepEqual(getActiveCalibration('phone', slots, selectedIds), {
     pitch: 1,
-    roll: 0.5,
+    roll: 2,
+  });
+  assert.deepEqual(getActiveCalibration('external', slots, selectedIds), {
+    pitch: -3,
+    roll: 4,
   });
 });
 
-test('keeps phone and external profile selections independent', () => {
-  const profiles = normalizeCalibrationProfiles({
-    phone: [{ id: 'cab', pitch: 1, roll: 2 }],
-    external: [{ id: 'sensor', pitch: -3, roll: 4 }],
-  });
-  const selections = normalizeCalibrationProfileIds(
-    { phone: 'cab', external: 'sensor' },
-    profiles,
+test('recalibrates only the selected slot while preserving its name and other slots', () => {
+  const slots = normalizeCalibrationSlots(
+    {
+      phone: [
+        { name: 'Console', pitch: 1, roll: 2 },
+        { name: 'Bed', pitch: 3, roll: 4 },
+      ],
+    },
+    defaultCalibrations,
   );
-  const latest = {
-    phone: { pitch: 0, roll: 0 },
-    external: { pitch: 0, roll: 0 },
-  };
-
-  const phone = getActiveCalibration('phone', latest, profiles, selections);
-  const external = getActiveCalibration('external', latest, profiles, selections);
 
   assert.deepEqual(
-    { id: phone.id, pitch: phone.pitch, roll: phone.roll },
-    { id: 'cab', pitch: 1, roll: 2 },
+    replaceCalibrationSlotOffsets(slots.phone, 'slot-2', { pitch: -5, roll: 6 }),
+    [
+      { id: 'slot-1', name: 'Console', pitch: 1, roll: 2 },
+      { id: 'slot-2', name: 'Bed', pitch: -5, roll: 6 },
+      { id: 'slot-3', name: '', pitch: null, roll: null },
+    ],
   );
+});
+
+test('migrates the selected legacy profile, latest offset, and recent profiles into slots', () => {
+  const slots = normalizeCalibrationSlots(
+    undefined,
+    {
+      phone: { pitch: 5, roll: -1 },
+      external: defaultCalibration,
+    },
+    {
+      phone: [
+        { id: 'old', name: 'Old position', pitch: 1, roll: 0, createdAt: 10 },
+        { id: 'new', name: 'New position', pitch: 2, roll: 0, createdAt: 20 },
+      ],
+    },
+    { phone: 'old' },
+  );
+
+  assert.deepEqual(slots.phone, [
+    { id: 'slot-1', name: 'Old position', pitch: 1, roll: 0 },
+    { id: 'slot-2', name: '', pitch: 5, roll: -1 },
+    { id: 'slot-3', name: 'New position', pitch: 2, roll: 0 },
+  ]);
+});
+
+test('preserves legacy profiles with identical offsets as separate slots', () => {
+  const slots = normalizeCalibrationSlots(
+    undefined,
+    defaultCalibrations,
+    {
+      phone: [
+        { id: 'cab', name: 'Cab', pitch: 0, roll: 0, createdAt: 20 },
+        { id: 'bed', name: 'Bed', pitch: 0, roll: 0, createdAt: 10 },
+      ],
+    },
+    { phone: 'cab' },
+  );
+
   assert.deepEqual(
-    { id: external.id, pitch: external.pitch, roll: external.roll },
-    { id: 'sensor', pitch: -3, roll: 4 },
+    slots.phone.slice(0, 2).map(({ name, pitch, roll }) => ({ name, pitch, roll })),
+    [
+      { name: 'Cab', pitch: 0, roll: 0 },
+      { name: 'Bed', pitch: 0, roll: 0 },
+    ],
   );
 });

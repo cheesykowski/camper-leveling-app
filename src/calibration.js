@@ -8,61 +8,141 @@ export const defaultCalibrations = {
   external: defaultCalibration,
 };
 
-export const defaultCalibrationProfiles = {
-  phone: [],
-  external: [],
+export const calibrationSlotIds = ['slot-1', 'slot-2', 'slot-3'];
+
+export const defaultCalibrationSlots = {
+  phone: createEmptySlots(),
+  external: createEmptySlots(),
 };
 
-export const defaultCalibrationProfileIds = {
-  phone: null,
-  external: null,
+export const defaultCalibrationSlotIds = {
+  phone: calibrationSlotIds[0],
+  external: calibrationSlotIds[0],
 };
 
 const calibrationSources = ['phone', 'external'];
 
-export function normalizeCalibrationProfiles(value) {
+function createEmptySlots() {
+  return calibrationSlotIds.map((id) => ({
+    id,
+    name: '',
+    pitch: null,
+    roll: null,
+  }));
+}
+
+function normalizeSlot(slot, index) {
+  const pitch = Number(slot?.pitch);
+  const roll = Number(slot?.roll);
+  const hasCalibration =
+    slot?.pitch !== null &&
+    slot?.pitch !== undefined &&
+    slot?.roll !== null &&
+    slot?.roll !== undefined &&
+    Number.isFinite(pitch) &&
+    Number.isFinite(roll);
+
+  return {
+    id: calibrationSlotIds[index],
+    name: typeof slot?.name === 'string' ? slot.name.trim().slice(0, 60) : '',
+    pitch: hasCalibration ? pitch : null,
+    roll: hasCalibration ? roll : null,
+  };
+}
+
+function isCalibration(value) {
+  return (
+    value &&
+    value.pitch !== null &&
+    value.pitch !== undefined &&
+    value.roll !== null &&
+    value.roll !== undefined &&
+    Number.isFinite(Number(value.pitch)) &&
+    Number.isFinite(Number(value.roll))
+  );
+}
+
+function sameCalibration(first, second) {
+  return (
+    Number(first.pitch) === Number(second.pitch) &&
+    Number(first.roll) === Number(second.roll)
+  );
+}
+
+function migrateLegacySlots(source, calibrations, profiles, profileIds) {
+  const legacyProfiles = Array.isArray(profiles?.[source])
+    ? profiles[source]
+        .filter((profile) => profile && isCalibration(profile))
+        .sort((first, second) => Number(second.createdAt) - Number(first.createdAt))
+    : [];
+  const selectedProfile = legacyProfiles.find((profile) => profile.id === profileIds?.[source]);
+  const candidates = selectedProfile ? [selectedProfile] : [];
+  const latest = calibrations?.[source];
+  const hasNonzeroLatest =
+    isCalibration(latest) && (Number(latest.pitch) !== 0 || Number(latest.roll) !== 0);
+
+  if (
+    hasNonzeroLatest &&
+    !legacyProfiles.some((profile) => sameCalibration(profile, latest))
+  ) {
+    candidates.push({ ...latest, name: '' });
+  }
+
+  for (const profile of legacyProfiles) {
+    if (candidates.length >= calibrationSlotIds.length) break;
+    if (profile.id !== selectedProfile?.id) {
+      candidates.push(profile);
+    }
+  }
+
+  return createEmptySlots().map((slot, index) => {
+    const profile = candidates[index];
+    return profile
+      ? {
+          ...slot,
+          name: typeof profile.name === 'string' ? profile.name.trim().slice(0, 60) : '',
+          pitch: Number(profile.pitch),
+          roll: Number(profile.roll),
+        }
+      : slot;
+  });
+}
+
+export function normalizeCalibrationSlots(value, calibrations, legacyProfiles, legacySlotIds) {
   return Object.fromEntries(
     calibrationSources.map((source) => {
-      const profiles = Array.isArray(value?.[source]) ? value[source] : [];
+      const slots = value?.[source];
+      const normalized = Array.isArray(slots)
+        ? calibrationSlotIds.map((_, index) => normalizeSlot(slots[index], index))
+        : migrateLegacySlots(source, calibrations, legacyProfiles, legacySlotIds);
 
-      return [
-        source,
-        profiles.flatMap((profile) => {
-          if (!profile || typeof profile.id !== 'string' || !profile.id) return [];
-
-          const pitch = Number(profile.pitch);
-          const roll = Number(profile.roll);
-          if (!Number.isFinite(pitch) || !Number.isFinite(roll)) return [];
-
-          const timestamp = Number(profile.createdAt);
-          return [
-            {
-              id: profile.id,
-              name: typeof profile.name === 'string' ? profile.name.trim().slice(0, 60) : '',
-              pitch,
-              roll,
-              createdAt:
-                Number.isFinite(timestamp) && timestamp > 0 ? timestamp : Date.now(),
-            },
-          ];
-        }),
-      ];
+      return [source, normalized];
     }),
   );
 }
 
-export function normalizeCalibrationProfileIds(value, profiles) {
+export function normalizeCalibrationSlotIds(value) {
   return Object.fromEntries(
-    calibrationSources.map((source) => {
-      const id = typeof value?.[source] === 'string' ? value[source] : null;
-      const exists = profiles[source].some((profile) => profile.id === id);
-      return [source, exists ? id : null];
-    }),
+    calibrationSources.map((source) => [
+      source,
+      calibrationSlotIds.includes(value?.[source])
+        ? value[source]
+        : calibrationSlotIds[0],
+    ]),
   );
 }
 
-export function getActiveCalibration(source, calibrations, profiles, profileIds) {
-  const activeId = profileIds[source];
-  const selectedProfile = profiles[source].find((profile) => profile.id === activeId);
-  return selectedProfile ?? calibrations[source] ?? defaultCalibration;
+export function getActiveCalibration(source, slots, slotIds) {
+  const selectedSlot = slots[source].find((slot) => slot.id === slotIds[source]);
+  return selectedSlot?.pitch !== null && selectedSlot?.roll !== null
+    ? { pitch: selectedSlot.pitch, roll: selectedSlot.roll }
+    : defaultCalibration;
+}
+
+export function replaceCalibrationSlotOffsets(slots, slotId, calibration) {
+  return slots.map((slot) =>
+    slot.id === slotId
+      ? { ...slot, pitch: calibration.pitch, roll: calibration.roll }
+      : slot,
+  );
 }
