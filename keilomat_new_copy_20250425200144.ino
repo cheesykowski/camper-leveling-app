@@ -9,26 +9,26 @@ Adafruit_SH1106 display(OLED_RESET);
 
 MPU6050 mpu;
 
-// Zeitsteuerung
+// Timing
 unsigned long prevTime = 0;
 float dt;
 
-// Winkelwerte
+// Angle readings
 float angleX = 0, angleY = 0, angleZ = 0;
 float offsetX = 0, offsetY = 0;
 
-// Fahrzeugdimensionen
-const float wheelbase = 345.0; // Radstand in cm
-const float trackWidth = 190.0; // Spurbreite in cm
+// Vehicle dimensions
+const float wheelbase = 345.0; // Wheelbase in cm
+const float trackWidth = 190.0; // Track width in cm
 
-// Filter-Konstanten
-const float alpha = 0.02; // Komplementärfilter
-const float beta = 0.1;   // Low-Pass-Filter für Ausgabe
+// Filter constants
+const float alpha = 0.02; // Complementary filter
+const float beta = 0.1;   // Output low-pass filter
 float filteredHeightRoll = 0, filteredHeightPitch = 0 , filteredHeightRollPitch = 0;
 
-int stepKeilRoll = 0, stepKeilPitch = 0, stepKeilRollPitch = 0;
+int wedgeStepRoll = 0, wedgeStepPitch = 0, wedgeStepCombined = 0;
 
-// Knopf-Pins
+// Button pins
 const int buttonPin = 2;
 bool resetAngles = false;
 
@@ -36,14 +36,14 @@ const int switchPin = 3;
 bool systemOn = false;
 bool wasSystemOn = false;
 
-//Display modus
+// Display mode
 int displayMode = 0;  // 0 = Step, 1 = Height, 2 = Both
 unsigned long lastButtonPressTime = 0;
 bool buttonHandled = false;
 
 
-// Mittelwertbildung für Reset
-const int avgWindowSize = 100; // Anzahl Messwerte für eine Sekunde (10ms pro Messung)
+// Averaging for reset
+const int avgWindowSize = 100; // 100 readings at 10 ms intervals
 float sumX = 0, sumY = 0;
 int sampleCount = 0;
 bool collecting = false;
@@ -56,20 +56,20 @@ void setup() {
     pinMode(switchPin, INPUT_PULLUP);
 
     if (!mpu.testConnection()) {
-        Serial.println("MPU6050 Verbindung fehlgeschlagen!");
+        Serial.println("MPU6050 connection failed!");
         while (1);
     }
-    Serial.println("MPU6050 erfolgreich verbunden");
+    Serial.println("MPU6050 connected successfully");
 
-    // Offset-Werte aus dem EEPROM laden
+    // Load offsets from EEPROM
     EEPROM.get(0, offsetX);
     EEPROM.get(sizeof(float), offsetY);
-    Serial.print("Geladene Offsets - Roll: ");
+    Serial.print("Loaded offsets - Roll: ");
     Serial.print(offsetX);
     Serial.print(" | Pitch: ");
     Serial.println(offsetY);
 
-    // OLED-Display initialisieren
+    // Initialize the OLED display
     display.begin(SH1106_I2C_ADDRESS, 0x3C);
 
     // Display & MPU shutdown if switch is OFF at startup
@@ -87,7 +87,7 @@ void loop() {
 systemOn = digitalRead(switchPin) == LOW; // Switch ON = LOW if using INPUT_PULLUP
 
 if (!systemOn) {
-    // System OFF → shut down display and MPU
+    // System is off: shut down the display and MPU.
     if (wasSystemOn) {
         display.clearDisplay();
         display.display();
@@ -95,18 +95,18 @@ if (!systemOn) {
         mpu.setSleepEnabled(true); // Put MPU in sleep mode
         wasSystemOn = false;
     }
-    delay(100); // Save power
+    delay(100); // Save power.
     return;
 } else {
     if (!wasSystemOn) {
-        // Just turned ON → re-enable display + MPU + show welcome screen
+        // The system was just turned on: enable the display and MPU, then show the welcome screen.
         display.SH1106_command(SH1106_DISPLAYON);
         mpu.setSleepEnabled(false);
-        delay(100); // Small buffer
+        delay(100); // Allow the hardware to settle.
 
-        // 💡 Show welcome screen
+        // Show the welcome screen.
         display.clearDisplay();
-        display.drawLine(20, 50, 108, 30, WHITE); // Auffahrkeil
+        display.drawLine(20, 50, 108, 30, WHITE); // Wedge
         display.drawLine(20, 50, 20, 55, WHITE);
         display.drawLine(108, 30, 108, 35, WHITE);
         display.drawLine(20, 55, 108, 35, WHITE);
@@ -125,15 +125,15 @@ if (!systemOn) {
         }
 
         display.display();
-        delay(2000); // Show for 2 seconds
+        delay(2000); // Keep the welcome screen visible for two seconds.
 
         wasSystemOn = true;
     }
 }
 
-    // Display settings
+    // Configure the display.
     display.clearDisplay();
-    display.setTextSize(1); // Normale Schriftgröße
+    display.setTextSize(1); // Normal text size.
     display.setTextColor(WHITE);
 
 
@@ -141,12 +141,12 @@ if (!systemOn) {
     int16_t ax, ay, az, gx, gy, gz;
     mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
 
-    // Zeitdifferenz berechnen
+    // Calculate elapsed time.
     unsigned long currentTime = millis();
     dt = (currentTime - prevTime) / 1000.0;
     prevTime = currentTime;
 
-    // Anpassung der Achsen aufgrund der 90°-Drehung um die Pitch-Achse
+    // Adjust axes for the 90-degree rotation around the pitch axis.
     float accelX = ay / 16384.0;
     float accelY = -ax / 16384.0;
     float accelZ = az / 16384.0;
@@ -155,69 +155,69 @@ if (!systemOn) {
     float gyroY = -gx / 131.0;
     float gyroZ = gz / 131.0;
 
-    // Winkel aus Beschleunigungssensor (Roll und Pitch)
+    // Calculate roll and pitch from the accelerometer.
     float accAngleX = atan2(accelY, accelZ) * 180 / PI;
     float accAngleY = atan2(-accelX, sqrt(accelY * accelY + accelZ * accelZ)) * 180 / PI;
 
-    // Komplementärfilter für die Winkelberechnung
+    // Apply the complementary filter to calculate the angles.
     angleX = alpha * (angleX + gyroX * dt) + (1 - alpha) * accAngleX;
     angleY = alpha * (angleY + gyroY * dt) + (1 - alpha) * accAngleY;
 
-    // Höhenunterschied berechnen (Roll: Vorder- zu Hinterachse, Pitch: Links zu Rechts)
+    // Calculate height differences (roll: front to rear; pitch: left to right).
     float heightRoll = tan((angleX - offsetX) * PI / 180.0) * (wheelbase / 2);
     float heightPitch = tan((angleY - offsetY) * PI / 180.0) * (trackWidth / 2);
 
-    // Low-Pass-Filter für eine geglättete Anzeige
+    // Apply a low-pass filter to smooth the display.
     filteredHeightRoll = beta * heightRoll + (1 - beta) * filteredHeightRoll;
     filteredHeightPitch = beta * heightPitch + (1 - beta) * filteredHeightPitch;
     filteredHeightRollPitch = abs(filteredHeightRoll) + abs(filteredHeightPitch);
 
-    //Auffahrhöhen auf Keil berechnen
+    // Calculate the wedge step for each height.
     if (abs(filteredHeightRoll) >= 0 && abs(filteredHeightRoll) < 3) {
-        stepKeilRoll = 0;
+        wedgeStepRoll = 0;
     }
     else if (abs(filteredHeightRoll) >= 3 && abs(filteredHeightRoll) < 6) {
-        stepKeilRoll = 1;
+        wedgeStepRoll = 1;
     }
     else if (abs(filteredHeightRoll) >= 6 && abs(filteredHeightRoll) < 9) {
-        stepKeilRoll = 2;
+        wedgeStepRoll = 2;
     }
     else {
-        stepKeilRoll = 3;
+        wedgeStepRoll = 3;
     }
 
 
     if (abs(filteredHeightPitch) >= 0 && abs(filteredHeightPitch) < 3) {
-        stepKeilPitch = 0;
+        wedgeStepPitch = 0;
     }
     else if (abs(filteredHeightPitch) >= 3 && abs(filteredHeightPitch) < 6) {
-        stepKeilPitch = 1;
+        wedgeStepPitch = 1;
     }
     else if (abs(filteredHeightPitch) >= 6 && abs(filteredHeightPitch) < 9) {
-        stepKeilPitch = 2;
+        wedgeStepPitch = 2;
     }
     else {
-        stepKeilPitch = 3;
+        wedgeStepPitch = 3;
     }
 
 
 
     if (abs(filteredHeightRollPitch) >= 0 && abs(filteredHeightRollPitch) < 3) {
-        stepKeilRollPitch = 0;
+        wedgeStepCombined = 0;
     }
     else if (abs(filteredHeightRollPitch) >= 3 && abs(filteredHeightRollPitch) < 6) {
-        stepKeilRollPitch = 1;
+        wedgeStepCombined = 1;
     }
     else if (abs(filteredHeightRollPitch) >= 6 && abs(filteredHeightRollPitch) < 9) {
-        stepKeilRollPitch = 2;
+        wedgeStepCombined = 2;
     }
     else {
-        stepKeilRollPitch = 3;
+        wedgeStepCombined = 3;
     }
 
 
 
-    // Mittelwert sammeln
+    // Collect readings for offset averaging.
 
         sumX += angleX;
         sumY += angleY;
@@ -229,18 +229,18 @@ if (!systemOn) {
         sampleCount = 0;
     }
 
-//Button auslesen
+// Read the button state.
 if (digitalRead(buttonPin) == LOW) {
     unsigned long pressStart = millis();
 
     while (digitalRead(buttonPin) == LOW) {
         if ((millis() - pressStart) >= 4000) {
-            // --- Long press → reset offsets ---
+            // A long press resets the offsets.
             offsetX = sumX / sampleCount;
             offsetY = sumY / sampleCount;
             EEPROM.put(0, offsetX);
             EEPROM.put(sizeof(float), offsetY);
-            Serial.println("Offsets gespeichert!");
+            Serial.println("Offsets saved!");
             sumX = 0;
             sumY = 0;
             sampleCount = 0;
@@ -253,199 +253,199 @@ if (digitalRead(buttonPin) == LOW) {
             display.println("RESET");
             display.setTextSize(1);
             display.setCursor(32, 35);
-            display.println("Nullreferenz");
+            display.println("Zero reference");
             display.setCursor(35, 45);
-            display.println("gespeichert");
+            display.println("saved");
             display.display();
             delay(5000);
             buttonHandled = true;
             break;
         }
-        delay(10); // debounce
+        delay(10); // Debounce.
     }
 
     if (!buttonHandled && (millis() - pressStart) < 4000) {
-        // --- Short press → cycle mode ---
+        // A short press cycles the display mode.
         displayMode = (displayMode + 1) % 3;
-        Serial.print("Modus gewechselt: ");
+        Serial.print("Display mode changed: ");
         Serial.println(displayMode);
-        delay(500);  // debounce
+        delay(500);  // Debounce.
     }
     buttonHandled = false;
 }
 
-  // OLED-Display aktualisieren
+  // Update the OLED display.
 display.clearDisplay();
 display.setCursor(0, 0);
 
-// Fahrzeugvisualisierung (Transporter von oben)
-display.drawRect(45, 10, 30, 45, WHITE);  // Rechteck für das Fahrzeug
+// Top-down vehicle illustration.
+display.drawRect(45, 10, 30, 45, WHITE);  // Vehicle outline.
 
-// Anzeige der Blöcke für Höhenunterschiede
-// vorne rechts
+// Display the blocks representing height differences.
+// Front right.
 if (filteredHeightRoll > 0 && filteredHeightPitch < 0) {
-    display.fillRect(65, 10, 10, 15, WHITE);  // vorne rechts Block
+    display.fillRect(65, 10, 10, 15, WHITE);  // Front-right block.
 
-    // Anzeige je nach Modus
+    // Display values according to the selected mode.
     if (displayMode == 1 || displayMode == 2) {
         display.setCursor(80, 15);
-        display.print((abs(filteredHeightRoll)+abs(filteredHeightPitch)), 1);  // Gesamtwert
+        display.print((abs(filteredHeightRoll)+abs(filteredHeightPitch)), 1);  // Combined value.
     }
     if (displayMode == 0 || displayMode == 2) {
         display.setCursor(68, 0);
-        display.print(stepKeilRollPitch);  // Keilanzahl
+        display.print(wedgeStepCombined);  // Wedge step.
     }
 
-    // Roll ist dominant
+    // Roll is dominant.
     if (abs(filteredHeightRoll) > abs(filteredHeightPitch)) {
-        display.fillRect(45, 10, 10, 15, WHITE);  // vorne links
+        display.fillRect(45, 10, 10, 15, WHITE);  // Front left.
         if (displayMode == 1 || displayMode == 2) {
             display.setCursor(20, 15);
-            display.print(abs(filteredHeightRoll), 1);  // Einzelwert Roll
+            display.print(abs(filteredHeightRoll), 1);  // Roll value.
         }
         if (displayMode == 0 || displayMode == 2) {
             display.setCursor(48, 0);
-            display.print(stepKeilRoll);  // Keilanzahl Roll
+            display.print(wedgeStepRoll);  // Roll wedge step.
         }
     }
-    // Pitch ist dominant
+    // Pitch is dominant.
     else {
-        display.fillRect(65, 40, 10, 15, WHITE);  // hinten rechts
+        display.fillRect(65, 40, 10, 15, WHITE);  // Rear right.
         if (displayMode == 1 || displayMode == 2) {
             display.setCursor(80, 43);
-            display.print(abs(filteredHeightPitch), 1);  // Einzelwert Pitch
+            display.print(abs(filteredHeightPitch), 1);  // Pitch value.
         }
         if (displayMode == 0 || displayMode == 2) {
             display.setCursor(68, 57);
-            display.print(stepKeilPitch);  // Keilanzahl Pitch
+            display.print(wedgeStepPitch);  // Pitch wedge step.
         }
     }
 }
 
-// hinten rechts
+// Rear right.
 if (filteredHeightRoll < 0 && filteredHeightPitch < 0) {
-    display.fillRect(65, 40, 10, 15, WHITE);  // hinten rechts Block
+    display.fillRect(65, 40, 10, 15, WHITE);  // Rear-right block.
 
-    // Anzeige je nach Modus
+    // Display values according to the selected mode.
     if (displayMode == 1 || displayMode == 2) {
         display.setCursor(80, 43);
-        display.print(abs(filteredHeightRoll)+abs(filteredHeightPitch), 1);  // Gesamtwert
+        display.print(abs(filteredHeightRoll)+abs(filteredHeightPitch), 1);  // Combined value.
     }
     if (displayMode == 0 || displayMode == 2) {
         display.setCursor(68, 57);
-        display.print(stepKeilRollPitch);  // Keilanzahl
+        display.print(wedgeStepCombined);  // Wedge step.
     }
 
-    // Roll ist dominant
+    // Roll is dominant.
     if (abs(filteredHeightRoll) > abs(filteredHeightPitch)) {
-        display.fillRect(45, 40, 10, 15, WHITE);  // hinten links
+        display.fillRect(45, 40, 10, 15, WHITE);  // Rear left.
         if (displayMode == 1 || displayMode == 2) {
             display.setCursor(20, 43);
-            display.print(abs(filteredHeightRoll), 1);  // Einzelwert Roll
+            display.print(abs(filteredHeightRoll), 1);  // Roll value.
         }
         if (displayMode == 0 || displayMode == 2) {
             display.setCursor(48, 57);
-            display.print(stepKeilRoll);  // Keilanzahl Roll
+            display.print(wedgeStepRoll);  // Roll wedge step.
         }
     }
-    // Pitch ist dominant
+    // Pitch is dominant.
     else {
-        display.fillRect(65, 10, 10, 15, WHITE);  // vorne rechts
+        display.fillRect(65, 10, 10, 15, WHITE);  // Front right.
         if (displayMode == 1 || displayMode == 2) {
             display.setCursor(80, 15);
-            display.print(abs(filteredHeightPitch), 1);  // Einzelwert Pitch
+            display.print(abs(filteredHeightPitch), 1);  // Pitch value.
         }
         if (displayMode == 0 || displayMode == 2) {
             display.setCursor(68, 0);
-            display.print(stepKeilPitch);  // Keilanzahl Pitch
+            display.print(wedgeStepPitch);  // Pitch wedge step.
         }
     }
 }
 
-// vorne links
+// Front left.
 if (filteredHeightRoll > 0 && filteredHeightPitch > 0) {
-    display.fillRect(45, 10, 10, 15, WHITE);  // vorne links Block
+    display.fillRect(45, 10, 10, 15, WHITE);  // Front-left block.
 
-    // Anzeige je nach Modus
+    // Display values according to the selected mode.
     if (displayMode == 1 || displayMode == 2) {
         display.setCursor(20, 15);
-        display.print(abs(filteredHeightRoll)+abs(filteredHeightPitch), 1);  // Gesamtwert
+        display.print(abs(filteredHeightRoll)+abs(filteredHeightPitch), 1);  // Combined value.
     }
     if (displayMode == 0 || displayMode == 2) {
         display.setCursor(48, 0);
-        display.print(stepKeilRollPitch);  // Keilanzahl
+        display.print(wedgeStepCombined);  // Wedge step.
     }
 
-    // Roll ist dominant
+    // Roll is dominant.
     if (abs(filteredHeightRoll) > abs(filteredHeightPitch)) {
-        display.fillRect(65, 10, 10, 15, WHITE);  // vorne rechts
+        display.fillRect(65, 10, 10, 15, WHITE);  // Front right.
         if (displayMode == 1 || displayMode == 2) {
             display.setCursor(80, 15);
-            display.print(abs(filteredHeightRoll), 1);  // Einzelwert Roll
+            display.print(abs(filteredHeightRoll), 1);  // Roll value.
         }
         if (displayMode == 0 || displayMode == 2) {
             display.setCursor(68, 0);
-            display.print(stepKeilRoll);  // Keilanzahl Roll
+            display.print(wedgeStepRoll);  // Roll wedge step.
         }
     }
-    // Pitch ist dominant
+    // Pitch is dominant.
     else {
-        display.fillRect(45, 40, 10, 15, WHITE);  // hinten links
+        display.fillRect(45, 40, 10, 15, WHITE);  // Rear left.
         if (displayMode == 1 || displayMode == 2) {
             display.setCursor(20, 43);
-            display.print(abs(filteredHeightPitch), 1);  // Einzelwert Pitch
+            display.print(abs(filteredHeightPitch), 1);  // Pitch value.
         }
         if (displayMode == 0 || displayMode == 2) {
             display.setCursor(48, 57);
-            display.print(stepKeilPitch);  // Keilanzahl Pitch
+            display.print(wedgeStepPitch);  // Pitch wedge step.
         }
     }
 }
 
-// hinten links
+// Rear left.
 if (filteredHeightRoll < 0 && filteredHeightPitch > 0) {
-    display.fillRect(45, 40, 10, 15, WHITE);  // hinten links Block
+    display.fillRect(45, 40, 10, 15, WHITE);  // Rear-left block.
 
-    // Anzeige je nach Modus
+    // Display values according to the selected mode.
     if (displayMode == 1 || displayMode == 2) {
         display.setCursor(20, 43);
-        display.print(abs(filteredHeightRoll)+abs(filteredHeightPitch), 1);  // Gesamtwert
+        display.print(abs(filteredHeightRoll)+abs(filteredHeightPitch), 1);  // Combined value.
     }
     if (displayMode == 0 || displayMode == 2) {
         display.setCursor(48, 57);
-        display.print(stepKeilRollPitch);  // Keilanzahl
+        display.print(wedgeStepCombined);  // Wedge step.
     }
 
-    // Roll ist dominant
+    // Roll is dominant.
     if (abs(filteredHeightRoll) > abs(filteredHeightPitch)) {
-        display.fillRect(65, 40, 10, 15, WHITE);  // hinten rechts
+        display.fillRect(65, 40, 10, 15, WHITE);  // Rear right.
         if (displayMode == 1 || displayMode == 2) {
             display.setCursor(80, 43);
-            display.print(abs(filteredHeightRoll), 1);  // Einzelwert Roll
+            display.print(abs(filteredHeightRoll), 1);  // Roll value.
         }
         if (displayMode == 0 || displayMode == 2) {
             display.setCursor(68, 57);
-            display.print(stepKeilRoll);  // Keilanzahl Roll
+            display.print(wedgeStepRoll);  // Roll wedge step.
         }
     }
-    // Pitch ist dominant
+    // Pitch is dominant.
     else {
-        display.fillRect(45, 10, 10, 15, WHITE);  // vorne links
+        display.fillRect(45, 10, 10, 15, WHITE);  // Front left.
         if (displayMode == 1 || displayMode == 2) {
             display.setCursor(20, 15);
-            display.print(abs(filteredHeightPitch), 1);  // Einzelwert Pitch
+            display.print(abs(filteredHeightPitch), 1);  // Pitch value.
         }
         if (displayMode == 0 || displayMode == 2) {
             display.setCursor(48, 0);
-            display.print(stepKeilPitch);  // Keilanzahl Pitch
+            display.print(wedgeStepPitch);  // Pitch wedge step.
         }
     }
 }
 
-// Warnsymbol bei extremer Schieflage
+// Show a warning for extreme tilt.
 if ((abs(filteredHeightRoll)+abs(filteredHeightPitch)) > 14) {
     display.setCursor(58, 29);
-    display.print("!");  // Warnung
+    display.print("!");  // Warning.
 }
 
 

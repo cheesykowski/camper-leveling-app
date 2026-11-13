@@ -10,6 +10,8 @@ export const defaultCalibrations = {
 
 export const calibrationSlotIds = ['slot-1', 'slot-2', 'slot-3'];
 
+const calibrationTrimFraction = 0.1;
+
 export const defaultCalibrationSlots = {
   phone: createEmptySlots(),
   external: createEmptySlots(),
@@ -21,6 +23,18 @@ export const defaultCalibrationSlotIds = {
 };
 
 const calibrationSources = ['phone', 'external'];
+
+export function getTrimmedMean(values) {
+  const sortedValues = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (sortedValues.length === 0) {
+    throw new RangeError('Cannot calculate a mean without finite samples.');
+  }
+
+  // Excluding both tails limits the effect of brief sensor spikes.
+  const trimCount = Math.floor(sortedValues.length * calibrationTrimFraction);
+  const retainedValues = sortedValues.slice(trimCount, sortedValues.length - trimCount);
+  return retainedValues.reduce((sum, value) => sum + value, 0) / retainedValues.length;
+}
 
 function createEmptySlots() {
   return calibrationSlotIds.map((id) => ({

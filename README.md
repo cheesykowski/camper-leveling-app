@@ -1,77 +1,86 @@
 # KEILOMAT
 
-KEILOMAT ist eine mobile-first Web-App, die dabei hilft, ein Wohnmobil beim Parken auszurichten. Als Datenquelle dienen die Bewegungssensoren des Smartphones oder eine interaktive 3D-Simulation. Eine Verbindung zu einer externen Bluetooth-IMU ist für einen späteren Entwicklungsschritt vorgesehen.
+KEILOMAT is a mobile-first web app that helps level a parked camper van. It can use a phone's orientation sensor or an interactive 3D simulation. Support for an external Bluetooth IMU is planned but is not connected yet.
 
-> **Status:** früher Prototyp. Die Sensorausrichtung und Keil-Empfehlungen müssen mit dem realen Fahrzeug und den tatsächlichen Keilen überprüft werden. Die App ist derzeit keine sicherheitskritische Mess- oder Fahrhilfe.
+> **Status:** Early prototype. Sensor orientation and wedge recommendations must be validated with the actual vehicle and wedges. This app is not a safety-critical measuring or driving aid.
 
-## Funktionen des Prototyps
+## Prototype features
 
-- Pitch- und Roll-Anzeige über die Browser-Orientierungssensoren, sofern verfügbar
-- Kalibrierung auf möglichst ebener Fläche; Smartphone- und externe Sensor-Kalibrierungen werden getrennt gespeichert
-- Interaktive 3D-Neigungssimulation mit begrenztem Pitch- und Roll-Winkel von bis zu ±30°, falls kein Sensor verfügbar ist
-- Auswahl zwischen Simulation, Smartphone-Sensor und (derzeit nicht verfügbarer) externer Sensorquelle
-- Eingabe und lokale Speicherung von Radstand, Spurweite und Keilstufenhöhen (auch Dezimalwerte)
-- Empfehlung für höchstens zwei Keile; die dominante Neigung wird anhand der Geometrie aus Pitch, Roll, Radstand und Spurweite bestimmt
-- Anzeige der beiden gewählten Keilpositionen und ihrer ganzzahligen Stufennummern
-- Draufsicht des Fahrzeugs mit markierten Keilpositionen und ganzzahligen Stufennummern
-- Gemeinsame Fahrzeug-Draufsicht in der Hauptansicht und Fahrzeugkonfiguration
-- Reduzierte Retro-Oberfläche mit Live-Neigungsanzeige und einer Drei-Sekunden-Halteaktion zur Kalibrierung
-- Fahrzeugparameter und einzeln editierbare Keilstufen im Konfigurationsmenü
-- Speicherung der Einstellungen im `localStorage` des verwendeten Browsers
+- Live pitch and roll readings from the browser's device-orientation API, when available
+- A three-second phone calibration that stores the trimmed mean of the captured pitch and roll samples
+- Separate calibration slots for the phone and external sensor sources
+- Interactive 3D tilt simulation, limited to ±30° on pitch and roll
+- Selection between simulation, the phone sensor, and the currently unavailable external sensor
+- Locally stored wheelbase, track width, and individually editable wedge heights, including decimal values
+- A recommendation for up to two wedges based on pitch, roll, wheelbase, and track width
+- A vehicle top view showing the recommended wheel positions and wedge step numbers
+- A shared vehicle top view in the main screen and vehicle setup
+- A compact dashboard with sensor status, settings, and calibration controls
+- Browser-local storage of vehicle settings and calibration slots
 
-Die Standardwerte für Fahrzeug und Keile sind nur Beispielwerte und müssen vor einer realen Verwendung angepasst werden.
+The default vehicle dimensions and wedge heights are examples. Update them before relying on the app.
 
-Die Empfehlung verwendet zwei Keile: Am tiefsten diagonalen Rad wird die kombinierte Pitch-/Roll-Korrektur angesetzt; der zweite Keil liegt am benachbarten Rad entlang der dominanten, geometrisch skalierten Neigung. Verwendet wird jeweils die höchste konfigurierte Keilhöhe (auch Dezimalwerte sind möglich), die den berechneten Hub nicht überschreitet. Angezeigt wird die ganzzahlige Stufennummer, nicht die berechnete Höhe. Damit ist der dominante Achsenausgleich priorisiert, nicht notwendigerweise eine vollständige Nivellierung beider Achsen garantiert. Das Modell behandelt das Fahrzeug als starre Ebene auf ebenem Untergrund. Reifenverformung, Federweg, unebener Untergrund und Verwindung des Fahrgestells sind nicht modelliert. Sensorachsen, Vorzeichen und reale Keilstufen müssen vor einem realen Einsatz am Fahrzeug überprüft werden.
+The recommendation places one wedge at the lowest corner using the combined pitch and roll correction, then places a second wedge on the adjacent wheel along the geometrically dominant axis. For each position, it selects the highest configured wedge height that does not exceed the calculated lift. The app displays the integer step number rather than the calculated height. This prioritizes correction along the dominant axis; it does not guarantee that both axes are fully level. The model treats the vehicle as a rigid plane on level ground. Tire deformation, suspension travel, uneven ground, and chassis flex are not modeled. Verify sensor axes, signs, and real wedge heights on the vehicle before use.
 
-## Lokal entwickeln
+## Local development
 
-Voraussetzung: Node.js und npm.
+Requirements: Node.js and npm.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Vite zeigt die lokale Entwicklungsadresse im Terminal an (standardmäßig `http://localhost:5173`). Für einen Produktions-Build:
+Vite prints the local development URL in the terminal (usually `http://localhost:5173`). To create and preview a production build:
 
 ```bash
 npm run build
 npm run preview
 ```
 
-## Android-Sensorzugriff
+Run the unit tests with:
 
-Öffne die App in einem unterstützten mobilen Browser. Der Zugriff auf Bewegungssensoren kann eine sichere Verbindung (HTTPS) und eine Browser-Berechtigung erfordern. Die Sensorwerte hängen davon ab, wie das Smartphone im Fahrzeug befestigt ist. Vor der Kalibrierung muss das Fahrzeug stehen und sich das Telefon in seiner vorgesehenen Einbauposition befinden.
+```bash
+npm test
+```
 
-## Feedback für den Freundestest
+## Phone sensor access
 
-Das Feedbackformular nutzt Formspree für E-Mail-Benachrichtigungen und speichert Originalantworten im Formspree-Konto des App-Eigentümers. Der Name ist freiwillig. Antworten werden nicht automatisch in dieses öffentliche Repository geschrieben; hier sollen nur geprüfte, anonymisierte Erkenntnisse ergänzt werden.
+Open the app in a supported mobile browser. Motion-sensor access may require a secure connection (HTTPS) and browser permission. Readings depend on how the phone is mounted in the vehicle. Park the vehicle and place the phone in its intended position before calibrating.
 
-Der Formspree-Endpunkt ist für GitHub Pages im Workflow konfiguriert. Für lokale Entwicklung:
+## Feedback
 
-- `.env.example` nach `.env.local` kopieren.
-- In Formspree Empfängeradresse und Datenschutzeinstellungen konfigurieren.
+The feedback form uses Formspree for email notifications and stores submissions in the app owner's Formspree account. Providing a name is optional. Responses are not automatically written to this public repository; only reviewed, anonymized findings should be added here.
 
-Die Endpunkt-URL wird in das öffentliche App-Bundle aufgenommen und ist kein Geheimnis. Formspree-API-Schlüssel oder andere private Zugangsdaten dürfen nicht in den Frontend-Code. Wenn der Endpunkt entfernt oder geändert wird, muss der Wert im Workflow und in `.env.example` angepasst werden.
+The GitHub Pages workflow supplies the Formspree endpoint at build time. For local development:
 
-## Projektstruktur
+- Copy `.env.example` to `.env.local`.
+- Configure the recipient address and privacy settings in Formspree.
 
-- `src/App.jsx` – Oberfläche, Sensorstatus, Einstellungen und einfache Empfehlung
-- `src/styles.css` – Gestaltung und responsive Layouts
-- `src/main.jsx` – React-Einstiegspunkt
-- `vite.config.js` – Vite-Konfiguration
-- `PLAN.md` – Entwicklungsplan, aktueller Stand und nächste Schritte
+The endpoint URL is included in the public app bundle and is not a secret. Do not put Formspree API keys or other private credentials in frontend code. If the endpoint changes, update both the workflow and `.env.example`.
+
+## Project structure
+
+- `src/App.jsx` — UI, sensor status, settings, and calibration interaction
+- `src/calibration.js` — calibration slot normalization, migration, and offset utilities
+- `src/calibration.test.js` and `src/leveling.test.js` — unit tests
+- `src/leveling.js` — wedge recommendation calculations
+- `src/styles.css` — styling and responsive layouts
+- `src/main.jsx` — React entry point
+- `vite.config.js` — Vite configuration
+- `keilomat_new_copy_20250425200144.ino` — legacy Arduino prototype, separate from the web app
+- `PLAN.md` — project status, decisions, and next steps
 
 ## Hosting
 
-Pushes auf `main` starten automatisch den GitHub-Actions-Workflow unter `.github/workflows/deploy-pages.yml`. Er installiert die Abhängigkeiten, erstellt den Vite-Build und veröffentlicht `dist` auf GitHub Pages. Der Vite-Basispfad wird im Actions-Build auf den Projektnamen gesetzt; lokal bleibt die App unter der Vite-Root-Adresse erreichbar.
+Pushes to `main` start the GitHub Actions workflow in `.github/workflows/deploy-pages.yml`. It installs dependencies, builds the Vite app, and publishes `dist` to GitHub Pages. The workflow sets the Vite base path to the repository name; locally, the app uses the root path.
 
-Aktuelle Veröffentlichungsadresse:
+Published URL:
 
 <https://cheesykowski.github.io/camper-leveling-app/>
 
-Falls Pages für das Repository noch nicht aktiviert ist, in **Settings → Pages** als Build-Quelle **GitHub Actions** auswählen. Der Link ist nutzbar, sobald der erste Actions-Workflow erfolgreich abgeschlossen wurde.
+If GitHub Pages is not enabled for the repository, select **GitHub Actions** as the publishing source in **Settings → Pages**. The URL is available after a successful deployment.
 
-## Weiterentwicklung
+## Development plan
 
-Siehe [PLAN.md](./PLAN.md). Halte diese Datei bei jeder relevanten Änderung aktuell: Status, erledigte Aufgaben, neue Erkenntnisse und nächste Schritte sollten dem tatsächlichen Stand im Code entsprechen.
+See [PLAN.md](./PLAN.md). Keep it in sync with the code whenever a relevant feature or fix changes project status, decisions, or next steps.

@@ -5,6 +5,7 @@ import {
   defaultCalibrationSlotIds,
   defaultCalibrationSlots,
   getActiveCalibration,
+  getTrimmedMean,
   normalizeCalibrationSlotIds,
   normalizeCalibrationSlots,
   replaceCalibrationSlotOffsets,
@@ -423,6 +424,7 @@ function App() {
   const [isHoldingCalibration, setIsHoldingCalibration] = useState(false);
   const [calibrationComplete, setCalibrationComplete] = useState(false);
   const calibrationTimeout = useRef(null);
+  const calibrationSamples = useRef([]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -452,6 +454,9 @@ function App() {
       if (!Number.isFinite(event.beta) || !Number.isFinite(event.gamma)) return;
       const pitch = event.beta;
       const roll = event.gamma;
+      if (calibrationTimeout.current !== null) {
+        calibrationSamples.current.push({ pitch, roll });
+      }
       const nextSensorData = {
         pitch,
         roll,
@@ -590,13 +595,18 @@ function App() {
 
     setCalibrationComplete(false);
     setIsHoldingCalibration(true);
+    calibrationSamples.current = [
+      { pitch: sensorDataRef.current.pitch, roll: sensorDataRef.current.roll },
+    ];
     const selectedSlotId = calibrationSlotIds.phone;
     calibrationTimeout.current = window.setTimeout(() => {
-      const { pitch, roll } = sensorDataRef.current;
+      const pitch = getTrimmedMean(calibrationSamples.current.map((sample) => sample.pitch));
+      const roll = getTrimmedMean(calibrationSamples.current.map((sample) => sample.roll));
       setCalibrationSlots((current) => ({
         ...current,
         phone: replaceCalibrationSlotOffsets(current.phone, selectedSlotId, { pitch, roll }),
       }));
+      calibrationSamples.current = [];
       calibrationTimeout.current = null;
       setIsHoldingCalibration(false);
       setCalibrationComplete(true);
@@ -607,6 +617,7 @@ function App() {
     if (calibrationTimeout.current !== null) {
       window.clearTimeout(calibrationTimeout.current);
       calibrationTimeout.current = null;
+      calibrationSamples.current = [];
       setIsHoldingCalibration(false);
     }
   };

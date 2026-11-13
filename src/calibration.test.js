@@ -6,10 +6,25 @@ import {
   defaultCalibrations,
   defaultCalibrationSlotIds,
   getActiveCalibration,
+  getTrimmedMean,
   normalizeCalibrationSlotIds,
   normalizeCalibrationSlots,
   replaceCalibrationSlotOffsets,
 } from './calibration.js';
+
+test('calculates the trimmed mean while excluding isolated low and high readings', () => {
+  assert.equal(getTrimmedMean([-100, 8, 9, 10, 11, 12, 13, 14, 15, 100]), 11.5);
+});
+
+test('keeps small sample sets intact and ignores non-finite readings', () => {
+  assert.equal(getTrimmedMean([2, Number.NaN, 4]), 3);
+});
+
+test('rejects a sample set without finite readings', () => {
+  assert.throws(() => getTrimmedMean([Number.NaN, Number.POSITIVE_INFINITY]), {
+    name: 'RangeError',
+  });
+});
 
 test('normalizes three named slots and clears invalid offsets', () => {
   const slots = normalizeCalibrationSlots(
