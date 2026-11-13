@@ -590,6 +590,87 @@ input:focus-visible {
   text-align: center;
 }
 
+.calibration-content {
+  gap: 8px;
+}
+
+.calibration-profile-settings,
+.calibration-profile-save {
+  display: grid;
+  gap: 10px;
+}
+
+.calibration-profile-settings > label,
+.calibration-profile-save > label {
+  display: grid;
+  gap: 6px;
+  color: var(--text);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.calibration-profile-settings label small {
+  color: var(--dim);
+  font-size: 0.55rem;
+  font-weight: 400;
+}
+
+.calibration-profile-settings select,
+.calibration-profile-save input {
+  min-width: 0;
+  min-height: 40px;
+  padding: 7px 9px;
+  border: 1px solid #31533a;
+  border-radius: 0;
+  background: #070d0a;
+  color: var(--bright);
+  font: inherit;
+  font-size: 0.68rem;
+}
+
+.calibration-profile-settings select {
+  color-scheme: dark;
+}
+
+.calibration-offset-readout {
+  margin: 0;
+  color: var(--glow);
+  font-size: 0.62rem;
+}
+
+.calibration-latest-readout {
+  margin: -6px 0 0;
+  color: var(--dim);
+  font-size: 0.58rem;
+}
+
+.calibration-profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.calibration-profile-action {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  background: #0c1511;
+  color: var(--glow);
+  cursor: pointer;
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.calibration-profile-action.delete {
+  color: var(--amber);
+}
+
+.calibration-profile-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .bottom-menu {
   z-index: 1;
   width: min(100%, 360px);
@@ -701,7 +782,7 @@ input:focus-visible {
 
 .menu-tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 5px;
   margin-bottom: 14px;
   padding: 4px;
@@ -803,6 +884,12 @@ input:focus-visible {
 .feedback-form {
   display: grid;
   gap: 13px;
+}
+
+.feedback-meta-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .feedback-honeypot {
@@ -1382,6 +1469,10 @@ input:focus-visible {
 
   .feedback-form {
     gap: 8px;
+  }
+
+  .feedback-meta-fields {
+    gap: 7px;
   }
 
   .feedback-field textarea {

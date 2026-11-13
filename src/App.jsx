@@ -1,4 +1,13 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+  defaultCalibration,
+  defaultCalibrationProfileIds,
+  defaultCalibrationProfiles,
+  defaultCalibrations,
+  getActiveCalibration,
+  normalizeCalibrationProfileIds,
+  normalizeCalibrationProfiles,
+} from './calibration.js';
 import { calculateTwoWedgePlan, wheelCorners } from './leveling.js';
 
 const STORAGE_KEY = 'camper-leveling-demo-v1';
@@ -10,16 +19,6 @@ const defaultVehicle = {
   wheelbaseCm: 240,
   trackWidthCm: 180,
   wedgeHeightsCm: [3, 6, 9],
-};
-
-const defaultCalibration = {
-  pitch: 0,
-  roll: 0,
-};
-
-const defaultCalibrations = {
-  phone: defaultCalibration,
-  external: defaultCalibration,
 };
 
 const vehicleDimensionLimits = {
@@ -170,6 +169,7 @@ function FeedbackForm({ endpoint }) {
   const [feedback, setFeedback] = useState({
     name: '',
     category: '',
+    device: '',
     message: '',
     consent: false,
   });
@@ -208,7 +208,7 @@ function FeedbackForm({ endpoint }) {
         return;
       }
 
-      setFeedback({ name: '', category: '', message: '', consent: false });
+      setFeedback({ name: '', category: '', device: '', message: '', consent: false });
       setStatus({ type: 'success', message: 'Thanks — your feedback was sent.' });
     } catch (error) {
       if (!(error instanceof TypeError)) throw error;
@@ -250,18 +250,33 @@ function FeedbackForm({ endpoint }) {
           onChange={handleChange}
         />
       </label>
-      <label className="feedback-field">
-        <span>Category</span>
-        <select name="category" required value={feedback.category} onChange={handleChange}>
-          <option value="" disabled>
-            Choose one
-          </option>
-          <option value="bug">Something did not work</option>
-          <option value="usability">Something was unclear</option>
-          <option value="idea">I have an idea</option>
-          <option value="other">Other feedback</option>
-        </select>
-      </label>
+      <div className="feedback-meta-fields">
+        <label className="feedback-field">
+          <span>Category</span>
+          <select name="category" required value={feedback.category} onChange={handleChange}>
+            <option value="" disabled>
+              Choose one
+            </option>
+            <option value="bug">Something did not work</option>
+            <option value="usability">Something was unclear</option>
+            <option value="idea">I have an idea</option>
+            <option value="other">Other feedback</option>
+          </select>
+        </label>
+        <label className="feedback-field">
+          <span>
+            Device <small>OPTIONAL</small>
+          </span>
+          <select name="device" value={feedback.device} onChange={handleChange}>
+            <option value="">Choose one</option>
+            <option value="smartphone">Smartphone</option>
+            <option value="tablet">Tablet</option>
+            <option value="laptop">Laptop</option>
+            <option value="desktop">Desktop computer</option>
+            <option value="other">Other / not listed</option>
+          </select>
+        </label>
+      </div>
       <label className="feedback-field">
         <span>What would you like to share?</span>
         <textarea
@@ -311,6 +326,8 @@ function App() {
     if (!raw) {
       return {
         calibrations: defaultCalibrations,
+        calibrationProfiles: defaultCalibrationProfiles,
+        calibrationProfileIds: defaultCalibrationProfileIds,
         vehicle: defaultVehicle,
       };
     }
@@ -323,6 +340,7 @@ function App() {
             .filter((height) => Number.isFinite(height) && height > 0)
             .sort((a, b) => a - b)
         : [];
+      const calibrationProfiles = normalizeCalibrationProfiles(parsed.calibrationProfiles);
       return {
         calibrations: {
           phone: {
@@ -342,6 +360,11 @@ function App() {
             roll: Number(parsed.calibrations?.external?.roll ?? defaultCalibration.roll),
           },
         },
+        calibrationProfiles,
+        calibrationProfileIds: normalizeCalibrationProfileIds(
+          parsed.calibrationProfileIds,
+          calibrationProfiles,
+        ),
         vehicle: {
           wheelbaseCm: Number(parsed.vehicle?.wheelbaseCm ?? defaultVehicle.wheelbaseCm),
           trackWidthCm: Number(parsed.vehicle?.trackWidthCm ?? defaultVehicle.trackWidthCm),
@@ -353,12 +376,22 @@ function App() {
     } catch {
       return {
         calibrations: defaultCalibrations,
+        calibrationProfiles: defaultCalibrationProfiles,
+        calibrationProfileIds: defaultCalibrationProfileIds,
         vehicle: defaultVehicle,
       };
     }
   }, []);
 
   const [calibrations, setCalibrations] = useState(loadedState.calibrations);
+  const [calibrationProfiles, setCalibrationProfiles] = useState(
+    loadedState.calibrationProfiles,
+  );
+  const [calibrationProfileIds, setCalibrationProfileIds] = useState(
+    loadedState.calibrationProfileIds,
+  );
+  const [calibrationProfileSource, setCalibrationProfileSource] = useState('phone');
+  const [calibrationProfileName, setCalibrationProfileName] = useState('');
   const [vehicle, setVehicle] = useState(loadedState.vehicle);
   const [vehicleInputs, setVehicleInputs] = useState({
     wheelbaseCm: String(loadedState.vehicle.wheelbaseCm),
@@ -392,11 +425,13 @@ function App() {
       STORAGE_KEY,
       JSON.stringify({
         calibrations,
+        calibrationProfiles,
+        calibrationProfileIds,
         calibration: calibrations.phone,
         vehicle,
       }),
     );
-  }, [calibrations, vehicle]);
+  }, [calibrations, calibrationProfiles, calibrationProfileIds, vehicle]);
 
   useEffect(() => {
     const hasSensorAPI = 'DeviceOrientationEvent' in window;
@@ -479,17 +514,32 @@ function App() {
     [],
   );
 
+  const calibrationSource = source === 'phone' || source === 'external' ? source : null;
+  const activeCalibration = calibrationSource
+    ? getActiveCalibration(
+        calibrationSource,
+        calibrations,
+        calibrationProfiles,
+        calibrationProfileIds,
+      )
+    : defaultCalibration;
+  const profileManagementCalibration = getActiveCalibration(
+    calibrationProfileSource,
+    calibrations,
+    calibrationProfiles,
+    calibrationProfileIds,
+  );
   const currentRoll =
     source === 'simulation'
       ? simulatedTilt.roll
       : source === 'phone' && sensorData.available
-        ? sensorData.roll - calibrations.phone.roll
+        ? sensorData.roll - activeCalibration.roll
         : null;
   const currentPitch =
     source === 'simulation'
       ? simulatedTilt.pitch
       : source === 'phone' && sensorData.available
-        ? sensorData.pitch - calibrations.phone.pitch
+        ? sensorData.pitch - activeCalibration.pitch
         : null;
 
   const recommendation = useMemo(() => {
@@ -553,6 +603,7 @@ function App() {
           roll: sensorDataRef.current.roll,
         },
       }));
+      setCalibrationProfileIds((current) => ({ ...current, phone: null }));
       calibrationTimeout.current = null;
       setIsHoldingCalibration(false);
       setCalibrationComplete(true);
@@ -565,6 +616,52 @@ function App() {
       calibrationTimeout.current = null;
       setIsHoldingCalibration(false);
     }
+  };
+
+  const saveCalibrationProfile = (event) => {
+    event.preventDefault();
+    if (calibrationProfileSource !== 'phone') return;
+
+    const createdAt = Date.now();
+    const name =
+      calibrationProfileName.trim() ||
+      `Calibration · ${new Date(createdAt).toLocaleString('en-GB', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      })}`;
+    const profile = {
+      id: `${createdAt}-${Math.random().toString(36).slice(2, 8)}`,
+      name,
+      pitch: calibrations[calibrationProfileSource].pitch,
+      roll: calibrations[calibrationProfileSource].roll,
+      createdAt,
+    };
+
+    setCalibrationProfiles((current) => ({
+      ...current,
+      [calibrationProfileSource]: [profile, ...current[calibrationProfileSource]],
+    }));
+    setCalibrationProfileIds((current) => ({
+      ...current,
+      [calibrationProfileSource]: profile.id,
+    }));
+    setCalibrationProfileName('');
+  };
+
+  const deleteSelectedCalibrationProfile = () => {
+    const selectedId = calibrationProfileIds[calibrationProfileSource];
+    if (!selectedId) return;
+
+    setCalibrationProfiles((current) => ({
+      ...current,
+      [calibrationProfileSource]: current[calibrationProfileSource].filter(
+        (profile) => profile.id !== selectedId,
+      ),
+    }));
+    setCalibrationProfileIds((current) => ({
+      ...current,
+      [calibrationProfileSource]: null,
+    }));
   };
 
   const sortedWedgeHeights = [...vehicle.wedgeHeightsCm].sort((a, b) => a - b);
@@ -990,7 +1087,9 @@ function App() {
                     ? 'Vehicle setup'
                     : activeMenu === 'wedges'
                       ? 'Wedge setup'
-                      : 'Send feedback'}
+                      : activeMenu === 'calibration'
+                        ? 'Calibration profiles'
+                        : 'Send feedback'}
                 </h2>
               </div>
               <button
@@ -1022,6 +1121,15 @@ function App() {
                   onClick={() => setActiveMenu('wedges')}
                 >
                   WEDGES
+                </button>
+                <button
+                  className={activeMenu === 'calibration' ? 'menu-tab active' : 'menu-tab'}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeMenu === 'calibration'}
+                  onClick={() => setActiveMenu('calibration')}
+                >
+                  CALIBRATION
                 </button>
               </div>
             )}
@@ -1144,6 +1252,93 @@ function App() {
                     Configure the steps and set the height.
                   </p>
                 </div>
+              </div>
+            ) : activeMenu === 'calibration' ? (
+              <div className="menu-content calibration-content">
+                <p className="settings-hint">
+                  The most recent calibration is used automatically unless you select a saved
+                  profile.
+                </p>
+                <div className="settings-card calibration-profile-settings">
+                  <label>
+                    Sensor
+                    <select
+                      value={calibrationProfileSource}
+                      onChange={(event) => setCalibrationProfileSource(event.target.value)}
+                    >
+                      <option value="phone">Phone sensor</option>
+                      <option value="external">External sensor</option>
+                    </select>
+                  </label>
+                  <label>
+                    Active offset
+                    <select
+                      value={calibrationProfileIds[calibrationProfileSource] ?? ''}
+                      onChange={(event) => {
+                        setCalibrationProfileIds((current) => ({
+                          ...current,
+                          [calibrationProfileSource]: event.target.value || null,
+                        }));
+                        setCalibrationComplete(false);
+                      }}
+                    >
+                      <option value="">Most recent calibration</option>
+                      {calibrationProfiles[calibrationProfileSource].map((profile) => (
+                        <option key={profile.id} value={profile.id}>
+                          {profile.name ||
+                            `Calibration · ${new Date(profile.createdAt).toLocaleString('en-GB', {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })}`}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <p className="calibration-offset-readout">
+                    Active offset: pitch {profileManagementCalibration.pitch.toFixed(1)}° · roll{' '}
+                    {profileManagementCalibration.roll.toFixed(1)}°
+                  </p>
+                  <p className="calibration-latest-readout">
+                    Most recent: pitch {calibrations[calibrationProfileSource].pitch.toFixed(1)}° ·
+                    roll {calibrations[calibrationProfileSource].roll.toFixed(1)}°
+                  </p>
+                  <form className="calibration-profile-save" onSubmit={saveCalibrationProfile}>
+                    <label>
+                      Save latest calibration <small>OPTIONAL NAME</small>
+                      <input
+                        type="text"
+                        maxLength={60}
+                        placeholder="Leave blank to use a timestamp"
+                        value={calibrationProfileName}
+                        disabled={calibrationProfileSource !== 'phone'}
+                        onChange={(event) => setCalibrationProfileName(event.target.value)}
+                      />
+                    </label>
+                    <div className="calibration-profile-actions">
+                      <button
+                        className="calibration-profile-action"
+                        type="submit"
+                        disabled={calibrationProfileSource !== 'phone'}
+                      >
+                        SAVE AS PROFILE
+                      </button>
+                      {calibrationProfileIds[calibrationProfileSource] && (
+                        <button
+                          className="calibration-profile-action delete"
+                          type="button"
+                          onClick={deleteSelectedCalibrationProfile}
+                        >
+                          DELETE SELECTED
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                </div>
+                <p className="settings-hint">
+                  {calibrationProfileSource === 'phone'
+                    ? 'Hold the calibration button on level ground to update the most recent phone offset.'
+                    : 'External sensor calibration is not available until external sensor support is connected.'}
+                </p>
               </div>
             ) : (
               <div className="menu-content">
