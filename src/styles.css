@@ -81,7 +81,6 @@ input:focus-visible {
 .telemetry,
 .telemetry-item,
 .diagram-heading,
-.level-readout,
 .bottom-menu,
 .menu-header {
   display: flex;
@@ -532,6 +531,13 @@ input:focus-visible {
   text-transform: uppercase;
 }
 
+.hero-description {
+  margin: 0;
+  color: var(--dim);
+  font-size: 0.64rem;
+  line-height: 1.5;
+}
+
 .vehicle-diagram {
   position: relative;
   display: grid;
@@ -652,86 +658,6 @@ input:focus-visible {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0;
-}
-
-.level-readout {
-  width: 100%;
-  min-height: 52px;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 9px 13px;
-  border: 1px solid var(--line);
-  background: linear-gradient(90deg, rgb(29 57 37 / 45%), rgb(12 21 17 / 88%));
-}
-
-.level-readout > span {
-  color: var(--dim);
-  font-size: 0.58rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-}
-
-.level-readout strong {
-  color: var(--amber);
-  font-size: 0.92rem;
-  letter-spacing: 0.08em;
-  white-space: nowrap;
-}
-
-.level-readout small {
-  color: var(--dim);
-  font-size: 0.62rem;
-  flex-basis: 100%;
-  white-space: normal;
-}
-
-.level-readout.is-level strong {
-  color: var(--glow);
-}
-
-.wheel-lift-plan {
-  display: grid;
-  width: 100%;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.wheel-lift-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 3px 8px;
-  padding: 8px 9px;
-  border: 1px solid var(--line);
-  background: #0b130e;
-}
-
-.wheel-lift-item.needs-lift {
-  border-color: rgb(119 223 128 / 45%);
-}
-
-.wheel-lift-item > span {
-  color: var(--dim);
-  font-size: 0.56rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.wheel-lift-item > strong {
-  color: var(--text);
-  font-size: 0.69rem;
-  white-space: nowrap;
-}
-
-.wheel-lift-item.needs-lift > strong {
-  color: var(--glow);
-}
-
-.wheel-lift-item > small {
-  grid-column: 1 / -1;
-  color: var(--dim);
-  font-size: 0.58rem;
 }
 
 .action-area {
@@ -1210,15 +1136,6 @@ input:focus-visible {
 
   .vehicle-svg {
     width: min(72vw, 320px);
-  }
-
-  .level-readout {
-    flex-wrap: wrap;
-    row-gap: 4px;
-  }
-
-  .level-readout > span {
-    width: 100%;
   }
 
   .menu-sheet {

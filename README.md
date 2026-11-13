@@ -10,10 +10,10 @@ KEILOMAT ist eine mobile-first Web-App, die dabei hilft, ein Wohnmobil beim Park
 - Kalibrierung auf möglichst ebener Fläche; Smartphone- und externe Sensor-Kalibrierungen werden getrennt gespeichert
 - Interaktive 3D-Neigungssimulation mit begrenztem Pitch- und Roll-Winkel von bis zu ±30°, falls kein Sensor verfügbar ist
 - Auswahl zwischen Simulation, Smartphone-Sensor und (derzeit nicht verfügbarer) externer Sensorquelle
-- Eingabe und lokale Speicherung von Radstand, Spurweite und Keilhöhen
-- Berechnung des erforderlichen Hubs für jedes Rad aus Pitch, Roll, Radstand und Spurweite
-- Anzeige der nächsten konfigurierten Keilstufe je Rad und der danach verbleibenden Neigung
-- Draufsicht des Fahrzeugs mit markierten Keilpositionen, empfohlenem Schritt und Keilhöhe
+- Eingabe und lokale Speicherung von Radstand, Spurweite und ganzzahligen Keilstufen
+- Empfehlung für höchstens zwei Keile; die dominante Neigung wird anhand der Geometrie aus Pitch, Roll, Radstand und Spurweite bestimmt
+- Anzeige der beiden gewählten Keilpositionen und ihrer erreichbaren Stufennummern
+- Draufsicht des Fahrzeugs mit markierten Keilpositionen und ganzzahligen Stufen
 - Gemeinsame Fahrzeug-Draufsicht in der Hauptansicht und Fahrzeugkonfiguration
 - Reduzierte Retro-Oberfläche mit Live-Neigungsanzeige und einer Drei-Sekunden-Halteaktion zur Kalibrierung
 - Fahrzeugparameter und einzeln editierbare Keilstufen im Konfigurationsmenü
@@ -21,7 +21,7 @@ KEILOMAT ist eine mobile-first Web-App, die dabei hilft, ein Wohnmobil beim Park
 
 Die Standardwerte für Fahrzeug und Keile sind nur Beispielwerte und müssen vor einer realen Verwendung angepasst werden.
 
-Die Hubberechnung behandelt das Fahrzeug als starre Ebene auf ebenem Untergrund. Radstand und Spurweite sind dabei die horizontalen Abstände zwischen den Radaufstandspunkten; die eingetragenen Keilhöhen sind verfügbare absolute Höhen je Rad. Reifenverformung, Federweg, unebener Untergrund und Verwindung des Fahrgestells sind nicht modelliert. Sensorachsen und Vorzeichen müssen vor einem realen Einsatz am Fahrzeug überprüft werden.
+Die Empfehlung verwendet zwei Keile: Am tiefsten diagonalen Rad wird die kombinierte Pitch-/Roll-Korrektur angesetzt; der zweite Keil liegt am benachbarten Rad entlang der dominanten, geometrisch skalierten Neigung. Verwendet wird jeweils die höchste konfigurierte ganzzahlige Stufe, die den berechneten Hub nicht überschreitet. Damit ist der dominante Achsenausgleich priorisiert, nicht notwendigerweise eine vollständige Nivellierung beider Achsen garantiert. Das Modell behandelt das Fahrzeug als starre Ebene auf ebenem Untergrund. Reifenverformung, Federweg, unebener Untergrund und Verwindung des Fahrgestells sind nicht modelliert. Sensorachsen, Vorzeichen und reale Keilstufen müssen vor einem realen Einsatz am Fahrzeug überprüft werden.
 
 ## Lokal entwickeln
 

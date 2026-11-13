@@ -14,10 +14,10 @@ Eine Android-taugliche Web-App, die die Neigung eines geparkten Wohnmobils misst
 - [x] Auswahl zwischen Simulation, Smartphone-Sensor und noch nicht verbundener externer Sensorquelle; fehlende Werte führen nicht zu einer Level-Empfehlung
 - [x] Smartphone- und externe Kalibrierungs-Offsets werden getrennt gespeichert; Fahrzeugdaten liegen ebenfalls im Browser-`localStorage`
 - [x] Konfigurierbare Werte für Radstand, Spurweite und Keilhöhen
-- [x] Erforderlichen Hub an jedem Rad aus Pitch, Roll, Radstand und Spurweite berechnen
-- [x] Pro Rad die nächste verfügbare Keilstufe sowie die verbleibende Neigung anzeigen
-- [x] Verbleibende Neigung anzeigen, wenn die konfigurierten Keilstufen nicht zum vollständigen Ausgleich reichen
-- [x] Gemeinsame Fahrzeug-Draufsicht in Hauptansicht und Fahrzeugkonfiguration, mit markierten Keilpositionen, empfohlenem Keilschritt und Höhe
+- [x] Dominante Neigung anhand der geometrischen Hubbeiträge von Pitch, Roll, Radstand und Spurweite bestimmen
+- [x] Einen Zwei-Keil-Plan mit kombinierter Stufe am tiefsten diagonalen Rad und einer Stufe entlang der dominanten Achse berechnen
+- [x] Nur konfigurierte ganzzahlige Stufen empfehlen und nie auf eine höhere Stufe als den benötigten Hub aufrunden
+- [x] Gemeinsame Fahrzeug-Draufsicht in Hauptansicht und Fahrzeugkonfiguration, mit den zwei empfohlenen Keilpositionen und Stufennummern
 - [x] Minimalistische 3D-Fahrzeugsimulation und Keilstufen-Symbol in der Konfiguration
 - [x] Retro-Dashboard mit Menü für Fahrzeug-/Keilparameter und Drei-Sekunden-Kalibrierung
 - [x] Keilhöhen als einzelne Stufen editierbar, hinzufügbar und entfernbar
@@ -40,7 +40,7 @@ Die voreingestellten Fahrzeug- und Keilwerte sind Platzhalter. Aktuelle Berechnu
 
 - Fahrzeuggeometrie und Keilhöhen anhand realer Werte erfassen.
 - Sensorachsen, Vorzeichen und Nulllage am realen Fahrzeug gegenprüfen.
-- Den Vier-Rad-Plan mit realen Neigungen, Radständen und tatsächlich erreichbaren Keilhöhen validieren.
+- Den Zwei-Keil-Dominanzplan mit realen Neigungen, Radständen und tatsächlich erreichbaren Keilhöhen validieren.
 - Das Ebenenmodell bei Fahrgestellverwindung, Federweg und unebenem Untergrund praktisch validieren.
 - Vor realem Einsatz Vorzeichen, Montageausrichtung der IMU und Berechnung praktisch validieren.
 
@@ -67,7 +67,7 @@ Benötigt werden Arduino-Projekt bzw. BLE-Protokoll, Gerätedaten, Service- und 
 - **Erster Sensor:** Smartphone-Orientierungssensor über die Web-Sensor-/Device-Orientation-APIs.
 - **Zielplattform:** Android-Browser. Sensor- und BLE-Unterstützung ist browserabhängig; BLE-Protokoll wird später festgelegt.
 - **Fahrzeugwerte:** Beispielwerte bis echte Maße vorliegen.
-- **Hubmodell:** Pitch und Roll beschreiben eine Ebene über den vier Radaufstandspunkten. Die App zeigt den kontinuierlich erforderlichen Hub und separat die nächste konfigurierte absolute Keilhöhe; nach dem Runden weist sie die verbleibende Neigung aus.
+- **Hubmodell:** Pitch und Roll werden mit halbem Radstand bzw. halber Spurweite in Hubbeiträge umgerechnet. Die größere geometrische Komponente bestimmt die dominante Achse. Zwei Keile werden am tiefsten diagonalen Rad und am benachbarten Rad entlang der dominanten Achse platziert; ausgewählt wird die höchste verfügbare ganzzahlige Höhe, die den erforderlichen Hub nicht überschreitet. Das gleicht die dominante Achse priorisiert aus, garantiert aber nicht die vollständige Nivellierung beider Achsen.
 - **Kalibrierung:** muss auf ebener Fläche bei korrekt montiertem Sensor erfolgen; die App muss die Achsen-/Vorzeichenkonvention sichtbar und testbar machen.
 
 ## Pflege dieses Plans
