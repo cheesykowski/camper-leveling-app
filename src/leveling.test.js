@@ -83,6 +83,24 @@ test('negative pitch and roll select the opposite low corner', () => {
   );
 });
 
+test('reports the high axle and side opposite the low direction', () => {
+  const positiveTilt = calculateTwoWedgePlan({
+    ...dimensions,
+    pitchDegrees: 5,
+    rollDegrees: 3,
+  });
+  const negativeTilt = calculateTwoWedgePlan({
+    ...dimensions,
+    pitchDegrees: -5,
+    rollDegrees: -3,
+  });
+
+  assert.equal(positiveTilt.highAxle, 'front');
+  assert.equal(positiveTilt.highSide, 'left');
+  assert.equal(negativeTilt.highAxle, 'rear');
+  assert.equal(negativeTilt.highSide, 'right');
+});
+
 test('does not recommend a fractional or higher step when lift is below the first tier', () => {
   const plan = calculateTwoWedgePlan({
     ...dimensions,

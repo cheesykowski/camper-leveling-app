@@ -516,12 +516,8 @@ function App() {
     });
     const title =
       plan.dominantAxis === 'pitch'
-        ? currentPitch > 0
-          ? 'Front is high'
-          : 'Rear is high'
-        : currentRoll > 0
-          ? 'Right side is low'
-          : 'Left side is low';
+        ? `${plan.highAxle === 'front' ? 'Front' : 'Rear'} is high`
+        : `${plan.highSide === 'left' ? 'Left' : 'Right'} side is high`;
     const placementSummary = plan.wedgePlacements
       .map(({ label, step }) => `${label}: ${step > 0 ? `step ${step}` : 'no wedge'}`)
       .join(' · ');

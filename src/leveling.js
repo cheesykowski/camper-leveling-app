@@ -48,6 +48,8 @@ export function calculateTwoWedgePlan({
     Math.abs(pitchHalfRiseCm) >= Math.abs(rollHalfRiseCm) ? 'pitch' : 'roll';
   const lowAxle = pitchHalfRiseCm >= 0 ? 'rear' : 'front';
   const lowSide = rollHalfRiseCm >= 0 ? 'right' : 'left';
+  const highAxle = lowAxle === 'front' ? 'rear' : 'front';
+  const highSide = lowSide === 'left' ? 'right' : 'left';
   const lowCornerId = `${lowAxle}-${lowSide}`;
   const secondWheel =
     dominantAxis === 'pitch'
@@ -64,6 +66,8 @@ export function calculateTwoWedgePlan({
 
   return {
     dominantAxis,
+    highAxle,
+    highSide,
     wedgePlacements: placements.map(({ id, requiredHeightCm }) => {
       const wheel = wheelById.get(id);
       const step = getStepForHeight(requiredHeightCm, sortedWedgeHeightsCm);
