@@ -47,12 +47,12 @@ npm run preview
 
 Das Feedbackformular nutzt Formspree für E-Mail-Benachrichtigungen und speichert Originalantworten im Formspree-Konto des App-Eigentümers. Der Name ist freiwillig. Antworten werden nicht automatisch in dieses öffentliche Repository geschrieben; hier sollen nur geprüfte, anonymisierte Erkenntnisse ergänzt werden.
 
-Erstelle ein Formspree-Formular und konfiguriere dort Empfängeradresse und Datenschutzeinstellungen. Setze anschließend dessen Endpunkt-URL als `VITE_FORMSPREE_ENDPOINT`:
+Der Formspree-Endpunkt ist für GitHub Pages im Workflow konfiguriert. Für lokale Entwicklung:
 
-- Lokal: `.env.example` nach `.env.local` kopieren und die Endpunkt-URL eintragen.
-- Für GitHub Pages: Unter **Settings → Secrets and variables → Actions → Variables** eine Repository-Variable `VITE_FORMSPREE_ENDPOINT` anlegen.
+- `.env.example` nach `.env.local` kopieren.
+- In Formspree Empfängeradresse und Datenschutzeinstellungen konfigurieren.
 
-Die Endpunkt-URL wird in das öffentliche App-Bundle aufgenommen und ist kein Geheimnis. Formspree-API-Schlüssel oder andere private Zugangsdaten dürfen nicht in den Frontend-Code. Bis ein Endpunkt konfiguriert ist, zeigt der Feedbackdialog an, dass das Formular noch nicht verfügbar ist.
+Die Endpunkt-URL wird in das öffentliche App-Bundle aufgenommen und ist kein Geheimnis. Formspree-API-Schlüssel oder andere private Zugangsdaten dürfen nicht in den Frontend-Code. Wenn der Endpunkt entfernt oder geändert wird, muss der Wert im Workflow und in `.env.example` angepasst werden.
 
 ## Projektstruktur
 
