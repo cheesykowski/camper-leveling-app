@@ -927,6 +927,12 @@ function App() {
         <section className="hero-panel" aria-label="Leveling recommendation">
           <div className="hero-heading">
             <h2>{recommendation.title}</h2>
+            {recommendation.wedgeCapacityExceeded && (
+              <p className="recommendation-warning" role="status">
+                Required lift exceeds your tallest configured wedge. Reposition the vehicle or
+                configure taller wedges.
+              </p>
+            )}
             {recommendation.axis !== 'pitch' && recommendation.axis !== 'roll' && (
               <p className="hero-description">{recommendation.description}</p>
             )}
@@ -1058,7 +1064,12 @@ function App() {
           aria-haspopup="dialog"
           onClick={() => setActiveMenu('vehicle')}
         >
-          <span className="menu-icon" aria-hidden="true">▤</span>
+          <span className="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M8 3.5h8a3 3 0 0 1 3 3v11a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3v-11a3 3 0 0 1 3-3Z" />
+              <path d="M7 8h10m-10 8h10M4 7H2.5v4H4m16-4h1.5v4H20M4 13H2.5v4H4m16-4h1.5v4H20" />
+            </svg>
+          </span>
           <span>VEHICLE</span>
         </button>
         <span className="menu-divider" />
@@ -1068,7 +1079,13 @@ function App() {
           aria-haspopup="dialog"
           onClick={() => setActiveMenu('wedges')}
         >
-          <span className="menu-icon" aria-hidden="true">▰</span>
+          <span className="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M3 20h18l-7-8H7L3 20Z" />
+              <circle cx="15" cy="7" r="4" />
+              <path d="m13.5 7 1.5-1.5L16.5 7 15 8.5 13.5 7Z" />
+            </svg>
+          </span>
           <span>WEDGES</span>
         </button>
         <span className="menu-divider" />
@@ -1081,7 +1098,13 @@ function App() {
             setActiveMenu('calibration');
           }}
         >
-          <span className="menu-icon" aria-hidden="true">◎</span>
+          <span className="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="8.5" />
+              <path d="M12 2v5m0 10v5M2 12h5m10 0h5" />
+              <circle cx="12" cy="12" r="2" />
+            </svg>
+          </span>
           <span>CALIBRATION</span>
         </button>
         <span className="menu-divider" />

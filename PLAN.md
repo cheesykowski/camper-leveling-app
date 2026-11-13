@@ -18,6 +18,7 @@ Build an Android-friendly web app that measures the tilt of a parked camper and 
 - [x] Configurable wheelbase, track width, and wedge heights
 - [x] Dominant tilt determined from geometry-scaled pitch and roll contributions
 - [x] Two-wedge plan with a combined step at the lowest corner and another step along the dominant axis
+- [x] Warn when the required lift exceeds the tallest configured wedge
 - [x] Decimal wedge heights supported; recommendations use whole-number step indices and never round above the required lift
 - [x] Shared vehicle top view in the main screen and vehicle setup, including the two recommended wedge positions and step numbers
 - [x] Minimal 3D vehicle simulation and wedge-step illustration in setup

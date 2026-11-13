@@ -13,6 +13,7 @@ KEILOMAT is a mobile-first web app that helps level a parked camper van. It can 
 - Selection between simulation, the phone sensor, and the currently unavailable external sensor
 - Locally stored wheelbase, track width, and individually editable wedge heights, including decimal values
 - A recommendation for up to two wedges based on pitch, roll, wheelbase, and track width
+- A warning when the required lift exceeds the tallest configured wedge
 - A vehicle top view showing the recommended wheel positions and wedge step numbers
 - A shared vehicle top view in the main screen and vehicle setup
 - A compact dashboard with sensor status, settings, and calibration controls

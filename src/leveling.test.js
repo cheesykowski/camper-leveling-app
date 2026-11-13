@@ -128,3 +128,19 @@ test('accepts fractional wedge heights while returning integer step numbers', ()
     plan.wedgePlacements.every(({ selectedHeightCm }) => selectedHeightCm === 5.5),
   );
 });
+
+test('flags when the required lift exceeds the tallest configured wedge', () => {
+  const steep = calculateTwoWedgePlan({
+    ...dimensions,
+    pitchDegrees: 10,
+    rollDegrees: 0,
+  });
+  const withinCapacity = calculateTwoWedgePlan({
+    ...dimensions,
+    pitchDegrees: 1,
+    rollDegrees: 0,
+  });
+
+  assert.equal(steep.wedgeCapacityExceeded, true);
+  assert.equal(withinCapacity.wedgeCapacityExceeded, false);
+});

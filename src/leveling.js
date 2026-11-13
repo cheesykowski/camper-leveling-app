@@ -63,11 +63,16 @@ export function calculateTwoWedgePlan({
     { id: lowCornerId, requiredHeightCm: combinedRiseCm },
     { id: secondWheel, requiredHeightCm: dominantRiseCm },
   ];
+  const maximumWedgeHeightCm = sortedWedgeHeightsCm[sortedWedgeHeightsCm.length - 1] ?? 0;
+  const wedgeCapacityExceeded = placements.some(
+    ({ requiredHeightCm }) => requiredHeightCm > maximumWedgeHeightCm,
+  );
 
   return {
     dominantAxis,
     highAxle,
     highSide,
+    wedgeCapacityExceeded,
     wedgePlacements: placements.map(({ id, requiredHeightCm }) => {
       const wheel = wheelById.get(id);
       const step = getStepForHeight(requiredHeightCm, sortedWedgeHeightsCm);

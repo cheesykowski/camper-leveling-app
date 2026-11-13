@@ -383,6 +383,18 @@ input:focus-visible {
   line-height: 1.5;
 }
 
+.recommendation-warning {
+  max-width: 34rem;
+  margin: 0;
+  padding: 8px 11px;
+  border: 1px solid var(--amber);
+  background: rgb(255 200 87 / 8%);
+  color: #ffe4a3;
+  font-size: 0.66rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
 .vehicle-diagram {
   position: relative;
   display: grid;
@@ -858,13 +870,15 @@ input:focus-visible {
 }
 
 .menu-icon {
-  font-size: 1rem;
+  display: inline-grid;
+  flex: 0 0 22px;
+  place-items: center;
 }
 
 .menu-icon svg {
   display: block;
-  width: 18px;
-  height: 18px;
+  width: 21px;
+  height: 21px;
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
