@@ -24,10 +24,9 @@ const defaultCalibrations = {
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 const getVehicleWheelPositions = ({ wheelbaseCm, trackWidthCm }) => {
-  const wheelSpacingScale = 1.15;
   const trackHalfWidth = clamp(68 + ((trackWidthCm - 80) / 320) * 10, 68, 78);
   const axleHalfSpacing = clamp(
-    (60 + ((wheelbaseCm - 100) / 400) * 90) * wheelSpacingScale,
+    60 + ((wheelbaseCm - 100) / 400) * 90,
     60,
     157,
   );
@@ -63,18 +62,15 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
           : recommendation?.description}
       </desc>
 
-      <path
-        className="vehicle-body"
-        d="M116 25 H244 Q276 25 276 70 V350 Q276 395 244 395 H116 Q84 395 84 350 V70 Q84 25 116 25Z"
-      />
+      <rect className="vehicle-body" x="116" y="25" width="128" height="370" rx="45" />
       <path className="vehicle-glass" d="M130 80 Q180 52 230 80 L222 130 Q180 143 138 130 Z" />
       <path className="vehicle-roof" d="M133 147 Q180 136 227 147 L227 272 Q180 284 133 272 Z" />
       <path className="vehicle-glass" d="M138 289 Q180 278 222 289 L230 337 Q180 360 130 337 Z" />
       <text className="diagram-axle-label" x="180" y="20" textAnchor="middle">
-        FRONT
+        FRONT ↑
       </text>
       <text className="diagram-axle-label" x="180" y="413" textAnchor="middle">
-        REAR
+        REAR ↓
       </text>
 
       {wheels.map((wheel) => {
@@ -709,7 +705,6 @@ function App() {
           <div className="vehicle-diagram">
             <div className="diagram-heading">
               <span>TOP VIEW</span>
-              <span className="diagram-direction">FRONT ↑</span>
             </div>
             <VehicleDiagram
               className="vehicle-svg"
