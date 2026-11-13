@@ -10,12 +10,13 @@ Eine Android-taugliche Web-App, die die Neigung eines geparkten Wohnmobils misst
 
 - [x] React/Vite-Projekt und mobile-responsive Oberfläche
 - [x] Pitch- und Roll-Anzeige über `DeviceOrientationEvent`, sofern der Browser Sensorzugriff bereitstellt
-- [x] Interaktive 3D-Simulation über Ziehen mit Maus oder Touch; Pitch und Roll auf ±12° begrenzt
+- [x] Interaktive 3D-Simulation über Ziehen mit Maus oder Touch; Pitch und Roll auf ±30° begrenzt
 - [x] Auswahl zwischen Simulation, Smartphone-Sensor und noch nicht verbundener externer Sensorquelle; fehlende Werte führen nicht zu einer Level-Empfehlung
-- [x] Kalibrierungs-Offset und Fahrzeugdaten werden im Browser-`localStorage` gespeichert
+- [x] Smartphone- und externe Kalibrierungs-Offsets werden getrennt gespeichert; Fahrzeugdaten liegen ebenfalls im Browser-`localStorage`
 - [x] Konfigurierbare Werte für Radstand, Spurweite und Keilhöhen
 - [x] Einfache Empfehlung für eine Achse oder Fahrzeugseite
-- [x] Fahrzeug-Draufsicht mit markierten Keilpositionen, empfohlenem Keilschritt und Höhe
+- [x] Gemeinsame Fahrzeug-Draufsicht in Hauptansicht und Fahrzeugkonfiguration, mit markierten Keilpositionen, empfohlenem Keilschritt und Höhe
+- [x] Minimalistische 3D-Fahrzeugsimulation und Keilstufen-Symbol in der Konfiguration
 - [x] Retro-Dashboard mit Menü für Fahrzeug-/Keilparameter und Drei-Sekunden-Kalibrierung
 - [x] Keilhöhen als einzelne Stufen editierbar, hinzufügbar und entfernbar
 - [ ] Browserberechtigungen und tatsächliche Sensororientierung auf dem Ziel-Android-Gerät verifizieren

@@ -309,7 +309,7 @@ input:focus-visible {
 }
 
 .sim-view {
-  transform: rotateX(30deg);
+  transform: rotateX(30deg) rotateY(-12deg);
   transform-style: preserve-3d;
 }
 
@@ -384,29 +384,128 @@ input:focus-visible {
   transform: rotateX(-90deg) translateZ(75px);
 }
 
-.sim-left::before,
-.sim-right::before {
+.sim-wheel {
   position: absolute;
-  top: 44px;
-  left: 7px;
-  width: 28px;
-  height: 34px;
-  border: 1px solid #4d9b60;
+  top: 28%;
+  left: 50%;
+  width: 12px;
+  height: 26px;
+  border: 1px solid #597060;
   border-radius: 5px;
-  background: linear-gradient(145deg, #1d5631, #102719);
+  background: #080e0a;
+  transform-style: preserve-3d;
+}
+
+.sim-wheel-left-front,
+.sim-wheel-left-rear {
+  transform: translate(-50%, -50%) rotateY(90deg) translateZ(48px);
+}
+
+.sim-wheel-right-front,
+.sim-wheel-right-rear {
+  transform: translate(-50%, -50%) rotateY(-90deg) translateZ(48px);
+}
+
+.sim-wheel-left-rear,
+.sim-wheel-right-rear {
+  top: 72%;
+}
+
+.sim-cabin {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 60px;
+  height: 80px;
+  margin: -40px 0 0 -30px;
+  transform: translateZ(34px);
+  transform-style: preserve-3d;
+}
+
+.sim-cabin-face {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+.sim-cabin-roof,
+.sim-cabin-bottom {
+  width: 60px;
+  height: 80px;
+  margin: -40px 0 0 -30px;
+  border: 1px solid #77df80;
+  border-radius: 13px;
+}
+
+.sim-cabin-roof {
+  background: linear-gradient(145deg, #1b4429, #102719);
+  transform: translateZ(12px);
+}
+
+.sim-cabin-bottom {
+  background: #0b170f;
+  transform: rotateY(180deg) translateZ(12px);
+}
+
+.sim-cabin-left,
+.sim-cabin-right {
+  width: 24px;
+  height: 80px;
+  margin: -40px 0 0 -12px;
+  border: 1px solid #4d9b60;
+  background: linear-gradient(90deg, #102719, #235333);
+}
+
+.sim-cabin-left {
+  transform: rotateY(90deg) translateZ(30px);
+}
+
+.sim-cabin-right {
+  transform: rotateY(-90deg) translateZ(30px);
+}
+
+.sim-cabin-front,
+.sim-cabin-rear {
+  width: 60px;
+  height: 24px;
+  margin: -12px 0 0 -30px;
+  border: 1px solid #4d9b60;
+  background: #163c26;
+}
+
+.sim-cabin-front {
+  transform: rotateX(90deg) translateZ(40px);
+}
+
+.sim-cabin-rear {
+  transform: rotateX(-90deg) translateZ(40px);
+}
+
+.sim-cabin-left::before,
+.sim-cabin-right::before {
+  position: absolute;
+  top: 16px;
+  left: 4px;
+  width: 14px;
+  height: 30px;
+  border: 1px solid #4d9b60;
+  border-radius: 4px;
+  background: linear-gradient(145deg, #28633c, #102719);
   content: "";
 }
 
-.sim-front::before,
-.sim-rear::before {
+.sim-cabin-front::before,
+.sim-cabin-rear::before {
   position: absolute;
-  top: 6px;
+  top: 4px;
   left: 50%;
-  width: 52px;
-  height: 24px;
+  width: 36px;
+  height: 14px;
   border: 1px solid #4d9b60;
-  border-radius: 8px;
-  background: linear-gradient(#1d5631, #102719);
+  border-radius: 6px;
+  background: linear-gradient(#28633c, #102719);
   content: "";
   transform: translateX(-50%);
 }
@@ -553,13 +652,6 @@ input:focus-visible {
   font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.02em;
-}
-
-.diagram-axle-label {
-  fill: #75a982;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
 }
 
 .level-readout {
@@ -737,6 +829,7 @@ input:focus-visible {
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  overscroll-behavior: contain;
   padding: 16px 14px max(16px, env(safe-area-inset-bottom));
   background: rgb(2 7 4 / 76%);
   backdrop-filter: blur(7px);
@@ -747,6 +840,7 @@ input:focus-visible {
   width: min(100%, 520px);
   max-height: min(82svh, 680px);
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 20px;
   border: 1px solid #376447;
   background:
@@ -851,10 +945,11 @@ input:focus-visible {
   gap: 7px;
 }
 
-.vehicle-preview svg {
+.vehicle-preview .vehicle-svg {
   display: block;
-  width: min(100%, 240px);
+  width: min(100%, 220px);
   height: auto;
+  max-height: none;
 }
 
 .vehicle-dimension {
@@ -869,33 +964,9 @@ input:focus-visible {
 .vehicle-dimension-label {
   fill: var(--glow);
   font-family: inherit;
-  font-size: 7px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.45px;
-}
-
-.vehicle-measurement-body {
-  fill: #0d1d14;
-  stroke: #77df80;
-  stroke-width: 1.5;
-}
-
-.vehicle-measurement-glass {
-  fill: #173c26;
-  stroke: #4d9b60;
-  stroke-width: 1;
-}
-
-.vehicle-measurement-roof {
-  fill: #102719;
-  stroke: #36784a;
-  stroke-width: 1;
-}
-
-.vehicle-measurement-wheel {
-  fill: #14251a;
-  stroke: #7bc986;
-  stroke-width: 1.3;
+  letter-spacing: 0.6px;
 }
 
 .settings-hint {
@@ -907,6 +978,61 @@ input:focus-visible {
 .wedge-settings {
   display: grid;
   gap: 12px;
+}
+
+.wedge-illustration {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  padding: 8px;
+  border: 1px solid rgb(68 112 77 / 35%);
+  background: #09110c;
+}
+
+.wedge-illustration svg {
+  display: block;
+  width: min(100%, 220px);
+  height: auto;
+}
+
+.wedge-example-body {
+  fill: rgb(255 200 87 / 75%);
+  stroke: #ffe8a6;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.wedge-example-seams {
+  fill: none;
+  stroke: #fff0a8;
+  stroke-width: 1.2;
+}
+
+.wedge-example-label {
+  fill: #211a0d;
+  font-family: inherit;
+  font-size: 8px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+
+.wedge-example-wheel {
+  fill: #101d16;
+  stroke: #b6d6bd;
+  stroke-width: 3;
+}
+
+.wedge-example-hub {
+  fill: #31533a;
+  stroke: #77df80;
+  stroke-width: 1.5;
+}
+
+.wedge-illustration > span {
+  color: var(--dim);
+  font-size: 0.56rem;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .wedge-list {

@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 const STORAGE_KEY = 'camper-leveling-demo-v1';
+const SIMULATION_MAX_TILT = 30;
+const SENSOR_STALE_TIMEOUT_MS = 10000;
 
 const defaultVehicle = {
   wheelbaseCm: 240,
@@ -13,12 +15,10 @@ const defaultCalibration = {
   roll: 0,
 };
 
-const wheelPositions = [
-  { id: 'front-left', label: 'Front left', x: 92, y: 104, side: 'left' },
-  { id: 'front-right', label: 'Front right', x: 234, y: 104, side: 'right' },
-  { id: 'rear-left', label: 'Rear left', x: 92, y: 286, side: 'left' },
-  { id: 'rear-right', label: 'Rear right', x: 234, y: 286, side: 'right' },
-];
+const defaultCalibrations = {
+  phone: defaultCalibration,
+  external: defaultCalibration,
+};
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
@@ -33,12 +33,149 @@ const chooseNearestHeight = (heights, target) => {
   }, null) ?? sorted[sorted.length - 1];
 };
 
+const getVehicleWheelPositions = ({ wheelbaseCm, trackWidthCm }) => {
+  const trackHalfWidth = clamp(58 + ((trackWidthCm - 80) / 320) * 38, 58, 96);
+  const axleHalfSpacing = clamp(60 + ((wheelbaseCm - 100) / 400) * 90, 60, 150);
+  const frontY = 219 - axleHalfSpacing;
+  const rearY = 219 + axleHalfSpacing;
+
+  return [
+    { id: 'front-left', label: 'Front left', x: 180 - trackHalfWidth - 17, y: frontY - 24, side: 'left' },
+    { id: 'front-right', label: 'Front right', x: 180 + trackHalfWidth - 17, y: frontY - 24, side: 'right' },
+    { id: 'rear-left', label: 'Rear left', x: 180 - trackHalfWidth - 17, y: rearY - 24, side: 'left' },
+    { id: 'rear-right', label: 'Rear right', x: 180 + trackHalfWidth - 17, y: rearY - 24, side: 'right' },
+  ];
+};
+
+function VehicleDiagram({ className, vehicle, recommendation, showMeasurements = false }) {
+  const id = useId();
+  const wheels = getVehicleWheelPositions(vehicle);
+  const frontAxleY = wheels[0].y + 24;
+  const rearAxleY = wheels[2].y + 24;
+  const leftWheelCenterX = wheels[0].x + 17;
+  const rightWheelCenterX = wheels[1].x + 17;
+
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 360 420"
+      role="img"
+      aria-labelledby={`${id}-title ${id}-description`}
+    >
+      <title id={`${id}-title`}>Vehicle top view and wheel positions</title>
+      <desc id={`${id}-description`}>
+        {showMeasurements
+          ? `Wheelbase ${vehicle.wheelbaseCm} centimeters and track width ${vehicle.trackWidthCm} centimeters.`
+          : recommendation?.axis === 'unavailable'
+            ? recommendation.description
+            : recommendation?.axis === 'level'
+              ? 'The vehicle is level; no wedges are needed.'
+              : `Place ${recommendation?.level.toFixed(1)} centimeter wedges at ${recommendation?.wheels
+                  .map((wheel) => wheels.find((position) => position.id === wheel)?.label)
+                  .join(' and ')}.`}
+      </desc>
+
+      <rect className="vehicle-body" x="116" y="25" width="128" height="370" rx="45" />
+      <path className="vehicle-glass" d="M130 80 Q180 52 230 80 L222 130 Q180 143 138 130 Z" />
+      <path className="vehicle-roof" d="M133 147 Q180 136 227 147 L227 272 Q180 284 133 272 Z" />
+      <path className="vehicle-glass" d="M138 289 Q180 278 222 289 L230 337 Q180 360 130 337 Z" />
+      <line className="vehicle-seam" x1="124" y1="279" x2="236" y2="279" />
+
+      {wheels.map((wheel) => {
+        const active = Boolean(
+          recommendation &&
+            recommendation.axis !== 'level' &&
+            recommendation.axis !== 'unavailable' &&
+            recommendation.wheels.includes(wheel.id),
+        );
+        const labelX =
+          wheel.side === 'left'
+            ? Math.max(4, wheel.x - 60)
+            : Math.min(316, wheel.x + 56);
+        const wedgePoints =
+          wheel.side === 'left'
+            ? `${wheel.x - 19},${wheel.y + 24} ${wheel.x},${wheel.y + 16} ${wheel.x},${wheel.y + 36}`
+            : `${wheel.x + 53},${wheel.y + 24} ${wheel.x + 34},${wheel.y + 16} ${wheel.x + 34},${wheel.y + 36}`;
+
+        return (
+          <g key={wheel.id} className={active ? 'diagram-wheel active' : 'diagram-wheel'}>
+            <title>
+              {active
+                ? `${wheel.label}: place wedge step ${recommendation.step} (${recommendation.level.toFixed(1)} cm) here`
+                : `${wheel.label}: no wedge recommended`}
+            </title>
+            <rect className="diagram-tire" x={wheel.x} y={wheel.y} width="34" height="48" rx="10" />
+            {active && (
+              <>
+                <polygon className="diagram-wedge" points={wedgePoints} />
+                <rect
+                  className="diagram-height-bg"
+                  x={labelX}
+                  y={wheel.y + 12}
+                  width="40"
+                  height="24"
+                  rx="12"
+                />
+                <text className="diagram-height" x={labelX + 20} y={wheel.y + 28} textAnchor="middle">
+                  {recommendation.step}
+                </text>
+              </>
+            )}
+          </g>
+        );
+      })}
+
+      {showMeasurements && (
+        <g className="vehicle-measurements">
+          <text className="vehicle-dimension-label" x="180" y="58" textAnchor="middle">
+            TRACK WIDTH · {vehicle.trackWidthCm} CM
+          </text>
+          <line
+            className="vehicle-dimension"
+            x1={leftWheelCenterX}
+            y1="68"
+            x2={rightWheelCenterX}
+            y2="68"
+          />
+          <path
+            className="vehicle-dimension-arrow"
+            d={`M${leftWheelCenterX - 6} 68 ${leftWheelCenterX + 2} 64v8z M${
+              rightWheelCenterX + 6
+            } 68 ${rightWheelCenterX - 2} 64v8z`}
+          />
+          <line
+            className="vehicle-dimension"
+            x1="44"
+            y1={frontAxleY}
+            x2="44"
+            y2={rearAxleY}
+          />
+          <path
+            className="vehicle-dimension-arrow"
+            d={`M44 ${frontAxleY - 7} l-4 8h8z M44 ${rearAxleY + 7} l-4-8h8z`}
+          />
+          <text
+            className="vehicle-dimension-label"
+            x="22"
+            y={(frontAxleY + rearAxleY) / 2}
+            textAnchor="middle"
+            transform={`rotate(-90 22 ${(frontAxleY + rearAxleY) / 2})`}
+          >
+            WHEELBASE · {vehicle.wheelbaseCm} CM
+          </text>
+        </g>
+      )}
+
+    </svg>
+  );
+}
+
 function App() {
   const loadedState = useMemo(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
       return {
-        calibration: defaultCalibration,
+        calibrations: defaultCalibrations,
         vehicle: defaultVehicle,
       };
     }
@@ -51,9 +188,23 @@ function App() {
             .filter((height) => Number.isFinite(height) && height > 0)
         : [];
       return {
-        calibration: {
-          pitch: Number(parsed.calibration?.pitch ?? defaultCalibration.pitch),
-          roll: Number(parsed.calibration?.roll ?? defaultCalibration.roll),
+        calibrations: {
+          phone: {
+            pitch: Number(
+              parsed.calibrations?.phone?.pitch ??
+                parsed.calibration?.pitch ??
+                defaultCalibration.pitch,
+            ),
+            roll: Number(
+              parsed.calibrations?.phone?.roll ??
+                parsed.calibration?.roll ??
+                defaultCalibration.roll,
+            ),
+          },
+          external: {
+            pitch: Number(parsed.calibrations?.external?.pitch ?? defaultCalibration.pitch),
+            roll: Number(parsed.calibrations?.external?.roll ?? defaultCalibration.roll),
+          },
         },
         vehicle: {
           wheelbaseCm: Number(parsed.vehicle?.wheelbaseCm ?? defaultVehicle.wheelbaseCm),
@@ -65,13 +216,13 @@ function App() {
       };
     } catch {
       return {
-        calibration: defaultCalibration,
+        calibrations: defaultCalibrations,
         vehicle: defaultVehicle,
       };
     }
   }, []);
 
-  const [calibration, setCalibration] = useState(loadedState.calibration);
+  const [calibrations, setCalibrations] = useState(loadedState.calibrations);
   const [vehicle, setVehicle] = useState(loadedState.vehicle);
   const [wedgeHeightInputs, setWedgeHeightInputs] = useState(
     loadedState.vehicle.wedgeHeightsCm.map(String),
@@ -99,11 +250,12 @@ function App() {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        calibration,
+        calibrations,
+        calibration: calibrations.phone,
         vehicle,
       }),
     );
-  }, [calibration, vehicle]);
+  }, [calibrations, vehicle]);
 
   useEffect(() => {
     const hasSensorAPI = 'DeviceOrientationEvent' in window;
@@ -115,7 +267,8 @@ function App() {
     setSensorData((current) => ({ ...current, supported: true }));
     sensorTimeout.current = window.setTimeout(() => {
       setSensorData((current) => ({ ...current, available: false }));
-    }, 2500);
+      sensorTimeout.current = null;
+    }, SENSOR_STALE_TIMEOUT_MS);
 
     const onOrientation = (event) => {
       if (!Number.isFinite(event.beta) || !Number.isFinite(event.gamma)) return;
@@ -133,15 +286,20 @@ function App() {
       setSensorData(nextSensorData);
       if (!sourceSelectionLocked.current) setSource('phone');
       setSourceMessage((current) =>
-        current.includes('externer Sensor') ? current : '',
+        current.toLowerCase().includes('external sensor') ? current : '',
       );
       if (sensorTimeout.current !== null) {
         window.clearTimeout(sensorTimeout.current);
       }
       sensorTimeout.current = window.setTimeout(() => {
         setSensorData((current) => ({ ...current, available: false }));
+        setSourceMessage((current) =>
+          current.startsWith('Waiting for a signal')
+            ? 'Phone sensor signal lost. Check the device and browser permission.'
+            : current,
+        );
         sensorTimeout.current = null;
-      }, 2500);
+      }, SENSOR_STALE_TIMEOUT_MS);
     };
 
     window.addEventListener('deviceorientation', onOrientation, true);
@@ -155,12 +313,20 @@ function App() {
   useEffect(() => {
     if (!activeMenu) return undefined;
 
+    const scrollPosition = window.scrollY;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     const closeOnEscape = (event) => {
       if (event.key === 'Escape') setActiveMenu(null);
     };
 
     window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
+    return () => {
+      window.removeEventListener('keydown', closeOnEscape);
+      document.body.style.overflow = previousOverflow;
+      window.scrollTo(0, scrollPosition);
+    };
   }, [activeMenu]);
 
   useEffect(
@@ -176,24 +342,24 @@ function App() {
     source === 'simulation'
       ? simulatedTilt.roll
       : source === 'phone' && sensorData.available
-        ? sensorData.roll - calibration.roll
+        ? sensorData.roll - calibrations.phone.roll
         : null;
   const currentPitch =
     source === 'simulation'
       ? simulatedTilt.pitch
       : source === 'phone' && sensorData.available
-        ? sensorData.pitch - calibration.pitch
+        ? sensorData.pitch - calibrations.phone.pitch
         : null;
 
   const recommendation = useMemo(() => {
     if (currentPitch === null || currentRoll === null) {
       return {
         axis: 'unavailable',
-        title: source === 'external' ? 'Externer Sensor nicht verfügbar' : 'Kein Sensorsignal',
+        title: source === 'external' ? 'External sensor unavailable' : 'No sensor signal',
         description:
           source === 'external'
-            ? 'Die externe Bluetooth-Verbindung ist noch nicht verfügbar.'
-            : 'Wähle die Simulation oder warte auf ein Signal vom Smartphone-Sensor.',
+            ? 'The external Bluetooth connection is not available yet.'
+            : 'Choose simulation or wait for a signal from the phone sensor.',
         wheels: [],
         level: 0,
         requiredLiftCm: 0,
@@ -260,10 +426,13 @@ function App() {
     setCalibrationComplete(false);
     setIsHoldingCalibration(true);
     calibrationTimeout.current = window.setTimeout(() => {
-      setCalibration({
-        pitch: sensorDataRef.current.pitch,
-        roll: sensorDataRef.current.roll,
-      });
+      setCalibrations((current) => ({
+        ...current,
+        phone: {
+          pitch: sensorDataRef.current.pitch,
+          roll: sensorDataRef.current.roll,
+        },
+      }));
       calibrationTimeout.current = null;
       setIsHoldingCalibration(false);
       setCalibrationComplete(true);
@@ -282,13 +451,6 @@ function App() {
     wheelbaseCm: vehicle.wheelbaseCm,
     trackWidthCm: vehicle.trackWidthCm,
   };
-  const graphicTrackHalfWidth =
-    35 + ((vehicle.trackWidthCm - 80) / (400 - 80)) * 8;
-  const graphicAxleHalfSpacing =
-    22 + ((vehicle.wheelbaseCm - 100) / (500 - 100)) * 12;
-  const frontAxleY = 90 - graphicAxleHalfSpacing;
-  const rearAxleY = 90 + graphicAxleHalfSpacing;
-
   const handleWheelbaseChange = (event) => {
     setVehicle((current) => ({
       ...current,
@@ -348,7 +510,7 @@ function App() {
     if (nextSource === 'external') {
       sourceSelectionLocked.current = true;
       setSource(nextSource);
-      setSourceMessage('Kein externer Sensor verbunden. Die BLE-Anbindung ist noch nicht verfügbar.');
+      setSourceMessage('No external sensor is connected. Bluetooth support is not available yet.');
       return;
     }
     sourceSelectionLocked.current = true;
@@ -357,7 +519,7 @@ function App() {
       return;
     }
     if (!sensorData.supported) {
-      setSourceMessage('Dieser Browser unterstützt keine Smartphone-Bewegungssensoren.');
+      setSourceMessage('This browser does not support phone motion sensors.');
       return;
     }
 
@@ -365,20 +527,30 @@ function App() {
       try {
         const permission = await window.DeviceOrientationEvent.requestPermission();
         if (permission !== 'granted') {
-          setSourceMessage('Der Zugriff auf den Smartphone-Sensor wurde nicht erlaubt.');
+          setSourceMessage('Phone sensor access was not allowed.');
           return;
         }
         setSensorData((current) => ({ ...current, permissionGranted: true }));
       } catch (error) {
-        setSourceMessage(`Sensorzugriff fehlgeschlagen: ${error.message}`);
+        setSourceMessage(`Sensor access failed: ${error.message}`);
         return;
       }
     } else {
-      setSourceMessage('Kein Sensorsignal verfügbar. Prüfe Gerät, Browserberechtigung und HTTPS.');
+      setSourceMessage('No sensor signal available. Check the device, browser permission, and HTTPS.');
       return;
     }
 
-    setSourceMessage('Warte auf ein Signal vom Smartphone-Sensor …');
+    setSourceMessage('Waiting for a signal from the phone sensor…');
+    if (sensorTimeout.current !== null) window.clearTimeout(sensorTimeout.current);
+    sensorTimeout.current = window.setTimeout(() => {
+      setSensorData((current) => ({ ...current, available: false }));
+      setSourceMessage((current) =>
+        current.startsWith('Waiting for a signal')
+          ? 'No signal was received from the phone sensor.'
+          : current,
+      );
+      sensorTimeout.current = null;
+    }, SENSOR_STALE_TIMEOUT_MS);
   };
 
   const startSimulationDrag = (event) => {
@@ -395,8 +567,16 @@ function App() {
     if (!dragStart.current) return;
     const scale = 0.18;
     setSimulatedTilt({
-      pitch: clamp(dragStart.current.pitch + (dragStart.current.y - event.clientY) * scale, -12, 12),
-      roll: clamp(dragStart.current.roll + (event.clientX - dragStart.current.x) * scale, -12, 12),
+      pitch: clamp(
+        dragStart.current.pitch + (dragStart.current.y - event.clientY) * scale,
+        -SIMULATION_MAX_TILT,
+        SIMULATION_MAX_TILT,
+      ),
+      roll: clamp(
+        dragStart.current.roll + (event.clientX - dragStart.current.x) * scale,
+        -SIMULATION_MAX_TILT,
+        SIMULATION_MAX_TILT,
+      ),
     });
   };
 
@@ -413,16 +593,16 @@ function App() {
             <h1>KEIL<span>OMAT</span></h1>
           </div>
         </div>
-        <div className="source-picker" role="group" aria-label="Datenquelle auswählen">
+        <div className="source-picker" role="group" aria-label="Select data source">
           {[
             { id: 'simulation', icon: '◇', label: 'SIMULATION', available: true },
             {
               id: 'phone',
               icon: '▯',
-              label: 'HANDY',
+              label: 'PHONE',
               available: sensorData.available,
             },
-            { id: 'external', label: 'EXTERN', available: false },
+            { id: 'external', label: 'EXTERNAL', available: false },
           ].map((option) => (
             <button
               key={option.id}
@@ -431,9 +611,7 @@ function App() {
               }`}
               type="button"
               aria-pressed={source === option.id}
-              aria-label={`${option.label}: ${
-                option.available ? 'verfügbar' : 'nicht verfügbar'
-              }`}
+              aria-label={`${option.label}: ${option.available ? 'available' : 'unavailable'}`}
               onClick={() => selectSource(option.id)}
             >
               <span className="source-icon" aria-hidden="true">
@@ -447,11 +625,15 @@ function App() {
               </span>
               <span>{option.label}</span>
               <span className="source-availability">
-                {option.available ? (option.id === 'phone' ? 'LIVE' : 'BEREIT') : 'OFFLINE'}
+                {option.available ? (option.id === 'phone' ? 'LIVE' : 'READY') : 'OFFLINE'}
               </span>
             </button>
           ))}
-          {sourceMessage && <span className="source-message" role="status">{sourceMessage}</span>}
+          {sourceMessage && (
+            <span className="source-message" role="status">
+              {sourceMessage}
+            </span>
+          )}
         </div>
       </header>
 
@@ -459,25 +641,31 @@ function App() {
         <div className="telemetry">
           <div className="telemetry-item">
             <span className="eyebrow">PITCH</span>
-            <strong>            {currentPitch === null ? '—' : currentPitch.toFixed(1)}{currentPitch !== null && <small>°</small>}</strong>
+            <strong>
+              {currentPitch === null ? '—' : currentPitch.toFixed(1)}
+              {currentPitch !== null && <small>°</small>}
+            </strong>
           </div>
           <span className="telemetry-divider" />
           <div className="telemetry-item">
             <span className="eyebrow">ROLL</span>
-            <strong>{currentRoll === null ? '—' : currentRoll.toFixed(1)}{currentRoll !== null && <small>°</small>}</strong>
+            <strong>
+              {currentRoll === null ? '—' : currentRoll.toFixed(1)}
+              {currentRoll !== null && <small>°</small>}
+            </strong>
           </div>
         </div>
 
         {source === 'simulation' && (
-          <section className="simulator" aria-label="Neigung simulieren">
+          <section className="simulator" aria-label="Simulate vehicle tilt">
             <div className="simulator-heading">
-              <span className="eyebrow">3D-SIMULATION</span>
-              <span>Ziehen: ↑↓ Pitch · ←→ Roll · max. ±12°</span>
+              <span className="eyebrow">3D SIMULATION</span>
+              <span>Drag: ↑↓ Pitch · ←→ Roll · max. ±{SIMULATION_MAX_TILT}°</span>
             </div>
             <div
               className="simulator-stage"
               role="application"
-              aria-label="Wohnmobil mit Maus oder Touch ziehen. Vertikal steuert Pitch, horizontal Roll; Pfeiltasten ändern die Neigung in Ein-Grad-Schritten."
+              aria-label="Drag the vehicle with a mouse or touch. Vertical movement controls pitch, horizontal movement controls roll. Arrow keys adjust tilt in one-degree steps."
               onPointerDown={startSimulationDrag}
               onPointerMove={updateSimulationDrag}
               onPointerUp={stopSimulationDrag}
@@ -494,8 +682,16 @@ function App() {
                 if (!adjustment) return;
                 event.preventDefault();
                 setSimulatedTilt((current) => ({
-                  pitch: clamp(current.pitch + adjustment.pitch, -12, 12),
-                  roll: clamp(current.roll + adjustment.roll, -12, 12),
+                  pitch: clamp(
+                    current.pitch + adjustment.pitch,
+                    -SIMULATION_MAX_TILT,
+                    SIMULATION_MAX_TILT,
+                  ),
+                  roll: clamp(
+                    current.roll + adjustment.roll,
+                    -SIMULATION_MAX_TILT,
+                    SIMULATION_MAX_TILT,
+                  ),
                 }));
               }}
               tabIndex={0}
@@ -513,6 +709,18 @@ function App() {
                   <div className="sim-face sim-right" />
                   <div className="sim-face sim-front" />
                   <div className="sim-face sim-rear" />
+                  <span className="sim-wheel sim-wheel-left-front" />
+                  <span className="sim-wheel sim-wheel-left-rear" />
+                  <span className="sim-wheel sim-wheel-right-front" />
+                  <span className="sim-wheel sim-wheel-right-rear" />
+                  <div className="sim-cabin">
+                    <div className="sim-cabin-face sim-cabin-roof" />
+                    <div className="sim-cabin-face sim-cabin-bottom" />
+                    <div className="sim-cabin-face sim-cabin-left" />
+                    <div className="sim-cabin-face sim-cabin-right" />
+                    <div className="sim-cabin-face sim-cabin-front" />
+                    <div className="sim-cabin-face sim-cabin-rear" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -532,82 +740,19 @@ function App() {
             <div className="diagram-heading">
               <span>TOP VIEW</span>
             </div>
-            <svg
+            <VehicleDiagram
               className="vehicle-svg"
-              viewBox="0 0 360 420"
-              role="img"
-              aria-labelledby="vehicle-diagram-title vehicle-diagram-description"
-            >
-              <title id="vehicle-diagram-title">Recommended wedge positions</title>
-              <desc id="vehicle-diagram-description">
-                {recommendation.axis === 'unavailable'
-                  ? recommendation.description
-                  : recommendation.axis === 'level'
-                  ? 'The vehicle is level; no wedges are needed.'
-                  : `Place ${recommendation.level.toFixed(1)} centimeter wedges at ${recommendation.wheels
-                      .map((wheel) => wheelPositions.find((position) => position.id === wheel)?.label)
-                      .join(' and ')}.`}
-              </desc>
-
-              <rect className="vehicle-body" x="116" y="25" width="128" height="370" rx="45" />
-              <path className="vehicle-glass" d="M130 80 Q180 52 230 80 L222 130 Q180 143 138 130 Z" />
-              <path className="vehicle-roof" d="M133 147 Q180 136 227 147 L227 272 Q180 284 133 272 Z" />
-              <path className="vehicle-glass" d="M138 289 Q180 278 222 289 L230 337 Q180 360 130 337 Z" />
-              <line className="vehicle-seam" x1="124" y1="279" x2="236" y2="279" />
-
-              {wheelPositions.map((wheel) => {
-                const active =
-                  recommendation.axis !== 'level' && recommendation.wheels.includes(wheel.id);
-                const labelX = wheel.side === 'left' ? 8 : 292;
-                const wedgePoints =
-                  wheel.side === 'left'
-                    ? `${wheel.x - 19},${wheel.y + 24} ${wheel.x},${wheel.y + 16} ${wheel.x},${wheel.y + 36}`
-                    : `${wheel.x + 53},${wheel.y + 24} ${wheel.x + 34},${wheel.y + 16} ${wheel.x + 34},${wheel.y + 36}`;
-
-                return (
-                  <g key={wheel.id} className={active ? 'diagram-wheel active' : 'diagram-wheel'}>
-                    <title>
-                      {active
-                        ? `${wheel.label}: place wedge step ${recommendation.step} (${recommendation.level.toFixed(1)} cm) here`
-                        : `${wheel.label}: no wedge recommended`}
-                    </title>
-                    <rect className="diagram-tire" x={wheel.x} y={wheel.y} width="34" height="48" rx="10" />
-                    {active && (
-                      <>
-                        <polygon className="diagram-wedge" points={wedgePoints} />
-                        <rect
-                          className="diagram-height-bg"
-                          x={labelX}
-                          y={wheel.y + 12}
-                          width="60"
-                          height="24"
-                          rx="12"
-                        />
-                        <text
-                          className="diagram-height"
-                          x={labelX + 30}
-                          y={wheel.y + 28}
-                          textAnchor="middle"
-                        >
-                          {recommendation.step}
-                        </text>
-                      </>
-                    )}
-                  </g>
-                );
-              })}
-
-              <text className="diagram-axle-label" x="180" y="20" textAnchor="middle">
-                FRONT
-              </text>
-              <text className="diagram-axle-label" x="180" y="413" textAnchor="middle">
-                REAR
-              </text>
-            </svg>
+              vehicle={vehicle}
+              recommendation={recommendation}
+            />
           </div>
 
           <div className={`level-readout ${recommendation.axis === 'level' ? 'is-level' : ''}`}>
-            <span>{recommendation.axis === 'level' || recommendation.axis === 'unavailable' ? 'STATUS' : 'RECOMMENDED STEP'}</span>
+            <span>
+              {recommendation.axis === 'level' || recommendation.axis === 'unavailable'
+                ? 'STATUS'
+                : 'RECOMMENDED STEP'}
+            </span>
             <strong>
               {recommendation.axis === 'level'
                 ? 'NO WEDGES NEEDED'
@@ -668,12 +813,12 @@ function App() {
           </button>
           <p className="hold-hint" id="calibration-hint" aria-live="polite">
             {source !== 'phone' || !sensorData.available
-              ? 'Für die Kalibrierung Smartphone-Sensor auswählen und Signal abwarten.'
+              ? 'Select the phone sensor and wait for a signal to calibrate.'
               : calibrationComplete
-              ? 'Zero point saved.'
-              : isHoldingCalibration
-                ? 'Keep holding to save the current zero point'
-                : 'Park on level ground, then hold to set zero'}
+                ? 'Zero point saved.'
+                : isHoldingCalibration
+                  ? 'Keep holding to save the current zero point'
+                  : 'Park on level ground, then hold to set zero'}
           </p>
         </div>
       </main>
@@ -774,104 +919,47 @@ function App() {
                   </label>
                 </div>
                 <div className="settings-card vehicle-preview">
-                  <span className="eyebrow">TOP VIEW · FAHRZEUGMASSE</span>
-                  <svg
-                    viewBox="0 0 220 165"
-                    role="img"
-                    aria-labelledby="vehicle-measurements-title vehicle-measurements-description"
-                  >
-                    <title id="vehicle-measurements-title">Radstand und Spurweite</title>
-                    <desc id="vehicle-measurements-description">
-                      Radstand {vehicle.wheelbaseCm} Zentimeter zwischen den Achsen und
-                      Spurweite {vehicle.trackWidthCm} Zentimeter zwischen den Rädern.
-                    </desc>
-                    <text className="vehicle-dimension-label" x="110" y="13" textAnchor="middle">
-                      SPURWEITE · {vehicle.trackWidthCm} CM
-                    </text>
-                    <line
-                      className="vehicle-dimension"
-                      x1={110 - graphicTrackHalfWidth}
-                      y1="26"
-                      x2={110 + graphicTrackHalfWidth}
-                      y2="26"
-                    />
-                    <path
-                      className="vehicle-dimension-arrow"
-                      d={`M${104 - graphicTrackHalfWidth} 26 ${112 - graphicTrackHalfWidth} 22v8z M${
-                        116 + graphicTrackHalfWidth
-                      } 26 ${108 + graphicTrackHalfWidth} 22v8z`}
-                    />
-                    <rect className="vehicle-measurement-body" x="83" y="39" width="54" height="105" rx="18" />
-                    <path className="vehicle-measurement-glass" d="M89 57 Q110 47 131 57 L128 75 Q110 81 92 75 Z" />
-                    <path className="vehicle-measurement-roof" d="M92 83h42v35H92z" />
-                    <path className="vehicle-measurement-glass" d="M92 125 Q110 119 128 125 L131 137 Q110 145 89 137 Z" />
-                    <rect
-                      className="vehicle-measurement-wheel"
-                      x={104 - graphicTrackHalfWidth}
-                      y={frontAxleY - 10}
-                      width="12"
-                      height="20"
-                      rx="4"
-                    />
-                    <rect
-                      className="vehicle-measurement-wheel"
-                      x={104 + graphicTrackHalfWidth}
-                      y={frontAxleY - 10}
-                      width="12"
-                      height="20"
-                      rx="4"
-                    />
-                    <rect
-                      className="vehicle-measurement-wheel"
-                      x={104 - graphicTrackHalfWidth}
-                      y={rearAxleY - 10}
-                      width="12"
-                      height="20"
-                      rx="4"
-                    />
-                    <rect
-                      className="vehicle-measurement-wheel"
-                      x={104 + graphicTrackHalfWidth}
-                      y={rearAxleY - 10}
-                      width="12"
-                      height="20"
-                      rx="4"
-                    />
-                    <line
-                      className="vehicle-dimension"
-                      x1="48"
-                      y1={frontAxleY}
-                      x2="48"
-                      y2={rearAxleY}
-                    />
-                    <path
-                      className="vehicle-dimension-arrow"
-                      d={`m48 ${frontAxleY - 7} -4 8h8z m48 ${rearAxleY + 7} -4-8h8z`}
-                    />
-                    <text
-                      className="vehicle-dimension-label"
-                      x="22"
-                      y="98"
-                      textAnchor="middle"
-                      transform="rotate(-90 22 98)"
-                    >
-                      RADSTAND · {vehicle.wheelbaseCm} CM
-                    </text>
-                  </svg>
+                  <span className="eyebrow">VEHICLE DIMENSIONS · TOP VIEW</span>
+                  <VehicleDiagram
+                    className="vehicle-svg"
+                    vehicle={vehicle}
+                    showMeasurements
+                  />
                 </div>
               </div>
             ) : (
               <div className="menu-content">
                 <div className="settings-card wedge-settings">
+                  <div className="wedge-illustration">
+                    <svg viewBox="0 0 220 110" role="img" aria-labelledby="wedge-example-title">
+                      <title id="wedge-example-title">
+                        Three example wedge levels with a wheel resting on the highest step
+                      </title>
+                      <path className="wedge-example-body" d="M24 96H54V78H90V60H126V42H180V96Z" />
+                      <path className="wedge-example-seams" d="M54 96V78H90V60H126V42H180" />
+                      <text className="wedge-example-label" x="38" y="91">
+                        {vehicle.wedgeHeightsCm[0]?.toFixed(1) ?? '—'}
+                      </text>
+                      <text className="wedge-example-label" x="72" y="73">
+                        {vehicle.wedgeHeightsCm[1]?.toFixed(1) ?? '—'}
+                      </text>
+                      <text className="wedge-example-label" x="108" y="55">
+                        {vehicle.wedgeHeightsCm[2]?.toFixed(1) ?? '—'}
+                      </text>
+                      <circle className="wedge-example-wheel" cx="180" cy="22" r="20" />
+                      <circle className="wedge-example-hub" cx="180" cy="22" r="7" />
+                    </svg>
+                    <span>Example step heights in cm · wheel shown on the highest step</span>
+                  </div>
                   <div className="wedge-list">
                     {wedgeHeightInputs.map((height, index) => (
                       <label className="wedge-row" key={`wedge-${index}`}>
-                        <span>STUFE {index + 1}</span>
+                        <span>STEP {index + 1}</span>
                         <input
                           type="text"
                           inputMode="decimal"
                           value={height}
-                          aria-label={`Höhe Stufe ${index + 1} in Zentimetern`}
+                          aria-label={`Height of step ${index + 1} in centimeters`}
                           onChange={(event) => handleWedgeHeightChange(index, event.target.value)}
                           onBlur={() => saveWedgeHeight(index)}
                         />
@@ -879,7 +967,7 @@ function App() {
                         <button
                           className="remove-wedge"
                           type="button"
-                          aria-label={`Stufe ${index + 1} entfernen`}
+                          aria-label={`Remove step ${index + 1}`}
                           disabled={wedgeHeightInputs.length <= 1}
                           onClick={() => removeWedgeHeight(index)}
                         >
@@ -889,10 +977,10 @@ function App() {
                     ))}
                   </div>
                   <button className="add-wedge" type="button" onClick={addWedgeHeight}>
-                    + STUFE HINZUFÜGEN
+                    + ADD STEP
                   </button>
                   <p className="settings-hint">
-                    Stufenhöhen in Zentimetern. Ungültige Eingaben werden verworfen; Änderungen werden auf diesem Gerät gespeichert.
+                    Wedge step heights in centimeters. Invalid entries are discarded; changes are saved on this device.
                   </p>
                 </div>
               </div>
