@@ -22,13 +22,6 @@ const wheelPositions = [
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
-const parseListInput = (value) =>
-  value
-    .split(',')
-    .map((item) => Number(item.trim()))
-    .filter((item) => Number.isFinite(item) && item > 0)
-    .sort((a, b) => a - b);
-
 const chooseNearestHeight = (heights, target) => {
   if (!heights.length) return 0;
   const sorted = [...heights].sort((a, b) => a - b);
@@ -80,13 +73,23 @@ function App() {
 
   const [calibration, setCalibration] = useState(loadedState.calibration);
   const [vehicle, setVehicle] = useState(loadedState.vehicle);
-  const [wedgeHeightsInput, setWedgeHeightsInput] = useState(
-    loadedState.vehicle.wedgeHeightsCm.join(', '),
+  const [wedgeHeightInputs, setWedgeHeightInputs] = useState(
+    loadedState.vehicle.wedgeHeightsCm.map(String),
   );
-  const [sensorData, setSensorData] = useState({ pitch: 0, roll: 0, supported: false, permissionGranted: false });
+  const [sensorData, setSensorData] = useState({
+    pitch: 0,
+    roll: 0,
+    supported: false,
+    available: false,
+    permissionGranted: false,
+  });
   const sensorDataRef = useRef(sensorData);
   const [simulatedTilt, setSimulatedTilt] = useState({ pitch: 0, roll: 0 });
-  const [usingDemoMode, setUsingDemoMode] = useState(false);
+  const [source, setSource] = useState('simulation');
+  const [sourceMessage, setSourceMessage] = useState('');
+  const sourceSelectionLocked = useRef(false);
+  const dragStart = useRef(null);
+  const sensorTimeout = useRef(null);
   const [activeMenu, setActiveMenu] = useState(null);
   const [isHoldingCalibration, setIsHoldingCalibration] = useState(false);
   const [calibrationComplete, setCalibrationComplete] = useState(false);
@@ -105,31 +108,45 @@ function App() {
   useEffect(() => {
     const hasSensorAPI = 'DeviceOrientationEvent' in window;
     if (!hasSensorAPI) {
-      setSensorData((current) => ({ ...current, supported: false }));
-      setUsingDemoMode(true);
+      setSensorData((current) => ({ ...current, supported: false, available: false }));
       return undefined;
     }
 
     setSensorData((current) => ({ ...current, supported: true }));
+    sensorTimeout.current = window.setTimeout(() => {
+      setSensorData((current) => ({ ...current, available: false }));
+    }, 2500);
 
     const onOrientation = (event) => {
-      const pitch = Number.isFinite(event.beta) ? event.beta : 0;
-      const roll = Number.isFinite(event.gamma) ? event.gamma : 0;
+      if (!Number.isFinite(event.beta) || !Number.isFinite(event.gamma)) return;
+      const pitch = event.beta;
+      const roll = event.gamma;
       const nextSensorData = {
         pitch,
         roll,
         supported: true,
+        available: true,
         permissionGranted: true,
       };
 
       sensorDataRef.current = nextSensorData;
       setSensorData(nextSensorData);
+      if (!sourceSelectionLocked.current) setSource('phone');
+      setSourceMessage('');
+      if (sensorTimeout.current !== null) {
+        window.clearTimeout(sensorTimeout.current);
+      }
+      sensorTimeout.current = window.setTimeout(() => {
+        setSensorData((current) => ({ ...current, available: false }));
+        sensorTimeout.current = null;
+      }, 2500);
     };
 
     window.addEventListener('deviceorientation', onOrientation, true);
 
     return () => {
       window.removeEventListener('deviceorientation', onOrientation, true);
+      if (sensorTimeout.current !== null) window.clearTimeout(sensorTimeout.current);
     };
   }, []);
 
@@ -153,10 +170,31 @@ function App() {
     [],
   );
 
-  const currentRoll = usingDemoMode ? simulatedTilt.roll : sensorData.roll - calibration.roll;
-  const currentPitch = usingDemoMode ? simulatedTilt.pitch : sensorData.pitch - calibration.pitch;
+  const currentRoll =
+    source === 'simulation'
+      ? simulatedTilt.roll
+      : source === 'phone' && sensorData.available
+        ? sensorData.roll - calibration.roll
+        : null;
+  const currentPitch =
+    source === 'simulation'
+      ? simulatedTilt.pitch
+      : source === 'phone' && sensorData.available
+        ? sensorData.pitch - calibration.pitch
+        : null;
 
   const recommendation = useMemo(() => {
+    if (currentPitch === null || currentRoll === null) {
+      return {
+        axis: 'unavailable',
+        title: 'Kein Sensorsignal',
+        description: 'Wähle die Simulation oder warte auf ein Signal vom Smartphone-Sensor.',
+        wheels: [],
+        level: 0,
+        requiredLiftCm: 0,
+      };
+    }
+
     const pitchAbs = Math.abs(currentPitch);
     const rollAbs = Math.abs(currentRoll);
     const wedgeHeights = [...vehicle.wedgeHeightsCm].sort((a, b) => a - b);
@@ -212,7 +250,7 @@ function App() {
   }, [currentPitch, currentRoll, vehicle]);
 
   const startCalibrationHold = () => {
-    if (calibrationTimeout.current !== null) return;
+    if (calibrationTimeout.current !== null || !sensorData.available || source !== 'phone') return;
 
     setCalibrationComplete(false);
     setIsHoldingCalibration(true);
@@ -254,71 +292,238 @@ function App() {
     }));
   };
 
-  const handleWedgeHeightsChange = (event) => {
-    const value = event.target.value;
-    setWedgeHeightsInput(value);
-    const list = parseListInput(value);
-    if (list.length) {
-      setVehicle((current) => ({
-        ...current,
-        wedgeHeightsCm: list,
-      }));
+  const handleWedgeHeightChange = (index, value) => {
+    setWedgeHeightInputs((current) =>
+      current.map((height, heightIndex) => (heightIndex === index ? value : height)),
+    );
+  };
+
+  const saveWedgeHeight = (index) => {
+    const height = Number(wedgeHeightInputs[index].replace(',', '.'));
+    if (!Number.isFinite(height) || height <= 0) {
+      setWedgeHeightInputs(vehicle.wedgeHeightsCm.map(String));
+      return;
     }
+
+    const heights = vehicle.wedgeHeightsCm.map((current, heightIndex) =>
+      heightIndex === index ? height : current,
+    );
+    heights.sort((a, b) => a - b);
+    setVehicle((current) => ({ ...current, wedgeHeightsCm: heights }));
+    setWedgeHeightInputs(heights.map(String));
+  };
+
+  const addWedgeHeight = () => {
+    const highest = Math.max(...vehicle.wedgeHeightsCm);
+    const heights = [...vehicle.wedgeHeightsCm, highest + 3].sort((a, b) => a - b);
+    setVehicle((current) => ({ ...current, wedgeHeightsCm: heights }));
+    setWedgeHeightInputs(heights.map(String));
+  };
+
+  const removeWedgeHeight = (index) => {
+    if (vehicle.wedgeHeightsCm.length <= 1) return;
+    const heights = vehicle.wedgeHeightsCm.filter((_, heightIndex) => heightIndex !== index);
+    setVehicle((current) => ({ ...current, wedgeHeightsCm: heights }));
+    setWedgeHeightInputs(heights.map(String));
+  };
+
+  const selectSource = async (nextSource) => {
+    setSourceMessage('');
+    if (nextSource === 'simulation') {
+      sourceSelectionLocked.current = true;
+      setSource(nextSource);
+      return;
+    }
+    if (nextSource === 'external') {
+      setSourceMessage('Kein externer Sensor verbunden. Die BLE-Anbindung ist noch nicht verfügbar.');
+      return;
+    }
+    if (sensorData.available) {
+      sourceSelectionLocked.current = true;
+      setSource(nextSource);
+      return;
+    }
+    if (!sensorData.supported) {
+      setSourceMessage('Dieser Browser unterstützt keine Smartphone-Bewegungssensoren.');
+      return;
+    }
+
+    if (typeof window.DeviceOrientationEvent.requestPermission === 'function') {
+      try {
+        const permission = await window.DeviceOrientationEvent.requestPermission();
+        if (permission !== 'granted') {
+          setSourceMessage('Der Zugriff auf den Smartphone-Sensor wurde nicht erlaubt.');
+          return;
+        }
+        setSensorData((current) => ({ ...current, permissionGranted: true }));
+      } catch (error) {
+        setSourceMessage(`Sensorzugriff fehlgeschlagen: ${error.message}`);
+        return;
+      }
+    } else {
+      setSourceMessage('Kein Sensorsignal verfügbar. Prüfe Gerät, Browserberechtigung und HTTPS.');
+      return;
+    }
+
+    setSourceMessage('Warte auf ein Signal vom Smartphone-Sensor …');
+    sourceSelectionLocked.current = true;
+    setSource('phone');
+  };
+
+  const startSimulationDrag = (event) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragStart.current = {
+      x: event.clientX,
+      y: event.clientY,
+      pitch: simulatedTilt.pitch,
+      roll: simulatedTilt.roll,
+    };
+  };
+
+  const updateSimulationDrag = (event) => {
+    if (!dragStart.current) return;
+    const scale = 0.18;
+    setSimulatedTilt({
+      pitch: clamp(dragStart.current.pitch + (dragStart.current.y - event.clientY) * scale, -12, 12),
+      roll: clamp(dragStart.current.roll + (event.clientX - dragStart.current.x) * scale, -12, 12),
+    });
+  };
+
+  const stopSimulationDrag = () => {
+    dragStart.current = null;
   };
 
   return (
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
-          <div className="brand-mark" aria-hidden="true">KM</div>
           <div>
             <p className="eyebrow">FIELD UNIT · 01</p>
             <h1>KEIL<span>OMAT</span></h1>
           </div>
         </div>
-        <span className={`status-pill ${usingDemoMode ? 'demo' : 'live'}`}>
-          <span className="status-dot" />
-          {usingDemoMode ? 'DEMO MODE' : sensorData.supported ? 'SENSOR LIVE' : 'SEARCHING'}
-        </span>
+        <div className="source-picker" role="group" aria-label="Datenquelle auswählen">
+          {[
+            { id: 'simulation', icon: '◇', label: 'SIMULATION', available: true },
+            {
+              id: 'phone',
+              icon: '▯',
+              label: 'HANDY',
+              available: sensorData.available,
+            },
+            { id: 'external', icon: 'ᛒ', label: 'EXTERN', available: false },
+          ].map((option) => (
+            <button
+              key={option.id}
+              className={`source-option ${source === option.id ? 'selected' : ''} ${
+                option.available ? '' : 'unavailable'
+              }`}
+              type="button"
+              aria-pressed={source === option.id}
+              aria-label={`${option.label}: ${
+                option.available ? 'verfügbar' : 'nicht verfügbar'
+              }`}
+              onClick={() => selectSource(option.id)}
+            >
+              <span className="source-icon" aria-hidden="true">{option.icon}</span>
+              <span>{option.label}</span>
+            </button>
+          ))}
+          {sourceMessage && <span className="source-message" role="status">{sourceMessage}</span>}
+        </div>
       </header>
 
       <main className="main-screen">
         <div className="telemetry">
           <div className="telemetry-item">
             <span className="eyebrow">PITCH</span>
-            <strong>{currentPitch.toFixed(1)}<small>°</small></strong>
+            <strong>{currentPitch === null ? '—' : currentPitch.toFixed(1)}{currentPitch !== null && <small>°</small>}</strong>
           </div>
           <span className="telemetry-divider" />
           <div className="telemetry-item">
             <span className="eyebrow">ROLL</span>
-            <strong>{currentRoll.toFixed(1)}<small>°</small></strong>
+            <strong>{currentRoll === null ? '—' : currentRoll.toFixed(1)}{currentRoll !== null && <small>°</small>}</strong>
           </div>
         </div>
 
+        {source === 'simulation' && (
+          <section className="simulator" aria-label="Neigung simulieren">
+            <div className="simulator-heading">
+              <span className="eyebrow">3D-SIMULATION</span>
+              <span>Ziehen: ↑↓ Pitch · ←→ Roll · max. ±12°</span>
+            </div>
+            <div
+              className="simulator-stage"
+              role="application"
+              aria-label="Wohnmobil mit Maus oder Touch ziehen. Vertikal steuert Pitch, horizontal Roll; Pfeiltasten ändern die Neigung in Ein-Grad-Schritten."
+              onPointerDown={startSimulationDrag}
+              onPointerMove={updateSimulationDrag}
+              onPointerUp={stopSimulationDrag}
+              onPointerCancel={stopSimulationDrag}
+              onLostPointerCapture={stopSimulationDrag}
+              onKeyDown={(event) => {
+                const adjustments = {
+                  ArrowUp: { pitch: 1, roll: 0 },
+                  ArrowDown: { pitch: -1, roll: 0 },
+                  ArrowRight: { pitch: 0, roll: 1 },
+                  ArrowLeft: { pitch: 0, roll: -1 },
+                };
+                const adjustment = adjustments[event.key];
+                if (!adjustment) return;
+                event.preventDefault();
+                setSimulatedTilt((current) => ({
+                  pitch: clamp(current.pitch + adjustment.pitch, -12, 12),
+                  roll: clamp(current.roll + adjustment.roll, -12, 12),
+                }));
+              }}
+              tabIndex={0}
+            >
+              <div
+                className="sim-vehicle"
+                style={{
+                  transform: `rotateX(${simulatedTilt.pitch}deg) rotateY(${simulatedTilt.roll}deg)`,
+                }}
+              >
+                <div className="sim-face sim-top">
+                  <span className="sim-window" />
+                  <span className="sim-roof" />
+                  <span className="sim-cabin" />
+                  <span className="sim-windshield" />
+                </div>
+                <div className="sim-face sim-bottom" />
+                <div className="sim-face sim-left" />
+                <div className="sim-face sim-right" />
+                <div className="sim-face sim-front" />
+                <div className="sim-face sim-rear" />
+              </div>
+            </div>
+            <div className="simulator-readout" aria-live="polite">
+              <span>Pitch {simulatedTilt.pitch.toFixed(1)}°</span>
+              <span>Roll {simulatedTilt.roll.toFixed(1)}°</span>
+            </div>
+          </section>
+        )}
+
         <section className="hero-panel" aria-label="Leveling recommendation">
           <div className="hero-heading">
-            <span className="eyebrow">LEVELING SYSTEM / 01</span>
             <h2>{recommendation.title}</h2>
           </div>
 
           <div className="vehicle-diagram">
             <div className="diagram-heading">
               <span>TOP VIEW</span>
-              <span className="diagram-direction">FRONT ↑</span>
             </div>
             <svg
               className="vehicle-svg"
-              style={{
-                '--pitch-tilt': `${clamp(currentPitch * 0.15, -3, 3)}deg`,
-                '--roll-tilt': `${clamp(currentRoll * 0.15, -3, 3)}deg`,
-              }}
               viewBox="0 0 360 420"
               role="img"
               aria-labelledby="vehicle-diagram-title vehicle-diagram-description"
             >
               <title id="vehicle-diagram-title">Recommended wedge positions</title>
               <desc id="vehicle-diagram-description">
-                {recommendation.axis === 'level'
+                {recommendation.axis === 'unavailable'
+                  ? recommendation.description
+                  : recommendation.axis === 'level'
                   ? 'The vehicle is level; no wedges are needed.'
                   : `Place ${recommendation.level.toFixed(1)} centimeter wedges at ${recommendation.wheels
                       .map((wheel) => wheelPositions.find((position) => position.id === wheel)?.label)
@@ -383,13 +588,15 @@ function App() {
           </div>
 
           <div className={`level-readout ${recommendation.axis === 'level' ? 'is-level' : ''}`}>
-            <span>{recommendation.axis === 'level' ? 'STATUS' : 'RECOMMENDED STEP'}</span>
+            <span>{recommendation.axis === 'level' || recommendation.axis === 'unavailable' ? 'STATUS' : 'RECOMMENDED STEP'}</span>
             <strong>
               {recommendation.axis === 'level'
                 ? 'NO WEDGES NEEDED'
-                : `STEP ${recommendation.step}`}
+                : recommendation.axis === 'unavailable'
+                  ? 'WAITING FOR SENSOR'
+                  : `STEP ${recommendation.step}`}
             </strong>
-            {recommendation.axis !== 'level' && (
+            {recommendation.axis !== 'level' && recommendation.axis !== 'unavailable' && (
               <small>
                 {recommendation.level.toFixed(1)} cm wedge · required lift ≈{' '}
                 {recommendation.requiredLiftCm.toFixed(1)} cm
@@ -404,6 +611,7 @@ function App() {
               calibrationComplete ? 'is-complete' : ''
             }`}
             type="button"
+            disabled={source !== 'phone' || !sensorData.available}
             aria-label="Hold for 3 seconds to calibrate on level ground"
             aria-describedby="calibration-hint"
             onPointerDown={(event) => {
@@ -440,7 +648,9 @@ function App() {
             {!calibrationComplete && <span className="hold-duration">3 SEC</span>}
           </button>
           <p className="hold-hint" id="calibration-hint" aria-live="polite">
-            {calibrationComplete
+            {source !== 'phone' || !sensorData.available
+              ? 'Für die Kalibrierung Smartphone-Sensor auswählen und Signal abwarten.'
+              : calibrationComplete
               ? 'Zero point saved.'
               : isHoldingCalibration
                 ? 'Keep holding to save the current zero point'
@@ -545,77 +755,40 @@ function App() {
                   </label>
                 </div>
 
-                <div className="settings-card sensor-settings">
-                  <div className="setting-copy">
-                    <strong>Input source</strong>
-                    <span>{usingDemoMode ? 'Manual demo controls' : 'Phone orientation sensor'}</span>
-                  </div>
-                  <button
-                    className="source-toggle"
-                    type="button"
-                    onClick={() => setUsingDemoMode((current) => !current)}
-                  >
-                    {usingDemoMode ? 'USE LIVE SENSOR' : 'USE DEMO MODE'}
-                  </button>
-
-                  {usingDemoMode && (
-                    <div className="demo-controls">
-                      <label>
-                        Pitch <output>{simulatedTilt.pitch.toFixed(1)}°</output>
-                        <input
-                          type="range"
-                          min={-15}
-                          max={15}
-                          step={0.5}
-                          value={simulatedTilt.pitch}
-                          onChange={(event) =>
-                            setSimulatedTilt((current) => ({
-                              ...current,
-                              pitch: Number(event.target.value),
-                            }))
-                          }
-                        />
-                      </label>
-                      <label>
-                        Roll <output>{simulatedTilt.roll.toFixed(1)}°</output>
-                        <input
-                          type="range"
-                          min={-15}
-                          max={15}
-                          step={0.5}
-                          value={simulatedTilt.roll}
-                          onChange={(event) =>
-                            setSimulatedTilt((current) => ({
-                              ...current,
-                              roll: Number(event.target.value),
-                            }))
-                          }
-                        />
-                      </label>
-                    </div>
-                  )}
-                </div>
               </div>
             ) : (
               <div className="menu-content">
-                <div className="settings-card input-group">
-                  <label>
-                    Available wedge heights <span>CM · COMMA SEPARATED</span>
-                    <input
-                      type="text"
-                      value={wedgeHeightsInput}
-                      onChange={handleWedgeHeightsChange}
-                      placeholder="2.5, 5.5, 8.5"
-                      aria-invalid={parseListInput(wedgeHeightsInput).length === 0}
-                    />
-                  </label>
-                  {parseListInput(wedgeHeightsInput).length === 0 && (
-                    <p className="settings-error" role="status">
-                      Enter at least one positive height to update the wedge steps.
-                    </p>
-                  )}
+                <div className="settings-card wedge-settings">
+                  <div className="wedge-list">
+                    {wedgeHeightInputs.map((height, index) => (
+                      <label className="wedge-row" key={`wedge-${index}`}>
+                        <span>STUFE {index + 1}</span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={height}
+                          aria-label={`Höhe Stufe ${index + 1} in Zentimetern`}
+                          onChange={(event) => handleWedgeHeightChange(index, event.target.value)}
+                          onBlur={() => saveWedgeHeight(index)}
+                        />
+                        <span className="wedge-unit">CM</span>
+                        <button
+                          className="remove-wedge"
+                          type="button"
+                          aria-label={`Stufe ${index + 1} entfernen`}
+                          disabled={wedgeHeightInputs.length <= 1}
+                          onClick={() => removeWedgeHeight(index)}
+                        >
+                          −
+                        </button>
+                      </label>
+                    ))}
+                  </div>
+                  <button className="add-wedge" type="button" onClick={addWedgeHeight}>
+                    + STUFE HINZUFÜGEN
+                  </button>
                   <p className="settings-hint">
-                    Enter the step heights available for your wedges. Settings are saved on this device.
+                    Stufenhöhen in Zentimetern. Ungültige Eingaben werden verworfen; Änderungen werden auf diesem Gerät gespeichert.
                   </p>
                 </div>
               </div>

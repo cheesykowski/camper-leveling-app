@@ -10,12 +10,14 @@ Eine Android-taugliche Web-App, die die Neigung eines geparkten Wohnmobils misst
 
 - [x] React/Vite-Projekt und mobile-responsive Oberfläche
 - [x] Pitch- und Roll-Anzeige über `DeviceOrientationEvent`, sofern der Browser Sensorzugriff bereitstellt
-- [x] Demo-Modus über manuelle Pitch-/Roll-Regler
+- [x] Interaktive 3D-Simulation über Ziehen mit Maus oder Touch; Pitch und Roll auf ±12° begrenzt
+- [x] Auswahl zwischen Simulation, Smartphone-Sensor und noch nicht verbundener externer Sensorquelle; fehlende Werte führen nicht zu einer Level-Empfehlung
 - [x] Kalibrierungs-Offset und Fahrzeugdaten werden im Browser-`localStorage` gespeichert
 - [x] Konfigurierbare Werte für Radstand, Spurweite und Keilhöhen
 - [x] Einfache Empfehlung für eine Achse oder Fahrzeugseite
 - [x] Fahrzeug-Draufsicht mit markierten Keilpositionen, empfohlenem Keilschritt und Höhe
 - [x] Retro-Dashboard mit Menü für Fahrzeug-/Keilparameter und Drei-Sekunden-Kalibrierung
+- [x] Keilhöhen als einzelne Stufen editierbar, hinzufügbar und entfernbar
 - [ ] Browserberechtigungen und tatsächliche Sensororientierung auf dem Ziel-Android-Gerät verifizieren
 - [x] GitHub-Pages-Workflow und Vite-Basis-Pfad für Actions eingerichtet; erfolgreicher erster Deployment-Lauf und Android-Test stehen noch aus
 - [ ] Keilempfehlungen mit realen Messdaten und dem tatsächlichen Fahrzeug validieren
@@ -24,9 +26,9 @@ Die voreingestellten Fahrzeug- und Keilwerte sind Platzhalter. Aktuelle Berechnu
 
 ## Nächste Schritte
 
-### 1. Demo zuverlässig machen
+### 1. Sensorbetrieb zuverlässig machen
 
-- Sensorzugriff explizit durch eine Nutzeraktion starten und Berechtigungs-/Fehlerzustände verständlich anzeigen.
+- Sensorberechtigungen und tatsächliche Sensororientierung auf dem Ziel-Android-Gerät verifizieren.
 - Sensorwerte glätten und unplausible bzw. fehlende Messwerte behandeln.
 - Kalibrierung nur bei verfügbaren Messwerten ermöglichen; Status und gespeicherten Offset sichtbar machen.
 - Browser-Neuladen und lokale Speicherung auf Android testen.
@@ -46,7 +48,7 @@ Benötigt werden Arduino-Projekt bzw. BLE-Protokoll, Gerätedaten, Service- und 
 
 - BLE-Verbindung und Verbindungsstatus ergänzen.
 - Sensordaten in ein einheitliches internes Format überführen.
-- Smartphone-, Demo- und BLE-Sensorquellen sauber trennen.
+- Smartphone-, Simulations- und BLE-Sensorquellen sauber trennen.
 - Wiederverbindung, ungültige Daten und Verbindungsabbrüche behandeln.
 
 ### 4. Hosting und Qualität

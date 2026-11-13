@@ -78,14 +78,12 @@ input:focus-visible {
 
 .topbar,
 .brand,
-.status-pill,
 .telemetry,
 .telemetry-item,
 .diagram-heading,
 .level-readout,
 .bottom-menu,
-.menu-header,
-.setting-copy {
+.menu-header {
   display: flex;
   align-items: center;
 }
@@ -93,6 +91,7 @@ input:focus-visible {
 .topbar {
   z-index: 1;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 1rem;
   padding-bottom: 14px;
   border-bottom: 1px solid rgb(91 153 109 / 20%);
@@ -100,18 +99,6 @@ input:focus-visible {
 
 .brand {
   gap: 11px;
-}
-
-.brand-mark {
-  display: grid;
-  width: 40px;
-  height: 40px;
-  place-items: center;
-  border: 1px solid var(--glow);
-  color: var(--glow);
-  box-shadow: inset 0 0 14px rgb(167 255 117 / 12%), 0 0 16px rgb(167 255 117 / 8%);
-  font-size: 0.8rem;
-  font-weight: 800;
 }
 
 .brand h1,
@@ -144,30 +131,58 @@ input:focus-visible {
   margin-bottom: 4px;
 }
 
-.status-pill {
-  min-height: 32px;
-  gap: 8px;
-  padding: 0 10px;
+.source-picker {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(62px, 1fr));
+  gap: 4px;
+}
+
+.source-option {
+  display: grid;
+  min-width: 62px;
+  min-height: 46px;
+  justify-items: center;
+  align-content: center;
+  gap: 2px;
   border: 1px solid var(--line);
+  background: #0a120d;
   color: var(--glow);
-  font-size: 0.62rem;
+  cursor: pointer;
+  font-size: 0.5rem;
   font-weight: 700;
-  letter-spacing: 0.09em;
-  white-space: nowrap;
+  letter-spacing: 0.04em;
 }
 
-.status-pill.demo {
-  color: var(--amber);
-  border-color: rgb(255 200 87 / 35%);
+.source-option.selected {
+  border-color: var(--glow);
+  background: rgb(167 255 117 / 9%);
+  box-shadow: inset 0 0 12px rgb(167 255 117 / 8%);
 }
 
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
-  box-shadow: 0 0 9px currentColor;
-  animation: status-pulse 1.8s steps(2, start) infinite;
+.source-option.unavailable {
+  color: #64746a;
+  opacity: 0.58;
+}
+
+.source-option.unavailable.selected {
+  border-color: #64746a;
+  box-shadow: none;
+}
+
+.source-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.source-message {
+  grid-column: 1 / -1;
+  padding: 9px 11px;
+  border: 1px solid var(--amber);
+  background: #19160c;
+  color: var(--bright);
+  font-size: 0.64rem;
+  line-height: 1.5;
 }
 
 .main-screen {
@@ -212,6 +227,175 @@ input:focus-visible {
   width: 1px;
   height: 34px;
   background: var(--line);
+}
+
+.simulator {
+  display: grid;
+  width: min(100%, 360px);
+  justify-items: center;
+  gap: 6px;
+  padding: 9px 14px 7px;
+  border: 1px solid rgb(91 153 109 / 24%);
+  background:
+    radial-gradient(ellipse at center, rgb(43 94 58 / 20%), transparent 68%),
+    #09110c;
+}
+
+.simulator-heading,
+.simulator-readout {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.simulator-heading {
+  flex-wrap: wrap;
+}
+
+.simulator-heading > span:last-child,
+.simulator-readout {
+  color: var(--dim);
+  font-size: 0.58rem;
+}
+
+.simulator-heading > span:last-child {
+  text-align: right;
+}
+
+.simulator-stage {
+  display: grid;
+  width: 100%;
+  height: 164px;
+  place-items: center;
+  perspective: 540px;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.simulator-stage:active {
+  cursor: grabbing;
+}
+
+.simulator-stage:focus-visible {
+  outline: 2px solid var(--glow);
+  outline-offset: -2px;
+}
+
+.sim-vehicle {
+  position: relative;
+  width: 96px;
+  height: 150px;
+  transform-style: preserve-3d;
+  transition: transform 90ms linear;
+}
+
+.sim-face {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+.sim-top,
+.sim-bottom {
+  width: 96px;
+  height: 150px;
+  margin: -75px 0 0 -48px;
+  border: 2px solid #77df80;
+  border-radius: 25px;
+}
+
+.sim-top {
+  overflow: hidden;
+  background: linear-gradient(150deg, #163c24, #0d1d14 70%);
+  box-shadow: inset 0 0 16px rgb(119 223 128 / 15%);
+  transform: translateZ(22px);
+}
+
+.sim-bottom {
+  background: #09140d;
+  transform: rotateY(180deg) translateZ(22px);
+}
+
+.sim-left,
+.sim-right {
+  width: 44px;
+  height: 150px;
+  margin: -75px 0 0 -22px;
+  border: 1px solid #4d9b60;
+  background: linear-gradient(90deg, #102719, #235333);
+}
+
+.sim-left {
+  transform: rotateY(90deg) translateZ(48px);
+}
+
+.sim-right {
+  transform: rotateY(-90deg) translateZ(48px);
+}
+
+.sim-front,
+.sim-rear {
+  width: 96px;
+  height: 44px;
+  margin: -22px 0 0 -48px;
+  border: 1px solid #4d9b60;
+  background: linear-gradient(#235333, #102719);
+}
+
+.sim-front {
+  transform: rotateX(90deg) translateZ(75px);
+}
+
+.sim-rear {
+  transform: rotateX(-90deg) translateZ(75px);
+}
+
+.sim-window,
+.sim-roof,
+.sim-cabin,
+.sim-windshield {
+  position: absolute;
+  left: 50%;
+  display: block;
+  width: 62px;
+  transform: translateX(-50%);
+}
+
+.sim-window {
+  top: 13px;
+  height: 27px;
+  border: 1px solid #4d9b60;
+  border-radius: 50% 50% 8px 8px;
+  background: #173c26;
+}
+
+.sim-roof {
+  top: 47px;
+  height: 54px;
+  border: 1px solid #36784a;
+  border-radius: 8px;
+  background: #102719;
+}
+
+.sim-cabin {
+  top: 108px;
+  height: 24px;
+  border: 1px solid #4d9b60;
+  border-radius: 6px 6px 50% 50%;
+  background: #173c26;
+}
+
+.sim-windshield {
+  top: 12px;
+  width: 40px;
+  height: 14px;
+  border-radius: 50%;
+  background: #42865a;
 }
 
 .hero-panel {
@@ -288,10 +472,6 @@ input:focus-visible {
   letter-spacing: 0.14em;
 }
 
-.diagram-direction {
-  color: var(--glow);
-}
-
 .vehicle-svg {
   z-index: 1;
   display: block;
@@ -300,9 +480,6 @@ input:focus-visible {
   height: auto;
   overflow: visible;
   filter: drop-shadow(0 0 12px rgb(97 255 122 / 11%));
-  transform: perspective(900px) rotateX(var(--pitch-tilt, 0deg)) rotateY(var(--roll-tilt, 0deg));
-  transform-origin: center;
-  transition: transform 450ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .vehicle-body {
@@ -464,6 +641,13 @@ input:focus-visible {
   color: var(--bright);
 }
 
+.calibrate-button:disabled {
+  border-color: var(--line);
+  color: var(--dim);
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
 .calibrate-button > span {
   z-index: 1;
 }
@@ -611,8 +795,7 @@ input:focus-visible {
 }
 
 .menu-content,
-.input-group,
-.demo-controls {
+.input-group {
   display: grid;
   gap: 10px;
 }
@@ -623,8 +806,7 @@ input:focus-visible {
   background: rgb(12 21 17 / 90%);
 }
 
-.input-group label,
-.demo-controls label {
+.input-group label {
   display: grid;
   gap: 8px;
   color: var(--text);
@@ -639,8 +821,7 @@ input:focus-visible {
   letter-spacing: 0.08em;
 }
 
-.input-group input,
-.demo-controls input[type="range"] {
+.input-group input {
   width: 100%;
 }
 
@@ -654,65 +835,72 @@ input:focus-visible {
   font-size: 0.85rem;
 }
 
-.demo-controls input[type="range"] {
-  accent-color: var(--glow);
-}
-
-.sensor-settings {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 14px;
-}
-
-.setting-copy {
-  min-width: 0;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 5px;
-}
-
-.setting-copy strong {
-  color: var(--text);
-  font-size: 0.77rem;
-}
-
-.setting-copy span,
 .settings-hint {
   color: var(--dim);
   font-size: 0.64rem;
   line-height: 1.5;
 }
 
-.source-toggle {
+.wedge-settings {
+  display: grid;
+  gap: 12px;
+}
+
+.wedge-list {
+  display: grid;
+  gap: 7px;
+}
+
+.wedge-row {
+  display: grid;
+  grid-template-columns: 1fr minmax(70px, 100px) auto 36px;
+  align-items: center;
+  gap: 8px;
+  color: var(--dim);
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.wedge-row input {
+  width: 100%;
+  min-height: 40px;
+  padding: 7px 9px;
+  border: 1px solid #31533a;
+  background: #070d0a;
+  color: var(--bright);
+  font-size: 0.85rem;
+}
+
+.wedge-unit {
+  color: var(--dim);
+  font-size: 0.58rem;
+}
+
+.remove-wedge,
+.add-wedge {
   min-height: 38px;
-  padding: 0 10px;
   border: 1px solid var(--line);
   background: #101d16;
   color: var(--glow);
   cursor: pointer;
-  font-size: 0.58rem;
+}
+
+.remove-wedge {
+  font-size: 1.1rem;
+}
+
+.remove-wedge:disabled {
+  color: var(--dim);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.add-wedge {
+  padding: 0 12px;
+  font-size: 0.62rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
-}
-
-.demo-controls {
-  grid-column: 1 / -1;
-  padding-top: 7px;
-  border-top: 1px solid var(--line);
-}
-
-.demo-controls label {
-  grid-template-columns: 1fr auto;
-}
-
-.demo-controls output {
-  color: var(--glow);
-  font-variant-numeric: tabular-nums;
-}
-
-.demo-controls input[type="range"] {
-  grid-column: 1 / -1;
+  letter-spacing: 0.08em;
 }
 
 .settings-hint {
@@ -720,11 +908,23 @@ input:focus-visible {
   font-weight: 400;
 }
 
-.settings-error {
-  margin: -2px 0 0;
-  color: #ffc857;
-  font-size: 0.66rem;
-  line-height: 1.5;
+@media (max-width: 420px) {
+  .topbar {
+    gap: 10px;
+  }
+
+  .source-picker {
+    width: 100%;
+  }
+
+  .source-option {
+    min-width: 0;
+  }
+
+  .simulator {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
 }
 
 @keyframes calibrate-progress {
@@ -740,12 +940,6 @@ input:focus-visible {
   }
 }
 
-@keyframes status-pulse {
-  50% {
-    opacity: 0.45;
-  }
-}
-
 @keyframes sheet-enter {
   from {
     opacity: 0;
@@ -756,16 +950,6 @@ input:focus-visible {
 @media (max-width: 480px) {
   .app-shell {
     padding-top: 12px;
-  }
-
-  .brand-mark {
-    width: 36px;
-    height: 36px;
-  }
-
-  .status-pill {
-    padding: 0 7px;
-    font-size: 0.56rem;
   }
 
   .vehicle-svg {
@@ -785,13 +969,6 @@ input:focus-visible {
     padding: 16px;
   }
 
-  .sensor-settings {
-    grid-template-columns: 1fr;
-  }
-
-  .source-toggle {
-    width: 100%;
-  }
 }
 
 @media (max-height: 720px) {

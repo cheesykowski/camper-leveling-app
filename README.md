@@ -1,6 +1,6 @@
 # KEILOMAT
 
-KEILOMAT ist eine mobile-first Web-App, die dabei hilft, ein Wohnmobil beim Parken auszurichten. Der aktuelle Prototyp verwendet die Bewegungssensoren des Smartphones oder Demo-Regler. Eine Verbindung zu einer externen Bluetooth-IMU ist für einen späteren Entwicklungsschritt vorgesehen.
+KEILOMAT ist eine mobile-first Web-App, die dabei hilft, ein Wohnmobil beim Parken auszurichten. Als Datenquelle dienen die Bewegungssensoren des Smartphones oder eine interaktive 3D-Simulation. Eine Verbindung zu einer externen Bluetooth-IMU ist für einen späteren Entwicklungsschritt vorgesehen.
 
 > **Status:** früher Prototyp. Die Sensorausrichtung und Keil-Empfehlungen müssen mit dem realen Fahrzeug und den tatsächlichen Keilen überprüft werden. Die App ist derzeit keine sicherheitskritische Mess- oder Fahrhilfe.
 
@@ -8,12 +8,13 @@ KEILOMAT ist eine mobile-first Web-App, die dabei hilft, ein Wohnmobil beim Park
 
 - Pitch- und Roll-Anzeige über die Browser-Orientierungssensoren, sofern verfügbar
 - Kalibrierung auf möglichst ebener Fläche
-- Demo-Modus mit Reglern, falls kein Sensor verfügbar ist
+- Interaktive 3D-Neigungssimulation mit begrenztem Pitch- und Roll-Winkel, falls kein Sensor verfügbar ist
+- Auswahl zwischen Simulation, Smartphone-Sensor und (derzeit nicht verfügbarer) externer Sensorquelle
 - Eingabe und lokale Speicherung von Radstand, Spurweite und Keilhöhen
 - Einfache Empfehlung, welche Achse oder Fahrzeugseite angehoben werden sollte
 - Draufsicht des Fahrzeugs mit markierten Keilpositionen, empfohlenem Schritt und Keilhöhe
 - Reduzierte Retro-Oberfläche mit Live-Neigungsanzeige und einer Drei-Sekunden-Halteaktion zur Kalibrierung
-- Fahrzeug- und Keilparameter im Konfigurationsmenü
+- Fahrzeugparameter und einzeln editierbare Keilstufen im Konfigurationsmenü
 - Speicherung der Einstellungen im `localStorage` des verwendeten Browsers
 
 Die Standardwerte für Fahrzeug und Keile sind nur Beispielwerte und müssen vor einer realen Verwendung angepasst werden.
