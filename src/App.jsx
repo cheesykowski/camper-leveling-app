@@ -22,6 +22,11 @@ const defaultCalibrations = {
   external: defaultCalibration,
 };
 
+const vehicleDimensionLimits = {
+  wheelbaseCm: { min: 100, max: 500 },
+  trackWidthCm: { min: 80, max: 400 },
+};
+
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 const getVehicleWheelPositions = ({ wheelbaseCm, trackWidthCm }) => {
@@ -355,6 +360,11 @@ function App() {
 
   const [calibrations, setCalibrations] = useState(loadedState.calibrations);
   const [vehicle, setVehicle] = useState(loadedState.vehicle);
+  const [vehicleInputs, setVehicleInputs] = useState({
+    wheelbaseCm: String(loadedState.vehicle.wheelbaseCm),
+    trackWidthCm: String(loadedState.vehicle.trackWidthCm),
+  });
+  const [vehicleInputErrors, setVehicleInputErrors] = useState({});
   const [wedgeHeightInputs, setWedgeHeightInputs] = useState(
     loadedState.vehicle.wedgeHeightsCm.map(String),
   );
@@ -557,28 +567,44 @@ function App() {
     }
   };
 
-  const vehicleInputs = {
-    wheelbaseCm: vehicle.wheelbaseCm,
-    trackWidthCm: vehicle.trackWidthCm,
-  };
   const sortedWedgeHeights = [...vehicle.wedgeHeightsCm].sort((a, b) => a - b);
   const wedgeIllustrationHeights = [
     sortedWedgeHeights[sortedWedgeHeights.length - 1],
     sortedWedgeHeights[Math.floor((sortedWedgeHeights.length - 1) / 2)],
     sortedWedgeHeights[0],
   ];
-  const handleWheelbaseChange = (event) => {
-    setVehicle((current) => ({
-      ...current,
-      wheelbaseCm: clamp(Number(event.target.value) || 0, 100, 500),
-    }));
+  const handleVehicleDimensionChange = (event, dimension) => {
+    const value = event.target.value;
+    const { min, max } = vehicleDimensionLimits[dimension];
+    setVehicleInputs((current) => ({ ...current, [dimension]: value }));
+    setVehicleInputErrors((current) => ({ ...current, [dimension]: '' }));
+
+    const parsedValue = Number(value);
+    if (value !== '' && Number.isFinite(parsedValue) && parsedValue >= min && parsedValue <= max) {
+      setVehicle((current) => ({ ...current, [dimension]: parsedValue }));
+    }
   };
 
-  const handleTrackWidthChange = (event) => {
-    setVehicle((current) => ({
-      ...current,
-      trackWidthCm: clamp(Number(event.target.value) || 0, 80, 400),
-    }));
+  const saveVehicleDimension = (dimension) => {
+    const { min, max } = vehicleDimensionLimits[dimension];
+    const value = vehicleInputs[dimension];
+    const parsedValue = Number(value);
+    if (
+      value.trim() === '' ||
+      !Number.isFinite(parsedValue) ||
+      parsedValue < min ||
+      parsedValue > max
+    ) {
+      setVehicleInputErrors((current) => ({
+        ...current,
+        [dimension]: `Enter a value between ${min} and ${max} cm.`,
+      }));
+      return;
+    }
+
+    setVehicle((current) => ({ ...current, [dimension]: parsedValue }));
+    setVehicleInputs((current) => ({ ...current, [dimension]: String(parsedValue) }));
+    setVehicleInputErrors((current) => ({ ...current, [dimension]: '' }));
   };
 
   const handleWedgeHeightChange = (index, value) => {
@@ -1015,21 +1041,45 @@ function App() {
                     Wheelbase <span>CM</span>
                     <input
                       type="number"
+                      inputMode="numeric"
+                      step="1"
                       value={vehicleInputs.wheelbaseCm}
-                      min={100}
-                      max={500}
-                      onChange={handleWheelbaseChange}
+                      min={vehicleDimensionLimits.wheelbaseCm.min}
+                      max={vehicleDimensionLimits.wheelbaseCm.max}
+                      aria-invalid={Boolean(vehicleInputErrors.wheelbaseCm)}
+                      aria-describedby={
+                        vehicleInputErrors.wheelbaseCm ? 'wheelbase-error' : undefined
+                      }
+                      onChange={(event) => handleVehicleDimensionChange(event, 'wheelbaseCm')}
+                      onBlur={() => saveVehicleDimension('wheelbaseCm')}
                     />
+                    {vehicleInputErrors.wheelbaseCm && (
+                      <small className="input-error" id="wheelbase-error">
+                        {vehicleInputErrors.wheelbaseCm}
+                      </small>
+                    )}
                   </label>
                   <label>
                     Track width <span>CM</span>
                     <input
                       type="number"
+                      inputMode="numeric"
+                      step="1"
                       value={vehicleInputs.trackWidthCm}
-                      min={80}
-                      max={400}
-                      onChange={handleTrackWidthChange}
+                      min={vehicleDimensionLimits.trackWidthCm.min}
+                      max={vehicleDimensionLimits.trackWidthCm.max}
+                      aria-invalid={Boolean(vehicleInputErrors.trackWidthCm)}
+                      aria-describedby={
+                        vehicleInputErrors.trackWidthCm ? 'track-width-error' : undefined
+                      }
+                      onChange={(event) => handleVehicleDimensionChange(event, 'trackWidthCm')}
+                      onBlur={() => saveVehicleDimension('trackWidthCm')}
                     />
+                    {vehicleInputErrors.trackWidthCm && (
+                      <small className="input-error" id="track-width-error">
+                        {vehicleInputErrors.trackWidthCm}
+                      </small>
+                    )}
                   </label>
                 </div>
               </div>

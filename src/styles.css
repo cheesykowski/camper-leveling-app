@@ -1125,21 +1125,281 @@ input:focus-visible {
 }
 
 @media (max-width: 480px) {
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    height: 100svh;
+    min-height: 0;
+  }
+
   .app-shell {
-    padding-top: 12px;
+    height: 100svh;
+    min-height: 0;
+    overflow: hidden;
+    gap: 4px;
+    padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+  }
+
+  .topbar {
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding-bottom: 8px;
+  }
+
+  .brand .eyebrow {
+    font-size: 0.48rem;
+  }
+
+  .brand h1 {
+    font-size: 0.84rem;
+    letter-spacing: 0.04em;
+  }
+
+  .source-picker {
+    width: auto;
+    min-width: 0;
+    flex: 1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 3px;
+  }
+
+  .source-option {
+    min-width: 0;
+    min-height: 46px;
+    gap: 1px;
+    padding: 2px;
+    font-size: 0.42rem;
+    letter-spacing: 0.02em;
+  }
+
+  .source-icon svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .source-availability {
+    font-size: 0.38rem;
+  }
+
+  .main-screen {
+    min-height: 0;
+    gap: clamp(4px, 1svh, 8px);
+    overflow: hidden;
+    justify-content: space-between;
+    padding: 4px 0;
+  }
+
+  .telemetry {
+    flex: 0 0 auto;
+    gap: 10px;
+  }
+
+  .telemetry-item strong {
+    font-size: 0.85rem;
+  }
+
+  .simulator {
+    flex: 0 0 auto;
+    gap: 4px;
+    padding: 6px 8px 5px;
+  }
+
+  .simulator-heading > span:last-child,
+  .simulator-readout {
+    font-size: 0.52rem;
+  }
+
+  .simulator-stage {
+    height: clamp(72px, 13svh, 110px);
+  }
+
+  .hero-panel {
+    min-height: 0;
+    flex: 1;
+    gap: 4px;
+    justify-content: space-between;
+  }
+
+  .hero-heading {
+    gap: 3px;
+  }
+
+  .hero-heading h2 {
+    font-size: 0.9rem;
+  }
+
+  .hero-description {
+    font-size: 0.55rem;
+    line-height: 1.25;
+  }
+
+  .vehicle-diagram {
+    min-height: 0;
+    flex: 1;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .diagram-heading {
+    padding-top: 4px;
+    font-size: 0.52rem;
   }
 
   .vehicle-svg {
-    width: min(72vw, 320px);
+    width: auto;
+    height: 100%;
+    max-width: 100%;
+    max-height: min(44svh, 370px);
+    align-self: center;
+    justify-self: center;
+  }
+
+  .action-area {
+    flex: 0 0 auto;
+    gap: 4px;
+  }
+
+  .calibrate-button {
+    min-height: 42px;
+    gap: 6px;
+    font-size: 0.62rem;
+  }
+
+  .hold-hint {
+    font-size: 0.54rem;
+    line-height: 1.25;
+  }
+
+  .bottom-menu {
+    min-height: 48px;
+    flex: 0 0 auto;
+    gap: 4px;
+  }
+
+  .menu-button {
+    min-height: 40px;
+    gap: 4px;
+    font-size: 0.5rem;
+  }
+
+  .menu-backdrop {
+    align-items: center;
+    padding: max(8px, env(safe-area-inset-top)) 10px
+      max(8px, env(safe-area-inset-bottom));
   }
 
   .menu-sheet {
-    padding: 16px;
+    max-height: calc(
+      100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px
+    );
+    padding: 12px;
+  }
+
+  .menu-header {
+    margin-bottom: 8px;
+  }
+
+  .menu-tabs {
+    margin-bottom: 8px;
+  }
+
+  .menu-content {
+    gap: 8px;
+  }
+
+  .settings-card {
+    padding: 10px;
+  }
+
+  .vehicle-preview {
+    gap: 4px;
+    padding: 8px;
+  }
+
+  .vehicle-preview .vehicle-svg {
+    width: auto;
+    height: min(30svh, 190px);
+    max-width: 100%;
+    max-height: 190px;
+  }
+
+  .input-group {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 9px;
+  }
+
+  .input-group label {
+    min-width: 0;
+    gap: 4px;
+    font-size: 0.68rem;
+  }
+
+  .input-group input {
+    min-height: 40px;
+    padding: 7px;
+    font-size: 0.78rem;
+  }
+
+  .input-error {
+    color: var(--amber);
+    font-size: 0.52rem;
+    font-weight: 400;
+    line-height: 1.3;
+  }
+
+  .wedge-settings {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .wedge-illustration {
+    gap: 2px;
+    padding: 6px;
+  }
+
+  .wedge-illustration svg {
+    width: auto;
+    height: min(20svh, 112px);
+    max-width: 100%;
+    max-height: 112px;
+  }
+
+  .wedge-list {
+    gap: 4px;
+  }
+
+  .wedge-row input,
+  .remove-wedge,
+  .add-wedge {
+    min-height: 36px;
+  }
+
+  .feedback-form {
+    gap: 8px;
+  }
+
+  .feedback-field textarea {
+    min-height: 78px;
+  }
+
+  .feedback-consent {
+    font-size: 0.56rem;
+    line-height: 1.35;
+  }
+
+  .feedback-submit {
+    min-height: 42px;
   }
 
 }
 
-@media (max-height: 720px) {
+@media (max-height: 720px) and (min-width: 481px) {
   .main-screen {
     gap: 8px;
   }
