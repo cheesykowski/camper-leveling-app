@@ -312,201 +312,43 @@ input:focus-visible {
   transform-style: preserve-3d;
 }
 
-.sim-vehicle {
+.sim-box {
   position: relative;
-  width: 96px;
-  height: 150px;
+  width: 112px;
+  height: 76px;
+  border: 1px solid #77df80;
+  background: #173c26;
+  box-shadow: inset 0 0 16px rgb(119 223 128 / 15%);
   transform-style: preserve-3d;
   transition: transform 90ms linear;
 }
 
-.sim-face {
+.sim-box::before,
+.sim-box::after {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform-style: preserve-3d;
-  backface-visibility: hidden;
+  content: "";
 }
 
-.sim-top,
-.sim-bottom {
-  width: 96px;
-  height: 150px;
-  margin: -75px 0 0 -48px;
-  border: 2px solid #77df80;
-  border-radius: 25px;
-}
-
-.sim-top {
-  overflow: hidden;
-  background: linear-gradient(150deg, #163c24, #0d1d14 70%);
-  box-shadow: inset 0 0 16px rgb(119 223 128 / 15%);
-  transform: translateZ(22px);
-}
-
-.sim-bottom {
-  background: #09140d;
-  transform: rotateY(180deg) translateZ(22px);
-}
-
-.sim-left,
-.sim-right {
-  width: 44px;
-  height: 150px;
-  margin: -75px 0 0 -22px;
-  border: 1px solid #4d9b60;
-  background: linear-gradient(90deg, #102719, #235333);
-}
-
-.sim-left {
-  transform: rotateY(90deg) translateZ(48px);
-}
-
-.sim-right {
-  transform: rotateY(-90deg) translateZ(48px);
-}
-
-.sim-front,
-.sim-rear {
-  width: 96px;
-  height: 44px;
-  margin: -22px 0 0 -48px;
-  border: 1px solid #4d9b60;
-  background: linear-gradient(#235333, #102719);
-}
-
-.sim-front {
-  transform: rotateX(90deg) translateZ(75px);
-}
-
-.sim-rear {
-  transform: rotateX(-90deg) translateZ(75px);
-}
-
-.sim-wheel {
-  position: absolute;
-  top: 28%;
-  left: 50%;
-  width: 12px;
-  height: 26px;
-  border: 1px solid #597060;
-  border-radius: 5px;
-  background: #080e0a;
-  transform-style: preserve-3d;
-}
-
-.sim-wheel-left-front,
-.sim-wheel-left-rear {
-  transform: translate(-50%, -50%) rotateY(90deg) translateZ(48px);
-}
-
-.sim-wheel-right-front,
-.sim-wheel-right-rear {
-  transform: translate(-50%, -50%) rotateY(-90deg) translateZ(48px);
-}
-
-.sim-wheel-left-rear,
-.sim-wheel-right-rear {
-  top: 72%;
-}
-
-.sim-cabin {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 60px;
-  height: 80px;
-  margin: -40px 0 0 -30px;
-  transform: translateZ(34px);
-  transform-style: preserve-3d;
-}
-
-.sim-cabin-face {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform-style: preserve-3d;
-  backface-visibility: hidden;
-}
-
-.sim-cabin-roof,
-.sim-cabin-bottom {
-  width: 60px;
-  height: 80px;
-  margin: -40px 0 0 -30px;
+.sim-box::before {
+  top: -25px;
+  left: 0;
+  width: 100%;
+  height: 25px;
   border: 1px solid #77df80;
-  border-radius: 13px;
+  background: #204a2c;
+  transform: rotateX(90deg);
+  transform-origin: bottom;
 }
 
-.sim-cabin-roof {
-  background: linear-gradient(145deg, #1b4429, #102719);
-  transform: translateZ(12px);
-}
-
-.sim-cabin-bottom {
-  background: #0b170f;
-  transform: rotateY(180deg) translateZ(12px);
-}
-
-.sim-cabin-left,
-.sim-cabin-right {
-  width: 24px;
-  height: 80px;
-  margin: -40px 0 0 -12px;
+.sim-box::after {
+  top: 0;
+  right: -25px;
+  width: 25px;
+  height: 100%;
   border: 1px solid #4d9b60;
-  background: linear-gradient(90deg, #102719, #235333);
-}
-
-.sim-cabin-left {
-  transform: rotateY(90deg) translateZ(30px);
-}
-
-.sim-cabin-right {
-  transform: rotateY(-90deg) translateZ(30px);
-}
-
-.sim-cabin-front,
-.sim-cabin-rear {
-  width: 60px;
-  height: 24px;
-  margin: -12px 0 0 -30px;
-  border: 1px solid #4d9b60;
-  background: #163c26;
-}
-
-.sim-cabin-front {
-  transform: rotateX(90deg) translateZ(40px);
-}
-
-.sim-cabin-rear {
-  transform: rotateX(-90deg) translateZ(40px);
-}
-
-.sim-cabin-left::before,
-.sim-cabin-right::before {
-  position: absolute;
-  top: 16px;
-  left: 4px;
-  width: 14px;
-  height: 30px;
-  border: 1px solid #4d9b60;
-  border-radius: 4px;
-  background: linear-gradient(145deg, #28633c, #102719);
-  content: "";
-}
-
-.sim-cabin-front::before,
-.sim-cabin-rear::before {
-  position: absolute;
-  top: 4px;
-  left: 50%;
-  width: 36px;
-  height: 14px;
-  border: 1px solid #4d9b60;
-  border-radius: 6px;
-  background: linear-gradient(#28633c, #102719);
-  content: "";
-  transform: translateX(-50%);
+  background: #102719;
+  transform: rotateY(90deg);
+  transform-origin: left;
 }
 
 .hero-panel {
@@ -590,6 +432,10 @@ input:focus-visible {
   letter-spacing: 0.14em;
 }
 
+.diagram-direction {
+  color: var(--glow);
+}
+
 .vehicle-svg {
   z-index: 1;
   display: block;
@@ -618,10 +464,11 @@ input:focus-visible {
   stroke-width: 1.5;
 }
 
-.vehicle-seam {
-  stroke: #478354;
-  stroke-dasharray: 3 5;
-  stroke-width: 1.5;
+.diagram-axle-label {
+  fill: #75a982;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
 }
 
 .diagram-tire {
@@ -1069,7 +916,19 @@ input:focus-visible {
 }
 
 .remove-wedge {
-  font-size: 1.1rem;
+  display: grid;
+  place-items: center;
+}
+
+.remove-wedge svg {
+  display: block;
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
 .remove-wedge:disabled {

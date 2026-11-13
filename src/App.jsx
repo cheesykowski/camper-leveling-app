@@ -24,8 +24,17 @@ const defaultCalibrations = {
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 const getVehicleWheelPositions = ({ wheelbaseCm, trackWidthCm }) => {
-  const trackHalfWidth = clamp(58 + ((trackWidthCm - 80) / 320) * 38, 58, 96);
-  const axleHalfSpacing = clamp(60 + ((wheelbaseCm - 100) / 400) * 90, 60, 150);
+  const wheelSpacingScale = 1.15;
+  const trackHalfWidth = clamp(
+    (58 + ((trackWidthCm - 80) / 320) * 38) * wheelSpacingScale,
+    58,
+    108,
+  );
+  const axleHalfSpacing = clamp(
+    (60 + ((wheelbaseCm - 100) / 400) * 90) * wheelSpacingScale,
+    60,
+    160,
+  );
   const frontY = 219 - axleHalfSpacing;
   const rearY = 219 + axleHalfSpacing;
 
@@ -62,7 +71,12 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
       <path className="vehicle-glass" d="M130 80 Q180 52 230 80 L222 130 Q180 143 138 130 Z" />
       <path className="vehicle-roof" d="M133 147 Q180 136 227 147 L227 272 Q180 284 133 272 Z" />
       <path className="vehicle-glass" d="M138 289 Q180 278 222 289 L230 337 Q180 360 130 337 Z" />
-      <line className="vehicle-seam" x1="124" y1="279" x2="236" y2="279" />
+      <text className="diagram-axle-label" x="180" y="20" textAnchor="middle">
+        FRONT
+      </text>
+      <text className="diagram-axle-label" x="180" y="413" textAnchor="middle">
+        REAR
+      </text>
 
       {wheels.map((wheel) => {
         const placement = recommendation?.wedgePlacements?.find((item) => item.id === wheel.id);
@@ -70,7 +84,7 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
         const labelX =
           wheel.side === 'left'
             ? Math.max(2, wheel.x - 62)
-            : Math.min(312, wheel.x + 52);
+            : Math.min(302, wheel.x + 52);
         const wedgePoints =
           wheel.side === 'left'
             ? `${wheel.x - 19},${wheel.y + 24} ${wheel.x},${wheel.y + 16} ${wheel.x},${wheel.y + 36}`
@@ -638,7 +652,7 @@ function App() {
             <div
               className="simulator-stage"
               role="application"
-              aria-label="Drag the vehicle with a mouse or touch. Vertical movement controls pitch, horizontal movement controls roll. Arrow keys adjust tilt in one-degree steps."
+              aria-label="Drag the box with a mouse or touch. Vertical movement controls pitch, horizontal movement controls roll. Arrow keys adjust tilt in one-degree steps."
               onPointerDown={startSimulationDrag}
               onPointerMove={updateSimulationDrag}
               onPointerUp={stopSimulationDrag}
@@ -671,30 +685,11 @@ function App() {
             >
               <div className="sim-view">
                 <div
-                  className="sim-vehicle"
+                  className="sim-box"
                   style={{
                     transform: `rotateX(${simulatedTilt.pitch}deg) rotateY(${simulatedTilt.roll}deg)`,
                   }}
-                >
-                  <div className="sim-face sim-top" />
-                  <div className="sim-face sim-bottom" />
-                  <div className="sim-face sim-left" />
-                  <div className="sim-face sim-right" />
-                  <div className="sim-face sim-front" />
-                  <div className="sim-face sim-rear" />
-                  <span className="sim-wheel sim-wheel-left-front" />
-                  <span className="sim-wheel sim-wheel-left-rear" />
-                  <span className="sim-wheel sim-wheel-right-front" />
-                  <span className="sim-wheel sim-wheel-right-rear" />
-                  <div className="sim-cabin">
-                    <div className="sim-cabin-face sim-cabin-roof" />
-                    <div className="sim-cabin-face sim-cabin-bottom" />
-                    <div className="sim-cabin-face sim-cabin-left" />
-                    <div className="sim-cabin-face sim-cabin-right" />
-                    <div className="sim-cabin-face sim-cabin-front" />
-                    <div className="sim-cabin-face sim-cabin-rear" />
-                  </div>
-                </div>
+                />
               </div>
             </div>
             <div className="simulator-readout" aria-live="polite">
@@ -713,6 +708,7 @@ function App() {
           <div className="vehicle-diagram">
             <div className="diagram-heading">
               <span>TOP VIEW</span>
+              <span className="diagram-direction">FRONT ↑</span>
             </div>
             <VehicleDiagram
               className="vehicle-svg"
@@ -928,7 +924,9 @@ function App() {
                           disabled={wedgeHeightInputs.length <= 1}
                           onClick={() => removeWedgeHeight(index)}
                         >
-                          −
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5" />
+                          </svg>
                         </button>
                       </label>
                     ))}
