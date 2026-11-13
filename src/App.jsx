@@ -15,6 +15,20 @@ const SIMULATION_MAX_TILT = 30;
 const SENSOR_STALE_TIMEOUT_MS = 10000;
 const FORMSPREE_ENDPOINT = import.meta.env.VITE_FORMSPREE_ENDPOINT?.trim() || '';
 
+const formatCalibrationTimestamp = (timestamp) =>
+  new Date(timestamp).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+
+const getCalibrationProfileName = (profile) =>
+  profile.name || `Calibration · ${formatCalibrationTimestamp(profile.createdAt)}`;
+
+const getQuickCalibrationLabel = (profile) =>
+  profile.name ||
+  new Date(profile.createdAt).toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+
 const defaultVehicle = {
   wheelbaseCm: 240,
   trackWidthCm: 180,
@@ -623,15 +637,9 @@ function App() {
     if (calibrationProfileSource !== 'phone') return;
 
     const createdAt = Date.now();
-    const name =
-      calibrationProfileName.trim() ||
-      `Calibration · ${new Date(createdAt).toLocaleString('en-GB', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      })}`;
     const profile = {
       id: `${createdAt}-${Math.random().toString(36).slice(2, 8)}`,
-      name,
+      name: calibrationProfileName.trim(),
       pitch: calibrations[calibrationProfileSource].pitch,
       roll: calibrations[calibrationProfileSource].roll,
       createdAt,
@@ -665,6 +673,17 @@ function App() {
   };
 
   const sortedWedgeHeights = [...vehicle.wedgeHeightsCm].sort((a, b) => a - b);
+  const recentCalibrationProfiles = calibrationProfiles.phone.slice(0, 3);
+  const selectedPhoneCalibration = calibrationProfiles.phone.find(
+    (profile) => profile.id === calibrationProfileIds.phone,
+  );
+  const quickCalibrationProfiles =
+    selectedPhoneCalibration &&
+    !recentCalibrationProfiles.some((profile) => profile.id === selectedPhoneCalibration.id)
+      ? [selectedPhoneCalibration, ...recentCalibrationProfiles.slice(0, 2)]
+      : recentCalibrationProfiles;
+  const hasMoreCalibrationProfiles =
+    calibrationProfiles.phone.length > quickCalibrationProfiles.length;
   const wedgeIllustrationHeights = [
     sortedWedgeHeights[sortedWedgeHeights.length - 1],
     sortedWedgeHeights[Math.floor((sortedWedgeHeights.length - 1) / 2)],
@@ -1025,6 +1044,61 @@ function App() {
                   ? 'Keep holding to save the current zero point'
                   : 'Park on level ground, then hold to set zero'}
           </p>
+          {calibrationProfiles.phone.length > 0 && (
+            <div
+              className="quick-calibrations"
+              role="group"
+              aria-label="Quick phone calibration selection"
+            >
+              <button
+                className={
+                  calibrationProfileIds.phone
+                    ? 'quick-calibration-button'
+                    : 'quick-calibration-button selected'
+                }
+                type="button"
+                aria-pressed={!calibrationProfileIds.phone}
+                onClick={() => {
+                  setCalibrationProfileIds((current) => ({ ...current, phone: null }));
+                  setCalibrationComplete(false);
+                }}
+              >
+                LATEST
+              </button>
+              {quickCalibrationProfiles.map((profile) => (
+                <button
+                  className={
+                    calibrationProfileIds.phone === profile.id
+                      ? 'quick-calibration-button selected'
+                      : 'quick-calibration-button'
+                  }
+                  key={profile.id}
+                  type="button"
+                  aria-label={`Use ${getCalibrationProfileName(profile)} calibration`}
+                  aria-pressed={calibrationProfileIds.phone === profile.id}
+                  title={getCalibrationProfileName(profile)}
+                  onClick={() => {
+                    setCalibrationProfileIds((current) => ({ ...current, phone: profile.id }));
+                    setCalibrationComplete(false);
+                  }}
+                >
+                  {getQuickCalibrationLabel(profile)}
+                </button>
+              ))}
+              {hasMoreCalibrationProfiles && (
+                <button
+                  className="quick-calibration-button"
+                  type="button"
+                  onClick={() => {
+                    setCalibrationProfileSource('phone');
+                    setActiveMenu('calibration');
+                  }}
+                >
+                  MORE
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </main>
 
@@ -1050,9 +1124,28 @@ function App() {
         </button>
         <span className="menu-divider" />
         <button
-          className={activeMenu === 'feedback' ? 'menu-button selected' : 'menu-button'}
+          className={activeMenu === 'calibration' ? 'menu-button selected' : 'menu-button'}
           type="button"
           aria-haspopup="dialog"
+          onClick={() => {
+            setCalibrationProfileSource(source === 'external' ? 'external' : 'phone');
+            setActiveMenu('calibration');
+          }}
+        >
+          <span className="menu-icon" aria-hidden="true">◎</span>
+          <span>CALIBRATION</span>
+        </button>
+        <span className="menu-divider" />
+        <button
+          className={
+            activeMenu === 'feedback'
+              ? 'menu-button feedback-button selected'
+              : 'menu-button feedback-button'
+          }
+          type="button"
+          aria-haspopup="dialog"
+          aria-label="Send feedback"
+          title="Send feedback"
           onClick={() => setActiveMenu('feedback')}
         >
           <span className="menu-icon" aria-hidden="true">
@@ -1060,7 +1153,6 @@ function App() {
               <path d="M3 5.5h18v13H3zM3.5 6l8.5 7 8.5-7" />
             </svg>
           </span>
-          <span>FEEDBACK</span>
         </button>
       </nav>
 
@@ -1285,11 +1377,7 @@ function App() {
                       <option value="">Most recent calibration</option>
                       {calibrationProfiles[calibrationProfileSource].map((profile) => (
                         <option key={profile.id} value={profile.id}>
-                          {profile.name ||
-                            `Calibration · ${new Date(profile.createdAt).toLocaleString('en-GB', {
-                              dateStyle: 'medium',
-                              timeStyle: 'short',
-                            })}`}
+                          {getCalibrationProfileName(profile)}
                         </option>
                       ))}
                     </select>
