@@ -916,7 +916,9 @@ function App() {
         <section className="hero-panel" aria-label="Leveling recommendation">
           <div className="hero-heading">
             <h2>{recommendation.title}</h2>
-            <p className="hero-description">{recommendation.description}</p>
+            {recommendation.axis !== 'pitch' && recommendation.axis !== 'roll' && (
+              <p className="hero-description">{recommendation.description}</p>
+            )}
           </div>
 
           <div className="vehicle-diagram">
@@ -1276,16 +1278,10 @@ function App() {
                   <button className="add-wedge" type="button" onClick={addWedgeHeight}>
                     + ADD STEP
                   </button>
-                  <p className="settings-hint">
-                    Configure the steps and set the height.
-                  </p>
                 </div>
               </div>
             ) : activeMenu === 'calibration' ? (
               <div className="menu-content calibration-content">
-                <p className="settings-hint">
-                  Choose a slot on the main screen. Holding calibrate overwrites that slot.
-                </p>
                 <div className="settings-card calibration-settings-card">
                   <label>
                     Sensor
@@ -1354,11 +1350,12 @@ function App() {
                     })}
                   </div>
                 </div>
-                <p className="settings-hint">
-                  {calibrationSettingsSource === 'phone'
-                    ? 'The phone sensor is calibrated on the main screen.'
-                    : 'External sensor calibration is unavailable until external sensor support is connected.'}
-                </p>
+                {calibrationSettingsSource === 'external' && (
+                  <p className="settings-hint">
+                    External sensor calibration is unavailable until external sensor support is
+                    connected.
+                  </p>
+                )}
               </div>
             ) : (
               <div className="menu-content">

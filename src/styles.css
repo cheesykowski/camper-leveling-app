@@ -142,24 +142,29 @@ input:focus-visible {
   justify-items: center;
   align-content: center;
   gap: 2px;
-  border: 1px solid var(--line);
+  border: 1px solid #3b5944;
   background: #0a120d;
-  color: var(--glow);
+  color: var(--bright);
   cursor: pointer;
-  font-size: 0.5rem;
+  font-size: 0.56rem;
   font-weight: 700;
   letter-spacing: 0.04em;
 }
 
+.source-option:not(.unavailable):hover {
+  border-color: var(--glow);
+  background: rgb(167 255 117 / 8%);
+}
+
 .source-option.selected {
   border-color: var(--glow);
-  background: rgb(167 255 117 / 9%);
-  box-shadow: inset 0 0 12px rgb(167 255 117 / 8%);
+  background: rgb(167 255 117 / 13%);
+  box-shadow: inset 0 0 12px rgb(167 255 117 / 12%);
 }
 
 .source-option.unavailable {
-  color: #64746a;
-  opacity: 0.58;
+  color: #a4b5a8;
+  opacity: 0.88;
 }
 
 .source-option.unavailable.selected {
@@ -187,8 +192,8 @@ input:focus-visible {
 }
 
 .source-availability {
-  color: var(--dim);
-  font-size: 0.42rem;
+  color: #a4b5a8;
+  font-size: 0.47rem;
   letter-spacing: 0.07em;
 }
 
@@ -559,11 +564,21 @@ input:focus-visible {
   color: var(--bright);
 }
 
+.calibrate-button:not(:disabled):hover {
+  border-color: var(--glow);
+  background: #17351f;
+}
+
 .calibrate-button:disabled {
-  border-color: var(--line);
-  color: var(--dim);
+  border-color: #47634f;
+  background: #0e1a12;
+  color: #b6c8ba;
   cursor: not-allowed;
-  opacity: 0.62;
+  opacity: 1;
+}
+
+.calibrate-button:disabled .hold-duration {
+  color: #a2b3a6;
 }
 
 .calibrate-button > span {
@@ -600,8 +615,8 @@ input:focus-visible {
 
 .quick-calibrations-label {
   margin: 0;
-  color: var(--dim);
-  font-size: 0.53rem;
+  color: #a8bcae;
+  font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   line-height: 1;
@@ -619,11 +634,11 @@ input:focus-visible {
   gap: 2px;
   overflow: hidden;
   padding: 2px 3px;
-  border: 1px solid var(--line);
+  border: 1px solid #45614d;
   background: #0c1511;
-  color: var(--dim);
+  color: #c3d2c7;
   cursor: pointer;
-  font-size: 0.53rem;
+  font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   line-height: 1;
@@ -639,8 +654,8 @@ input:focus-visible {
 
 .quick-calibration-offsets {
   display: grid;
-  color: var(--dim);
-  font-size: 0.39rem;
+  color: #aebfb2;
+  font-size: 0.46rem;
   font-weight: 500;
   letter-spacing: 0;
   line-height: 1.1;
@@ -648,18 +663,23 @@ input:focus-visible {
 }
 
 .quick-calibration-empty {
-  color: var(--dim);
-  font-size: 0.39rem;
+  color: #aebfb2;
+  font-size: 0.46rem;
   font-weight: 500;
   letter-spacing: 0;
   line-height: 1.1;
 }
 
 .quick-calibration-button.selected {
-  border-color: rgb(167 255 117 / 45%);
-  background: rgb(167 255 117 / 10%);
-  color: var(--glow);
-  box-shadow: inset 0 0 0 1px rgb(167 255 117 / 18%);
+  border-color: var(--glow);
+  background: rgb(167 255 117 / 16%);
+  color: var(--bright);
+  box-shadow: inset 0 0 0 1px rgb(167 255 117 / 22%);
+}
+
+.quick-calibration-button:hover:not(.selected) {
+  border-color: var(--glow);
+  background: rgb(167 255 117 / 9%);
 }
 
 .calibration-content {
@@ -808,7 +828,7 @@ input:focus-visible {
   gap: 5px;
   border: 1px solid transparent;
   background: transparent;
-  color: var(--dim);
+  color: #aebdb2;
   cursor: pointer;
   font-size: 0.58rem;
   font-weight: 700;
@@ -817,15 +837,15 @@ input:focus-visible {
 
 .menu-button:hover,
 .menu-button.selected {
-  border-color: rgb(167 255 117 / 28%);
-  background: rgb(167 255 117 / 6%);
+  border-color: rgb(167 255 117 / 55%);
+  background: rgb(167 255 117 / 11%);
   color: var(--glow);
 }
 
 .menu-button.feedback-button {
   min-width: 38px;
   flex: 0 0 38px;
-  opacity: 0.62;
+  opacity: 0.82;
 }
 
 .menu-button.feedback-button:hover,
@@ -1388,8 +1408,8 @@ input:focus-visible {
     min-width: 0;
     min-height: 46px;
     gap: 1px;
+    font-size: 0.52rem;
     padding: 2px;
-    font-size: 0.42rem;
     letter-spacing: 0.02em;
   }
 
@@ -1499,9 +1519,19 @@ input:focus-visible {
 
   .menu-button {
     min-height: 40px;
-    gap: 4px;
+    flex-direction: column;
+    gap: 1px;
+    font-size: 0.5rem;
+    letter-spacing: 0.02em;
+  }
+
+  .quick-calibration-button {
+    font-size: 0.55rem;
+  }
+
+  .quick-calibration-offsets,
+  .quick-calibration-empty {
     font-size: 0.44rem;
-    letter-spacing: 0.04em;
   }
 
   .menu-backdrop {
