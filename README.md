@@ -43,6 +43,17 @@ npm run preview
 
 Öffne die App in einem unterstützten mobilen Browser. Der Zugriff auf Bewegungssensoren kann eine sichere Verbindung (HTTPS) und eine Browser-Berechtigung erfordern. Die Sensorwerte hängen davon ab, wie das Smartphone im Fahrzeug befestigt ist. Vor der Kalibrierung muss das Fahrzeug stehen und sich das Telefon in seiner vorgesehenen Einbauposition befinden.
 
+## Feedback für den Freundestest
+
+Das Feedbackformular nutzt Formspree für E-Mail-Benachrichtigungen und speichert Originalantworten im Formspree-Konto des App-Eigentümers. Der Name ist freiwillig. Antworten werden nicht automatisch in dieses öffentliche Repository geschrieben; hier sollen nur geprüfte, anonymisierte Erkenntnisse ergänzt werden.
+
+Erstelle ein Formspree-Formular und konfiguriere dort Empfängeradresse und Datenschutzeinstellungen. Setze anschließend dessen Endpunkt-URL als `VITE_FORMSPREE_ENDPOINT`:
+
+- Lokal: `.env.example` nach `.env.local` kopieren und die Endpunkt-URL eintragen.
+- Für GitHub Pages: Unter **Settings → Secrets and variables → Actions → Variables** eine Repository-Variable `VITE_FORMSPREE_ENDPOINT` anlegen.
+
+Die Endpunkt-URL wird in das öffentliche App-Bundle aufgenommen und ist kein Geheimnis. Formspree-API-Schlüssel oder andere private Zugangsdaten dürfen nicht in den Frontend-Code. Bis ein Endpunkt konfiguriert ist, zeigt der Feedbackdialog an, dass das Formular noch nicht verfügbar ist.
+
 ## Projektstruktur
 
 - `src/App.jsx` – Oberfläche, Sensorstatus, Einstellungen und einfache Empfehlung

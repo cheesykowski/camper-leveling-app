@@ -21,8 +21,10 @@ Eine Android-taugliche Web-App, die die Neigung eines geparkten Wohnmobils misst
 - [x] Minimalistische 3D-Fahrzeugsimulation und Keilstufen-Symbol in der Konfiguration
 - [x] Retro-Dashboard mit Menü für Fahrzeug-/Keilparameter und Drei-Sekunden-Kalibrierung
 - [x] Keilhöhen als einzelne Stufen editierbar, hinzufügbar und entfernbar
+- [x] Feedbackdialog für den Freundestest mit freiwilligem Namen, Kategorie, Freitext und Einwilligung; Formspree-Endpunktkonfiguration steht noch aus
 - [ ] Browserberechtigungen und tatsächliche Sensororientierung auf dem Ziel-Android-Gerät verifizieren
 - [x] GitHub-Pages-Workflow und Vite-Basis-Pfad für Actions eingerichtet; erfolgreicher erster Deployment-Lauf und Android-Test stehen noch aus
+- [ ] Formspree-Formular und E-Mail-Benachrichtigung einrichten, GitHub-Actions-Variable setzen und echte Einsendung testen
 - [ ] Keilempfehlungen mit realen Messdaten und dem tatsächlichen Fahrzeug validieren
 
 Die voreingestellten Fahrzeug- und Keilwerte sind Platzhalter. Aktuelle Berechnung und Sensorkonventionen sind Prototyp-Logik, keine validierte Fahrzeugmesstechnik.
@@ -59,6 +61,7 @@ Benötigt werden Arduino-Projekt bzw. BLE-Protokoll, Gerätedaten, Service- und 
 - `npm run build` in CI ausführen.
 - Auf Android Chrome testen: HTTPS, Sensorberechtigung, Layout, Kalibrierung und Offline-/Netzwerkverhalten.
 - Hosting-Link erst dann als live markieren, wenn GitHub Pages einen erfolgreichen Deployment-Status zeigt.
+- Formspree-Endpunkt als Actions-Variable konfigurieren und den Versand samt privater Speicherung mit einer Testeinsendung prüfen.
 
 ## Technische Entscheidungen und offene Fragen
 
@@ -69,6 +72,7 @@ Benötigt werden Arduino-Projekt bzw. BLE-Protokoll, Gerätedaten, Service- und 
 - **Fahrzeugwerte:** Beispielwerte bis echte Maße vorliegen.
 - **Hubmodell:** Pitch und Roll werden mit halbem Radstand bzw. halber Spurweite in Hubbeiträge umgerechnet. Die größere geometrische Komponente bestimmt die dominante Achse. Zwei Keile werden am tiefsten diagonalen Rad und am benachbarten Rad entlang der dominanten Achse platziert; ausgewählt wird die höchste konfigurierte Keilhöhe (Dezimalwerte erlaubt), die den erforderlichen Hub nicht überschreitet. Angezeigt wird nur die ganzzahlige Stufennummer. Das gleicht die dominante Achse priorisiert aus, garantiert aber nicht die vollständige Nivellierung beider Achsen.
 - **Kalibrierung:** muss auf ebener Fläche bei korrekt montiertem Sensor erfolgen; die App muss die Achsen-/Vorzeichenkonvention sichtbar und testbar machen.
+- **Feedback:** Originalantworten werden über Formspree per E-Mail zugestellt und dort gespeichert. Das öffentliche Repository erhält keine Rohantworten oder Namen, sondern nur manuell geprüfte, anonymisierte Erkenntnisse. Die Formspree-Endpunkt-URL ist öffentlich und wird zur Build-Zeit eingebunden; private API-Schlüssel gehören nicht ins Frontend.
 
 ## Pflege dieses Plans
 

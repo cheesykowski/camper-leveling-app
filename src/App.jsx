@@ -4,6 +4,7 @@ import { calculateTwoWedgePlan, wheelCorners } from './leveling.js';
 const STORAGE_KEY = 'camper-leveling-demo-v1';
 const SIMULATION_MAX_TILT = 30;
 const SENSOR_STALE_TIMEOUT_MS = 10000;
+const FORMSPREE_ENDPOINT = import.meta.env.VITE_FORMSPREE_ENDPOINT?.trim() || '';
 
 const defaultVehicle = {
   wheelbaseCm: 240,
@@ -157,6 +158,145 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
       )}
 
     </svg>
+  );
+}
+
+function FeedbackForm({ endpoint }) {
+  const [feedback, setFeedback] = useState({
+    name: '',
+    category: '',
+    message: '',
+    consent: false,
+  });
+  const [status, setStatus] = useState({ type: 'idle', message: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleChange = (event) => {
+    const { name, type, value, checked } = event.target;
+    setFeedback((current) => ({
+      ...current,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+    setStatus({ type: 'idle', message: '' });
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!endpoint) return;
+
+    const formData = new FormData(event.currentTarget);
+    setIsSubmitting(true);
+    setStatus({ type: 'idle', message: '' });
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        body: formData,
+        headers: { Accept: 'application/json' },
+      });
+
+      if (!response.ok) {
+        setStatus({
+          type: 'error',
+          message: `Feedback could not be sent (HTTP ${response.status}). Please try again later.`,
+        });
+        return;
+      }
+
+      setFeedback({ name: '', category: '', message: '', consent: false });
+      setStatus({ type: 'success', message: 'Thanks — your feedback was sent.' });
+    } catch (error) {
+      if (!(error instanceof TypeError)) throw error;
+      setStatus({
+        type: 'error',
+        message: 'Could not reach the feedback service. Check your connection and try again.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!endpoint) {
+    return (
+      <div className="feedback-unconfigured" role="status">
+        <span className="eyebrow">FORM NOT CONNECTED</span>
+        <p>Feedback is not available yet. Please try again later.</p>
+      </div>
+    );
+  }
+
+  return (
+    <form className="feedback-form" onSubmit={handleSubmit}>
+      <input type="hidden" name="_subject" value="KEILOMAT friend beta feedback" />
+      <label className="feedback-honeypot" aria-hidden="true">
+        Leave this empty
+        <input name="_gotcha" type="text" tabIndex="-1" autoComplete="off" />
+      </label>
+      <label className="feedback-field">
+        <span>
+          Your name <small>OPTIONAL</small>
+        </span>
+        <input
+          name="name"
+          type="text"
+          autoComplete="name"
+          maxLength={80}
+          value={feedback.name}
+          onChange={handleChange}
+        />
+      </label>
+      <label className="feedback-field">
+        <span>Category</span>
+        <select name="category" required value={feedback.category} onChange={handleChange}>
+          <option value="" disabled>
+            Choose one
+          </option>
+          <option value="bug">Something did not work</option>
+          <option value="usability">Something was unclear</option>
+          <option value="idea">I have an idea</option>
+          <option value="other">Other feedback</option>
+        </select>
+      </label>
+      <label className="feedback-field">
+        <span>What would you like to share?</span>
+        <textarea
+          name="message"
+          required
+          maxLength={3000}
+          rows={5}
+          value={feedback.message}
+          onChange={handleChange}
+          placeholder="What were you trying to do? What felt unclear or could be better?"
+        />
+        <small className="feedback-count">{feedback.message.length}/3000</small>
+      </label>
+      <label className="feedback-consent">
+        <input
+          name="consent"
+          type="checkbox"
+          value="yes"
+          required
+          checked={feedback.consent}
+          onChange={handleChange}
+        />
+        <span>
+          I agree to send this feedback to the app owner by email and store it in their Formspree
+          account. Only anonymized, reviewed takeaways may be added to the public repository. Please
+          do not include sensitive personal information.
+        </span>
+      </label>
+      {status.message && (
+        <p
+          className={`feedback-status ${status.type}`}
+          role={status.type === 'error' ? 'alert' : 'status'}
+        >
+          {status.message}
+        </p>
+      )}
+      <button className="feedback-submit" type="submit" disabled={isSubmitting}>
+        {isSubmitting ? 'SENDING…' : 'SEND FEEDBACK'}
+      </button>
+    </form>
   );
 }
 
@@ -769,7 +909,7 @@ function App() {
         </div>
       </main>
 
-      <nav className="bottom-menu" aria-label="Configuration">
+      <nav className="bottom-menu" aria-label="Configuration and feedback">
         <button
           className={activeMenu === 'vehicle' ? 'menu-button selected' : 'menu-button'}
           type="button"
@@ -789,6 +929,20 @@ function App() {
           <span className="menu-icon" aria-hidden="true">▰</span>
           <span>WEDGES</span>
         </button>
+        <span className="menu-divider" />
+        <button
+          className={activeMenu === 'feedback' ? 'menu-button selected' : 'menu-button'}
+          type="button"
+          aria-haspopup="dialog"
+          onClick={() => setActiveMenu('feedback')}
+        >
+          <span className="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M3 5.5h18v13H3zM3.5 6l8.5 7 8.5-7" />
+            </svg>
+          </span>
+          <span>FEEDBACK</span>
+        </button>
       </nav>
 
       {activeMenu && (
@@ -806,39 +960,49 @@ function App() {
           >
             <header className="menu-header">
               <div>
-                <span className="eyebrow">CONFIGURATION</span>
-                <h2 id="menu-title">{activeMenu === 'vehicle' ? 'Vehicle setup' : 'Wedge setup'}</h2>
+                <span className="eyebrow">
+                  {activeMenu === 'feedback' ? 'FRIEND BETA' : 'CONFIGURATION'}
+                </span>
+                <h2 id="menu-title">
+                  {activeMenu === 'vehicle'
+                    ? 'Vehicle setup'
+                    : activeMenu === 'wedges'
+                      ? 'Wedge setup'
+                      : 'Send feedback'}
+                </h2>
               </div>
               <button
                 className="close-menu"
                 type="button"
-                aria-label="Close configuration"
+                aria-label="Close dialog"
                 onClick={() => setActiveMenu(null)}
               >
                 ×
               </button>
             </header>
 
-            <div className="menu-tabs" role="tablist" aria-label="Configuration sections">
-              <button
-                className={activeMenu === 'vehicle' ? 'menu-tab active' : 'menu-tab'}
-                type="button"
-                role="tab"
-                aria-selected={activeMenu === 'vehicle'}
-                onClick={() => setActiveMenu('vehicle')}
-              >
-                VEHICLE
-              </button>
-              <button
-                className={activeMenu === 'wedges' ? 'menu-tab active' : 'menu-tab'}
-                type="button"
-                role="tab"
-                aria-selected={activeMenu === 'wedges'}
-                onClick={() => setActiveMenu('wedges')}
-              >
-                WEDGES
-              </button>
-            </div>
+            {activeMenu !== 'feedback' && (
+              <div className="menu-tabs" role="tablist" aria-label="Configuration sections">
+                <button
+                  className={activeMenu === 'vehicle' ? 'menu-tab active' : 'menu-tab'}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeMenu === 'vehicle'}
+                  onClick={() => setActiveMenu('vehicle')}
+                >
+                  VEHICLE
+                </button>
+                <button
+                  className={activeMenu === 'wedges' ? 'menu-tab active' : 'menu-tab'}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeMenu === 'wedges'}
+                  onClick={() => setActiveMenu('wedges')}
+                >
+                  WEDGES
+                </button>
+              </div>
+            )}
 
             {activeMenu === 'vehicle' ? (
               <div className="menu-content">
@@ -873,7 +1037,7 @@ function App() {
                   </label>
                 </div>
               </div>
-            ) : (
+            ) : activeMenu === 'wedges' ? (
               <div className="menu-content">
                 <div className="settings-card wedge-settings">
                   <div className="wedge-illustration">
@@ -934,6 +1098,10 @@ function App() {
                     Configure the steps and set the height.
                   </p>
                 </div>
+              </div>
+            ) : (
+              <div className="menu-content">
+                <FeedbackForm endpoint={FORMSPREE_ENDPOINT} />
               </div>
             )}
           </section>
