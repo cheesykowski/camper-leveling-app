@@ -132,7 +132,9 @@ function App() {
       sensorDataRef.current = nextSensorData;
       setSensorData(nextSensorData);
       if (!sourceSelectionLocked.current) setSource('phone');
-      setSourceMessage('');
+      setSourceMessage((current) =>
+        current.includes('externer Sensor') ? current : '',
+      );
       if (sensorTimeout.current !== null) {
         window.clearTimeout(sensorTimeout.current);
       }
@@ -187,8 +189,11 @@ function App() {
     if (currentPitch === null || currentRoll === null) {
       return {
         axis: 'unavailable',
-        title: 'Kein Sensorsignal',
-        description: 'Wähle die Simulation oder warte auf ein Signal vom Smartphone-Sensor.',
+        title: source === 'external' ? 'Externer Sensor nicht verfügbar' : 'Kein Sensorsignal',
+        description:
+          source === 'external'
+            ? 'Die externe Bluetooth-Verbindung ist noch nicht verfügbar.'
+            : 'Wähle die Simulation oder warte auf ein Signal vom Smartphone-Sensor.',
         wheels: [],
         level: 0,
         requiredLiftCm: 0,
@@ -247,7 +252,7 @@ function App() {
       step,
       requiredLiftCm,
     };
-  }, [currentPitch, currentRoll, vehicle]);
+  }, [currentPitch, currentRoll, source, vehicle]);
 
   const startCalibrationHold = () => {
     if (calibrationTimeout.current !== null || !sensorData.available || source !== 'phone') return;
@@ -277,6 +282,12 @@ function App() {
     wheelbaseCm: vehicle.wheelbaseCm,
     trackWidthCm: vehicle.trackWidthCm,
   };
+  const graphicTrackHalfWidth =
+    35 + ((vehicle.trackWidthCm - 80) / (400 - 80)) * 8;
+  const graphicAxleHalfSpacing =
+    22 + ((vehicle.wheelbaseCm - 100) / (500 - 100)) * 12;
+  const frontAxleY = 90 - graphicAxleHalfSpacing;
+  const rearAxleY = 90 + graphicAxleHalfSpacing;
 
   const handleWheelbaseChange = (event) => {
     setVehicle((current) => ({
@@ -335,12 +346,14 @@ function App() {
       return;
     }
     if (nextSource === 'external') {
+      sourceSelectionLocked.current = true;
+      setSource(nextSource);
       setSourceMessage('Kein externer Sensor verbunden. Die BLE-Anbindung ist noch nicht verfügbar.');
       return;
     }
+    sourceSelectionLocked.current = true;
+    setSource(nextSource);
     if (sensorData.available) {
-      sourceSelectionLocked.current = true;
-      setSource(nextSource);
       return;
     }
     if (!sensorData.supported) {
@@ -366,8 +379,6 @@ function App() {
     }
 
     setSourceMessage('Warte auf ein Signal vom Smartphone-Sensor …');
-    sourceSelectionLocked.current = true;
-    setSource('phone');
   };
 
   const startSimulationDrag = (event) => {
@@ -411,7 +422,7 @@ function App() {
               label: 'HANDY',
               available: sensorData.available,
             },
-            { id: 'external', icon: 'ᛒ', label: 'EXTERN', available: false },
+            { id: 'external', label: 'EXTERN', available: false },
           ].map((option) => (
             <button
               key={option.id}
@@ -425,8 +436,19 @@ function App() {
               }`}
               onClick={() => selectSource(option.id)}
             >
-              <span className="source-icon" aria-hidden="true">{option.icon}</span>
+              <span className="source-icon" aria-hidden="true">
+                {option.id === 'external' ? (
+                  <svg viewBox="0 0 24 24" role="presentation">
+                    <path d="M7 7 17 17 12 22V2l5 5L7 17" />
+                  </svg>
+                ) : (
+                  option.icon
+                )}
+              </span>
               <span>{option.label}</span>
+              <span className="source-availability">
+                {option.available ? (option.id === 'phone' ? 'LIVE' : 'BEREIT') : 'OFFLINE'}
+              </span>
             </button>
           ))}
           {sourceMessage && <span className="source-message" role="status">{sourceMessage}</span>}
@@ -437,7 +459,7 @@ function App() {
         <div className="telemetry">
           <div className="telemetry-item">
             <span className="eyebrow">PITCH</span>
-            <strong>{currentPitch === null ? '—' : currentPitch.toFixed(1)}{currentPitch !== null && <small>°</small>}</strong>
+            <strong>            {currentPitch === null ? '—' : currentPitch.toFixed(1)}{currentPitch !== null && <small>°</small>}</strong>
           </div>
           <span className="telemetry-divider" />
           <div className="telemetry-item">
@@ -478,23 +500,20 @@ function App() {
               }}
               tabIndex={0}
             >
-              <div
-                className="sim-vehicle"
-                style={{
-                  transform: `rotateX(${simulatedTilt.pitch}deg) rotateY(${simulatedTilt.roll}deg)`,
-                }}
-              >
-                <div className="sim-face sim-top">
-                  <span className="sim-window" />
-                  <span className="sim-roof" />
-                  <span className="sim-cabin" />
-                  <span className="sim-windshield" />
+              <div className="sim-view">
+                <div
+                  className="sim-vehicle"
+                  style={{
+                    transform: `rotateX(${simulatedTilt.pitch}deg) rotateY(${simulatedTilt.roll}deg)`,
+                  }}
+                >
+                  <div className="sim-face sim-top" />
+                  <div className="sim-face sim-bottom" />
+                  <div className="sim-face sim-left" />
+                  <div className="sim-face sim-right" />
+                  <div className="sim-face sim-front" />
+                  <div className="sim-face sim-rear" />
                 </div>
-                <div className="sim-face sim-bottom" />
-                <div className="sim-face sim-left" />
-                <div className="sim-face sim-right" />
-                <div className="sim-face sim-front" />
-                <div className="sim-face sim-rear" />
               </div>
             </div>
             <div className="simulator-readout" aria-live="polite">
@@ -593,7 +612,7 @@ function App() {
               {recommendation.axis === 'level'
                 ? 'NO WEDGES NEEDED'
                 : recommendation.axis === 'unavailable'
-                  ? 'WAITING FOR SENSOR'
+                  ? 'SOURCE UNAVAILABLE'
                   : `STEP ${recommendation.step}`}
             </strong>
             {recommendation.axis !== 'level' && recommendation.axis !== 'unavailable' && (
@@ -754,7 +773,92 @@ function App() {
                     />
                   </label>
                 </div>
-
+                <div className="settings-card vehicle-preview">
+                  <span className="eyebrow">TOP VIEW · FAHRZEUGMASSE</span>
+                  <svg
+                    viewBox="0 0 220 165"
+                    role="img"
+                    aria-labelledby="vehicle-measurements-title vehicle-measurements-description"
+                  >
+                    <title id="vehicle-measurements-title">Radstand und Spurweite</title>
+                    <desc id="vehicle-measurements-description">
+                      Radstand {vehicle.wheelbaseCm} Zentimeter zwischen den Achsen und
+                      Spurweite {vehicle.trackWidthCm} Zentimeter zwischen den Rädern.
+                    </desc>
+                    <text className="vehicle-dimension-label" x="110" y="13" textAnchor="middle">
+                      SPURWEITE · {vehicle.trackWidthCm} CM
+                    </text>
+                    <line
+                      className="vehicle-dimension"
+                      x1={110 - graphicTrackHalfWidth}
+                      y1="26"
+                      x2={110 + graphicTrackHalfWidth}
+                      y2="26"
+                    />
+                    <path
+                      className="vehicle-dimension-arrow"
+                      d={`M${104 - graphicTrackHalfWidth} 26 ${112 - graphicTrackHalfWidth} 22v8z M${
+                        116 + graphicTrackHalfWidth
+                      } 26 ${108 + graphicTrackHalfWidth} 22v8z`}
+                    />
+                    <rect className="vehicle-measurement-body" x="83" y="39" width="54" height="105" rx="18" />
+                    <path className="vehicle-measurement-glass" d="M89 57 Q110 47 131 57 L128 75 Q110 81 92 75 Z" />
+                    <path className="vehicle-measurement-roof" d="M92 83h42v35H92z" />
+                    <path className="vehicle-measurement-glass" d="M92 125 Q110 119 128 125 L131 137 Q110 145 89 137 Z" />
+                    <rect
+                      className="vehicle-measurement-wheel"
+                      x={104 - graphicTrackHalfWidth}
+                      y={frontAxleY - 10}
+                      width="12"
+                      height="20"
+                      rx="4"
+                    />
+                    <rect
+                      className="vehicle-measurement-wheel"
+                      x={104 + graphicTrackHalfWidth}
+                      y={frontAxleY - 10}
+                      width="12"
+                      height="20"
+                      rx="4"
+                    />
+                    <rect
+                      className="vehicle-measurement-wheel"
+                      x={104 - graphicTrackHalfWidth}
+                      y={rearAxleY - 10}
+                      width="12"
+                      height="20"
+                      rx="4"
+                    />
+                    <rect
+                      className="vehicle-measurement-wheel"
+                      x={104 + graphicTrackHalfWidth}
+                      y={rearAxleY - 10}
+                      width="12"
+                      height="20"
+                      rx="4"
+                    />
+                    <line
+                      className="vehicle-dimension"
+                      x1="48"
+                      y1={frontAxleY}
+                      x2="48"
+                      y2={rearAxleY}
+                    />
+                    <path
+                      className="vehicle-dimension-arrow"
+                      d={`m48 ${frontAxleY - 7} -4 8h8z m48 ${rearAxleY + 7} -4-8h8z`}
+                    />
+                    <text
+                      className="vehicle-dimension-label"
+                      x="22"
+                      y="98"
+                      textAnchor="middle"
+                      transform="rotate(-90 22 98)"
+                    >
+                      RADSTAND · {vehicle.wheelbaseCm} CM
+                    </text>
+                  </svg>
+                </div>
               </div>
             ) : (
               <div className="menu-content">

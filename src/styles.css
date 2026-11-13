@@ -141,7 +141,7 @@ input:focus-visible {
 .source-option {
   display: grid;
   min-width: 62px;
-  min-height: 46px;
+  min-height: 54px;
   justify-items: center;
   align-content: center;
   gap: 2px;
@@ -166,13 +166,37 @@ input:focus-visible {
 }
 
 .source-option.unavailable.selected {
-  border-color: #64746a;
+  border-color: var(--amber);
+  background: rgb(255 200 87 / 7%);
+  color: var(--amber);
   box-shadow: none;
+  opacity: 1;
 }
 
 .source-icon {
   font-size: 1.1rem;
   line-height: 1;
+}
+
+.source-icon svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.source-availability {
+  color: var(--dim);
+  font-size: 0.42rem;
+  letter-spacing: 0.07em;
+}
+
+.source-option.unavailable.selected .source-availability {
+  color: var(--amber);
 }
 
 .source-message {
@@ -199,23 +223,23 @@ input:focus-visible {
 
 .telemetry {
   justify-content: center;
-  gap: clamp(28px, 9vw, 72px);
+  gap: 14px;
   width: 100%;
 }
 
 .telemetry-item {
-  min-width: 82px;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
+  min-width: 0;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 7px;
 }
 
 .telemetry-item strong {
   color: var(--bright);
-  font-size: clamp(1.3rem, 5vw, 1.7rem);
+  font-size: 0.95rem;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
-  text-shadow: 0 0 15px rgb(167 255 117 / 28%);
+  text-shadow: none;
 }
 
 .telemetry-item small {
@@ -225,7 +249,7 @@ input:focus-visible {
 
 .telemetry-divider {
   width: 1px;
-  height: 34px;
+  height: 20px;
   background: var(--line);
 }
 
@@ -282,6 +306,11 @@ input:focus-visible {
 .simulator-stage:focus-visible {
   outline: 2px solid var(--glow);
   outline-offset: -2px;
+}
+
+.sim-view {
+  transform: rotateX(30deg);
+  transform-style: preserve-3d;
 }
 
 .sim-vehicle {
@@ -355,47 +384,31 @@ input:focus-visible {
   transform: rotateX(-90deg) translateZ(75px);
 }
 
-.sim-window,
-.sim-roof,
-.sim-cabin,
-.sim-windshield {
+.sim-left::before,
+.sim-right::before {
   position: absolute;
-  left: 50%;
-  display: block;
-  width: 62px;
-  transform: translateX(-50%);
-}
-
-.sim-window {
-  top: 13px;
-  height: 27px;
+  top: 44px;
+  left: 7px;
+  width: 28px;
+  height: 34px;
   border: 1px solid #4d9b60;
-  border-radius: 50% 50% 8px 8px;
-  background: #173c26;
+  border-radius: 5px;
+  background: linear-gradient(145deg, #1d5631, #102719);
+  content: "";
 }
 
-.sim-roof {
-  top: 47px;
-  height: 54px;
-  border: 1px solid #36784a;
-  border-radius: 8px;
-  background: #102719;
-}
-
-.sim-cabin {
-  top: 108px;
+.sim-front::before,
+.sim-rear::before {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 52px;
   height: 24px;
   border: 1px solid #4d9b60;
-  border-radius: 6px 6px 50% 50%;
-  background: #173c26;
-}
-
-.sim-windshield {
-  top: 12px;
-  width: 40px;
-  height: 14px;
-  border-radius: 50%;
-  background: #42865a;
+  border-radius: 8px;
+  background: linear-gradient(#1d5631, #102719);
+  content: "";
+  transform: translateX(-50%);
 }
 
 .hero-panel {
@@ -823,9 +836,6 @@ input:focus-visible {
 
 .input-group input {
   width: 100%;
-}
-
-.input-group input {
   min-height: 44px;
   padding: 8px 10px;
   border: 1px solid #31533a;
@@ -833,6 +843,59 @@ input:focus-visible {
   background: #070d0a;
   color: var(--bright);
   font-size: 0.85rem;
+}
+
+.vehicle-preview {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+}
+
+.vehicle-preview svg {
+  display: block;
+  width: min(100%, 240px);
+  height: auto;
+}
+
+.vehicle-dimension {
+  stroke: var(--glow);
+  stroke-width: 1.4;
+}
+
+.vehicle-dimension-arrow {
+  fill: var(--glow);
+}
+
+.vehicle-dimension-label {
+  fill: var(--glow);
+  font-family: inherit;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.45px;
+}
+
+.vehicle-measurement-body {
+  fill: #0d1d14;
+  stroke: #77df80;
+  stroke-width: 1.5;
+}
+
+.vehicle-measurement-glass {
+  fill: #173c26;
+  stroke: #4d9b60;
+  stroke-width: 1;
+}
+
+.vehicle-measurement-roof {
+  fill: #102719;
+  stroke: #36784a;
+  stroke-width: 1;
+}
+
+.vehicle-measurement-wheel {
+  fill: #14251a;
+  stroke: #7bc986;
+  stroke-width: 1.3;
 }
 
 .settings-hint {
