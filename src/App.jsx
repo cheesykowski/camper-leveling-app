@@ -14,6 +14,7 @@ import { calculateTwoWedgePlan, wheelCorners } from './leveling.js';
 import { normalizeLanguage, translate } from './i18n.js';
 import { applyUpdate, checkForUpdates, installApp, refreshOfflineStatus, usePwa } from './pwa.js';
 import { initialSensorSource } from './appMode.js';
+import logo from './assets/keilomat-logo.svg';
 
 const STORAGE_KEY = 'camper-leveling-demo-v1';
 const SIMULATION_MAX_TILT = 30;
@@ -1222,8 +1223,51 @@ function App() {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
-          <div className="brand-heading">
-            <h1>KEIL<span>OMAT</span> <small>{pwa.standalone ? 'APP' : 'WEB'}</small></h1>
+          <h1 aria-label={`KEILOMAT ${pwa.standalone ? 'APP' : 'WEB'}`}>
+            <img src={logo} alt="" />
+            <small>{pwa.standalone ? 'APP' : 'WEB'}</small>
+          </h1>
+        </div>
+        <div className="header-actions">
+          <div className="source-picker" role="group" aria-label={t('Select data source')}>
+            {[
+              {
+                id: 'phone',
+                label: 'PHONE',
+                available: sensorData.available,
+              },
+              { id: 'external', label: 'EXTERNAL', available: false },
+            ].map((option) => (
+              <button
+                key={option.id}
+                className={`source-option ${source === option.id ? 'selected' : ''} ${
+                  option.available ? '' : 'unavailable'
+                }`}
+                type="button"
+                aria-pressed={source === option.id}
+                aria-label={`${t(option.label)}: ${t(option.available ? 'available' : 'unavailable')}`}
+                onClick={() => selectSource(option.id)}
+              >
+                <span className="source-icon" aria-hidden="true">
+                  {option.id === 'external' ? (
+                    <svg viewBox="0 0 24 24" role="presentation">
+                      <path d="M7 7 17 17 12 22V2l5 5L7 17" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" role="presentation">
+                      <rect x="6.5" y="2.5" width="11" height="19" rx="2" />
+                      <path d="M10 5h4M10 18.5h4" />
+                    </svg>
+                  )}
+                </span>
+                <span>{t(option.label)}</span>
+                <span className="source-availability">
+                  {t(option.available ? 'LIVE' : 'OFFLINE')}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="header-controls">
             <button
               className={`offline-button${pwa.updateAvailable ? ' has-update' : ''}`}
               type="button"
@@ -1247,44 +1291,6 @@ function App() {
               onChange={(value) => setLanguage(normalizeLanguage(value))}
             />
           </div>
-        </div>
-        <div className="source-picker" role="group" aria-label={t('Select data source')}>
-          {[
-            {
-              id: 'phone',
-              label: 'PHONE',
-              available: sensorData.available,
-            },
-            { id: 'external', label: 'EXTERNAL', available: false },
-          ].map((option) => (
-            <button
-              key={option.id}
-              className={`source-option ${source === option.id ? 'selected' : ''} ${
-                option.available ? '' : 'unavailable'
-              }`}
-              type="button"
-              aria-pressed={source === option.id}
-              aria-label={`${t(option.label)}: ${t(option.available ? 'available' : 'unavailable')}`}
-              onClick={() => selectSource(option.id)}
-            >
-              <span className="source-icon" aria-hidden="true">
-                {option.id === 'external' ? (
-                  <svg viewBox="0 0 24 24" role="presentation">
-                    <path d="M7 7 17 17 12 22V2l5 5L7 17" />
-                  </svg>
-                ) : (
-                  <svg viewBox="0 0 24 24" role="presentation">
-                    <rect x="6.5" y="2.5" width="11" height="19" rx="2" />
-                    <path d="M10 5h4M10 18.5h4" />
-                  </svg>
-                )}
-              </span>
-              <span>{t(option.label)}</span>
-              <span className="source-availability">
-                {t(option.available ? 'LIVE' : 'OFFLINE')}
-              </span>
-            </button>
-          ))}
         </div>
       </header>
 

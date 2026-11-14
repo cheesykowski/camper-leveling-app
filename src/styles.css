@@ -110,21 +110,32 @@ select:focus-visible {
 }
 
 .brand h1 {
+  display: flex;
+  align-items: center;
+  gap: 3px;
   color: var(--bright);
   font-size: 1rem;
   letter-spacing: 0.09em;
   white-space: nowrap;
 }
 
-.brand h1 span {
-  color: var(--glow);
+.brand h1 img {
+  display: block;
+  width: 160px;
+  height: auto;
 }
 
 .brand h1 small {
   font-size: 0.7em;
 }
 
-.brand-heading {
+.header-actions {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+}
+
+.header-controls {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -1707,10 +1718,17 @@ select:focus-visible {
     letter-spacing: 0.04em;
   }
 
+  .brand h1 img {
+    width: clamp(110px, 36vw, 145px);
+  }
+
+  .header-actions {
+    flex: 0 0 126px;
+  }
+
   .source-picker {
-    width: auto;
+    width: 100%;
     min-width: 0;
-    flex: 1;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 3px;
   }
