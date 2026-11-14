@@ -886,7 +886,7 @@ select:focus-visible {
 
 .bottom-menu {
   z-index: 1;
-  width: min(100%, 360px);
+  width: min(100%, 480px);
   min-height: 60px;
   justify-content: center;
   align-self: center;
@@ -921,14 +921,17 @@ select:focus-visible {
   color: var(--glow);
 }
 
-.menu-button.feedback-button {
+.menu-button.feedback-button,
+.menu-button.help-button {
   min-width: 38px;
   flex: 0 0 38px;
   opacity: 0.82;
 }
 
 .menu-button.feedback-button:hover,
-.menu-button.feedback-button.selected {
+.menu-button.feedback-button.selected,
+.menu-button.help-button:hover,
+.menu-button.help-button.selected {
   opacity: 1;
 }
 
@@ -1047,6 +1050,63 @@ select:focus-visible {
   padding: 14px;
   border: 1px solid rgb(68 112 77 / 45%);
   background: rgb(12 21 17 / 90%);
+}
+
+.help-card {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.help-tabs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 0;
+}
+
+.help-steps:not([hidden]) {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.help-notice {
+  margin: 0;
+  color: var(--amber);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+.help-card svg {
+  width: 64px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  background: #080e0a;
+  fill: none;
+  stroke: var(--glow);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.help-card h3 {
+  margin: 4px 0 6px;
+  color: var(--bright);
+  font-size: 0.8rem;
+}
+
+.help-card p {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+.help-intro {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.72rem;
+  line-height: 1.5;
 }
 
 .input-group label {
@@ -1413,6 +1473,19 @@ select:focus-visible {
 
   .source-option {
     min-width: 0;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 560px) {
+  .bottom-menu {
+    gap: 4px;
+  }
+
+  .menu-button {
+    flex-direction: column;
+    gap: 1px;
+    font-size: 0.5rem;
+    letter-spacing: 0.02em;
   }
 }
 

@@ -8,7 +8,7 @@ KEILOMAT is a mobile-first web app that helps level a parked camper van. It can 
 
 - Live pitch and roll readings from the browser's device-orientation API, when available
 - A three-second calibration that stores the trimmed mean of phone readings or the current simulated tilt
-- Separate calibration slots for simulation, phone, and external sensor sources
+- Separate calibration slots for simulation and phone; one calibration for the fixed external sensor
 - Interactive 3D tilt simulation integrated into the top view, limited to ±30° on pitch and roll
 - Selection between simulation, the phone sensor, and the currently unavailable external sensor
 - Locally stored wheelbase, track width, and individually editable wedge heights, including decimal values
@@ -19,6 +19,7 @@ KEILOMAT is a mobile-first web app that helps level a parked camper van. It can 
 - A compact dashboard with sensor status, settings, and calibration controls
 - Browser-local storage of vehicle settings and calibration slots
 - English and German language selection, saved locally on the device
+- An illustrated guide with separate setup and usage instructions for phone and external sensors
 
 The default vehicle dimensions and wedge heights are examples. Update them before relying on the app.
 
@@ -51,6 +52,8 @@ npm test
 ## Phone sensor access
 
 Open the app in a supported mobile browser. Motion-sensor access may require a secure connection (HTTPS) and browser permission. Readings depend on how the phone is mounted in the vehicle. Park the vehicle and place the phone in its intended position before calibrating.
+
+Place the phone flat and securely, screen up and top toward the vehicle's front. For each calibration slot, use the same phone position and orientation when calibrating and measuring. Verify the sensor axes and recommendations on the actual vehicle. An external sensor is intended to be mounted permanently and calibrated in place; it is not connected yet. Existing external calibration data is retained, with the previously selected calibration used as the single reference.
 
 ## Feedback
 
