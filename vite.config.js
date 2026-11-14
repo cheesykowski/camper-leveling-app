@@ -34,8 +34,8 @@ export default defineConfig({
       registerType: 'prompt',
       injectRegister: null,
       manifest: {
-        name: 'KEILOMAT',
-        short_name: 'KEILOMAT',
+        name: 'KEILOMAT APP',
+        short_name: 'KEILOMAT APP',
         description: 'Camper leveling assistant',
         start_url: '.',
         scope: '.',

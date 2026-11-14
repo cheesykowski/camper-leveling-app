@@ -13,18 +13,27 @@ import {
 import { calculateTwoWedgePlan, wheelCorners } from './leveling.js';
 import { normalizeLanguage, translate } from './i18n.js';
 import { applyUpdate, installApp, refreshOfflineStatus, usePwa } from './pwa.js';
+import { initialSensorSource } from './appMode.js';
 
 const STORAGE_KEY = 'camper-leveling-demo-v1';
 const SIMULATION_MAX_TILT = 30;
 const SENSOR_STALE_TIMEOUT_MS = 10000;
+const MAX_WEDGE_STEPS = 5;
+const HEIGHT_MODE_TOLERANCE_CM = 3;
 const FORMSPREE_ENDPOINT = import.meta.env.VITE_FORMSPREE_ENDPOINT?.trim() || '';
 
 const formatCalibrationAngle = (angle) => `${angle >= 0 ? '+' : ''}${angle.toFixed(1)}°`;
+const formatHeightCm = (height, language) => new Intl.NumberFormat(language, {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+}).format(height);
 
 const defaultVehicle = {
   wheelbaseCm: 240,
   trackWidthCm: 180,
   wedgeHeightsCm: [3, 6, 9],
+  levelingMode: 'wedge',
+  maximumHeightCm: 9,
 };
 
 const vehicleDimensionLimits = {
@@ -57,7 +66,7 @@ const getVehicleWheelPositions = ({ wheelbaseCm, trackWidthCm }) => {
   }));
 };
 
-function VehicleDiagram({ className, vehicle, recommendation, t, showMeasurements = false }) {
+function VehicleDiagram({ className, vehicle, recommendation, t, language, showMeasurements = false }) {
   const id = useId();
   const wheels = getVehicleWheelPositions(vehicle);
   const frontAxleY = wheels[0].y + 24;
@@ -95,7 +104,12 @@ function VehicleDiagram({ className, vehicle, recommendation, t, showMeasurement
 
       {wheels.map((wheel) => {
         const placement = recommendation?.wedgePlacements?.find((item) => item.id === wheel.id);
-        const active = Boolean(placement && (placement.step > 0 || placement.wedgeCapacityExceeded));
+        const heightMode = vehicle.levelingMode === 'height';
+        const active = Boolean(placement && (
+          (heightMode ? placement.requiredHeightCm > 0 : placement.step > 0)
+          || placement.wedgeCapacityExceeded
+        ));
+        const heightLabel = placement ? formatHeightCm(placement.requiredHeightCm, language) : '';
         const labelX = wheel.side === 'left' ? 8 : 292;
         const wedgePoints =
           wheel.side === 'left'
@@ -106,14 +120,24 @@ function VehicleDiagram({ className, vehicle, recommendation, t, showMeasurement
           <g key={wheel.id} className={active ? 'diagram-wheel active' : 'diagram-wheel'}>
             <title>
               {active
-                ? t('{wheel}: step {step}{warning}', {
+                ? heightMode
+                  ? t('{wheel}: {height} cm{warning}', {
+                      wheel: t(wheel.label),
+                      height: heightLabel,
+                      warning: placement.wedgeCapacityExceeded
+                        ? t(', required lift exceeds maximum height')
+                        : '',
+                    })
+                  : t('{wheel}: step {step}{warning}', {
                     wheel: t(wheel.label),
                     step: placement.step,
                     warning: placement.wedgeCapacityExceeded
                       ? t(', required lift exceeds wedge capacity')
                       : '',
                   })
-                : t('{wheel}: no wedge recommended', { wheel: t(wheel.label) })}
+                : t(heightMode ? '{wheel}: no lift recommended' : '{wheel}: no wedge recommended', {
+                    wheel: t(wheel.label),
+                  })}
             </title>
             <rect className="diagram-tire" x={wheel.x} y={wheel.y} width="34" height="48" rx="10" />
             {active && (
@@ -136,7 +160,7 @@ function VehicleDiagram({ className, vehicle, recommendation, t, showMeasurement
                   y={wheel.y + 28}
                   textAnchor="middle"
                 >
-                  {t('STEP {step}', { step: placement.step })}
+                  {heightMode ? t('{height} cm', { height: heightLabel }) : t('STEP {step}', { step: placement.step })}
                 </text>
               </>
             )}
@@ -267,7 +291,7 @@ function HelpIllustration({ type }) {
   );
 }
 
-function HelpContent({ t, source }) {
+function HelpContent({ t, source, levelingMode }) {
   const id = useId();
   const [phase, setPhase] = useState('setup');
   const [mode, setMode] = useState(source === 'external' ? 'external' : 'phone');
@@ -289,8 +313,12 @@ function HelpContent({ t, source }) {
         isPhone
           ? { icon: 'phone', title: 'Place the phone', text: 'Place the phone in exactly the same position and orientation as during calibration. Select PHONE and the matching calibrated slot.' }
           : { icon: 'external', title: 'Select the external sensor', text: 'Once external sensors are supported, select EXTERNAL. The fixed sensor uses its saved calibration.' },
-        { icon: 'wedges', title: 'Read the top view', text: 'Wait for a sensor signal. The top view shows the wheels and wedge steps. Orange means the required lift exceeds the wedge height.' },
-        { icon: 'vehicle', title: 'Level the vehicle', text: 'Place the wedges at the shown wheels and drive slowly onto the indicated steps. Stop and check the display again.' },
+        levelingMode === 'height'
+          ? { icon: 'wedges', title: 'Read the top view', text: 'Wait for a sensor signal. The top view shows the required lift in centimeters. Orange means it exceeds the maximum height.' }
+          : { icon: 'wedges', title: 'Read the top view', text: 'Wait for a sensor signal. The top view shows the wheels and wedge steps. Orange means the required lift exceeds the wedge height.' },
+        levelingMode === 'height'
+          ? { icon: 'vehicle', title: 'Level the vehicle', text: 'Use suitable supports at the shown wheels. Check the vehicle and the display again.' }
+          : { icon: 'vehicle', title: 'Level the vehicle', text: 'Place the wedges at the shown wheels and drive slowly onto the indicated steps. Stop and check the display again.' },
       ];
 
   return (
@@ -330,7 +358,7 @@ function HelpContent({ t, source }) {
                     </article>
                   ))}
                   <p className="settings-hint">{t('Verify sensor direction and recommendations on your vehicle before relying on them.')}</p>
-                  <p className="settings-hint">{t('Simulation: drag the 3D box to try the app without a sensor. Its calibration slots are separate.')}</p>
+                  {source === 'simulation' && <p className="settings-hint">{t('Simulation: drag the 3D box to try the app without a sensor. Its calibration slots are separate.')}</p>}
                 </>
               )}
             </section>
@@ -575,6 +603,7 @@ function FeedbackForm({ endpoint, t, online }) {
 
 function App() {
   const pwa = usePwa();
+  const simulationEnabled = initialSensorSource(window.location.search, pwa.standalone) === 'simulation';
   const loadedState = useMemo(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
@@ -593,7 +622,9 @@ function App() {
             .map(Number)
             .filter((height) => Number.isFinite(height) && height > 0)
             .sort((a, b) => a - b)
+            .slice(0, MAX_WEDGE_STEPS)
         : [];
+      const savedMaximumHeight = Number(parsed.vehicle?.maximumHeightCm);
       const calibrations = {
         phone: {
           pitch: Number(
@@ -628,6 +659,10 @@ function App() {
           wedgeHeightsCm: savedWedgeHeights.length
             ? savedWedgeHeights
             : [...defaultVehicle.wedgeHeightsCm],
+          levelingMode: parsed.vehicle?.levelingMode === 'height' ? 'height' : 'wedge',
+          maximumHeightCm: Number.isFinite(savedMaximumHeight) && savedMaximumHeight > 0
+            ? savedMaximumHeight
+            : (savedWedgeHeights[savedWedgeHeights.length - 1] ?? defaultVehicle.maximumHeightCm),
         },
       };
     } catch {
@@ -658,6 +693,8 @@ function App() {
   const [wedgeHeightInputs, setWedgeHeightInputs] = useState(
     loadedState.vehicle.wedgeHeightsCm.map(String),
   );
+  const [maximumHeightInput, setMaximumHeightInput] = useState(String(loadedState.vehicle.maximumHeightCm));
+  const [maximumHeightError, setMaximumHeightError] = useState(false);
   const [sensorData, setSensorData] = useState({
     pitch: 0,
     roll: 0,
@@ -668,9 +705,10 @@ function App() {
   const sensorDataRef = useRef(sensorData);
   const [simulatedTilt, setSimulatedTilt] = useState({ pitch: 0, roll: 0 });
   const simulatedTiltRef = useRef(simulatedTilt);
-  const [source, setSource] = useState('simulation');
+  const [selectedSource, setSource] = useState(() => initialSensorSource(window.location.search, pwa.standalone));
+  const source = pwa.standalone && selectedSource === 'simulation' ? 'phone' : selectedSource;
   const [sourceMessage, setSourceMessage] = useState('');
-  const sourceSelectionLocked = useRef(false);
+  const sourceSelectionLocked = useRef(simulationEnabled);
   const dragStart = useRef(null);
   const sensorTimeout = useRef(null);
   const [activeMenu, setActiveMenu] = useState(null);
@@ -687,6 +725,10 @@ function App() {
   useEffect(() => {
     document.documentElement.lang = language;
   }, [language]);
+
+  useEffect(() => {
+    document.title = `KEILOMAT ${pwa.standalone ? 'APP' : 'WEB'}`;
+  }, [pwa.standalone]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -808,38 +850,44 @@ function App() {
         description:
           source === 'external'
             ? t('The external Bluetooth connection is not available yet.')
-            : t('Choose simulation or wait for a signal from the phone sensor.'),
+            : t('Check the device, browser permission, and HTTPS.'),
         wedgePlacements: [],
       };
     }
 
-    const pitchAbs = Math.abs(currentPitch);
-    const rollAbs = Math.abs(currentRoll);
-
-    if (pitchAbs < 0.2 && rollAbs < 0.2) {
-      return {
-        axis: 'level',
-        title: t('Vehicle is level'),
-        description: t('The app is within the target tolerance. No wedge adjustment needed right now.'),
-        wedgePlacements: [],
-      };
-    }
-
+    const heightMode = vehicle.levelingMode === 'height';
     const plan = calculateTwoWedgePlan({
       pitchDegrees: currentPitch,
       rollDegrees: currentRoll,
       wheelbaseCm: vehicle.wheelbaseCm,
       trackWidthCm: vehicle.trackWidthCm,
       wedgeHeightsCm: vehicle.wedgeHeightsCm,
+      maximumHeightCm: heightMode ? vehicle.maximumHeightCm : undefined,
+      levelToleranceCm: heightMode ? HEIGHT_MODE_TOLERANCE_CM : Math.min(...vehicle.wedgeHeightsCm),
     });
+    if (plan.isLevel) {
+      return {
+        axis: 'level',
+        title: t('Vehicle is level'),
+        description: t(heightMode
+          ? 'The app is within the target tolerance. No height adjustment needed right now.'
+          : 'The app is within the target tolerance. No wedge adjustment needed right now.'),
+        wedgePlacements: [],
+      };
+    }
+
     const title =
       plan.dominantAxis === 'pitch'
         ? t(plan.highAxle === 'front' ? 'Front is high' : 'Rear is high')
         : t(plan.highSide === 'left' ? 'Left side is high' : 'Right side is high');
     const placementSummary = plan.wedgePlacements
-      .map(({ label, step, wedgeCapacityExceeded }) =>
-        `${t(label)}: ${step > 0 ? t('step {step}', { step }) : t('no wedge')}${
-          wedgeCapacityExceeded ? t(', required lift exceeds wedge capacity') : ''
+      .map(({ label, step, requiredHeightCm, wedgeCapacityExceeded }) =>
+        `${t(label)}: ${heightMode
+          ? t('{height} cm', { height: formatHeightCm(requiredHeightCm, language) })
+          : step > 0 ? t('step {step}', { step }) : t('no wedge')}${
+          wedgeCapacityExceeded
+            ? t(heightMode ? ', required lift exceeds maximum height' : ', required lift exceeds wedge capacity')
+            : ''
         }`,
       )
       .join(' · ');
@@ -853,7 +901,7 @@ function App() {
       }),
       ...plan,
     };
-  }, [currentPitch, currentRoll, source, vehicle, t]);
+  }, [currentPitch, currentRoll, source, vehicle, t, language]);
 
   const startCalibrationHold = () => {
     if (
@@ -907,6 +955,15 @@ function App() {
     }
   }, [sensorData.available]);
 
+  useEffect(() => {
+    if (pwa.standalone && selectedSource === 'simulation') {
+      cancelCalibrationHold();
+      sourceSelectionLocked.current = true;
+      setSource('phone');
+      setCalibrationSettingsSource('phone');
+    }
+  }, [pwa.standalone, selectedSource]);
+
   const updateCalibrationSlotName = (sourceName, slotId, name) => {
     setCalibrationSlots((current) => ({
       ...current,
@@ -916,7 +973,6 @@ function App() {
     }));
   };
 
-  const sortedWedgeHeights = [...vehicle.wedgeHeightsCm].sort((a, b) => a - b);
   const calibrationSlotSource = source;
   const activeSlotId = calibrationSlotIds[calibrationSlotSource];
   const activeSlot = calibrationSlots[calibrationSlotSource].find((slot) => slot.id === activeSlotId);
@@ -931,16 +987,15 @@ function App() {
     : sourceMessage ? t(sourceMessage) : '';
   const additionalInfo = [
     recommendation.axis === 'unavailable' ? localizedSourceMessage || recommendation.description : '',
-    recommendation.wedgeCapacityExceeded ? t('Required lift exceeds wedge capacity.') : '',
+    recommendation.wedgeCapacityExceeded
+      ? t(vehicle.levelingMode === 'height'
+        ? 'Required lift exceeds maximum height.'
+        : 'Required lift exceeds wedge capacity.')
+      : '',
     noCalibration
       ? t(source === 'external' ? 'External sensor has not been calibrated.' : 'No calibration slot has been set.')
       : '',
   ].filter(Boolean).join(' ') || (recommendation.axis === 'level' ? recommendation.description : '');
-  const wedgeIllustrationHeights = [
-    sortedWedgeHeights[sortedWedgeHeights.length - 1],
-    sortedWedgeHeights[Math.floor((sortedWedgeHeights.length - 1) / 2)],
-    sortedWedgeHeights[0],
-  ];
   const handleVehicleDimensionChange = (event, dimension) => {
     const value = event.target.value;
     const { min, max } = vehicleDimensionLimits[dimension];
@@ -997,10 +1052,22 @@ function App() {
   };
 
   const addWedgeHeight = () => {
+    if (vehicle.wedgeHeightsCm.length >= MAX_WEDGE_STEPS) return;
     const highest = Math.max(...vehicle.wedgeHeightsCm);
     const heights = [...vehicle.wedgeHeightsCm, highest + 3].sort((a, b) => a - b);
     setVehicle((current) => ({ ...current, wedgeHeightsCm: heights }));
     setWedgeHeightInputs(heights.map(String));
+  };
+
+  const saveMaximumHeight = () => {
+    const height = Number(maximumHeightInput.replace(',', '.'));
+    if (!Number.isFinite(height) || height <= 0) {
+      setMaximumHeightError(true);
+      return;
+    }
+    setVehicle((current) => ({ ...current, maximumHeightCm: height }));
+    setMaximumHeightInput(String(height));
+    setMaximumHeightError(false);
   };
 
   const removeWedgeHeight = (index) => {
@@ -1015,11 +1082,6 @@ function App() {
     cancelCalibrationHold();
     setCalibrationComplete(false);
     setSourceMessage('');
-    if (nextSource === 'simulation') {
-      sourceSelectionLocked.current = true;
-      setSource(nextSource);
-      return;
-    }
     if (nextSource === 'external') {
       sourceSelectionLocked.current = true;
       setSource(nextSource);
@@ -1101,40 +1163,34 @@ function App() {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
-          <div>
-            <div className="brand-meta">
-              <p className="eyebrow">{t('FIELD UNIT · 01')}</p>
-              <AppDropdown
-                className="language-select"
-                label={t('Language')}
-                value={language}
-                options={[{ value: 'en', label: 'EN' }, { value: 'de', label: 'DE' }]}
-                onChange={(value) => setLanguage(normalizeLanguage(value))}
-              />
-            </div>
-            <div className="brand-heading">
-              <h1>KEIL<span>OMAT</span></h1>
-              <button
-                className={`offline-button${pwa.updateAvailable ? ' has-update' : ''}`}
-                type="button"
-                aria-haspopup="dialog"
-                aria-label={t('App installation and offline status')}
-                title={t('App installation and offline status')}
-                onClick={() => {
-                  refreshOfflineStatus();
-                  setActiveMenu('offline');
-                }}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 3v11m-4-4 4 4 4-4M4 16v4h16v-4" />
-                </svg>
-              </button>
-            </div>
+          <div className="brand-heading">
+            <h1>KEIL<span>OMAT</span> <small>{pwa.standalone ? 'APP' : 'WEB'}</small></h1>
+            <button
+              className={`offline-button${pwa.updateAvailable ? ' has-update' : ''}`}
+              type="button"
+              aria-haspopup="dialog"
+              aria-label={t('App installation and offline status')}
+              title={t('App installation and offline status')}
+              onClick={() => {
+                refreshOfflineStatus();
+                setActiveMenu('offline');
+              }}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3v11m-4-4 4 4 4-4M4 16v4h16v-4" />
+              </svg>
+            </button>
+            <AppDropdown
+              className="language-select"
+              label={t('Language')}
+              value={language}
+              options={[{ value: 'en', label: 'EN' }, { value: 'de', label: 'DE' }]}
+              onChange={(value) => setLanguage(normalizeLanguage(value))}
+            />
           </div>
         </div>
         <div className="source-picker" role="group" aria-label={t('Select data source')}>
           {[
-            { id: 'simulation', icon: '◇', label: 'SIMULATION', available: true },
             {
               id: 'phone',
               label: 'PHONE',
@@ -1157,18 +1213,16 @@ function App() {
                   <svg viewBox="0 0 24 24" role="presentation">
                     <path d="M7 7 17 17 12 22V2l5 5L7 17" />
                   </svg>
-                ) : option.id === 'phone' ? (
+                ) : (
                   <svg viewBox="0 0 24 24" role="presentation">
                     <rect x="6.5" y="2.5" width="11" height="19" rx="2" />
                     <path d="M10 5h4M10 18.5h4" />
                   </svg>
-                ) : (
-                  option.icon
                 )}
               </span>
               <span>{t(option.label)}</span>
               <span className="source-availability">
-                {t(option.available ? (option.id === 'phone' ? 'LIVE' : 'READY') : 'OFFLINE')}
+                {t(option.available ? 'LIVE' : 'OFFLINE')}
               </span>
             </button>
           ))}
@@ -1216,7 +1270,7 @@ function App() {
 
           <div className="vehicle-diagram">
             <div className="diagram-heading">
-              <span>{t('TOP VIEW')}</span>
+              <span>{t('TOP VIEW')}{source === 'simulation' ? ` · ${t('SIMULATION')}` : ''}</span>
               {source === 'simulation' && (
                 <div
                   className={`simulator-stage${vehicle.wheelbaseCm > 300 ? ' long-wheelbase' : ''}`}
@@ -1278,6 +1332,7 @@ function App() {
               vehicle={vehicle}
               recommendation={recommendation}
               t={t}
+              language={language}
             />
           </div>
 
@@ -1548,6 +1603,7 @@ function App() {
                     className="vehicle-svg"
                     vehicle={vehicle}
                     t={t}
+                    language={language}
                     showMeasurements
                   />
                 </div>
@@ -1601,77 +1657,146 @@ function App() {
             ) : activeMenu === 'wedges' ? (
               <div className="menu-content">
                 <div className="settings-card wedge-settings">
+                  <label className="level-mode-switch">
+                    <span>{t('WEDGES')}</span>
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      aria-label={t('Height mode')}
+                      checked={vehicle.levelingMode === 'height'}
+                      onChange={(event) => setVehicle((current) => ({
+                        ...current,
+                        levelingMode: event.target.checked ? 'height' : 'wedge',
+                      }))}
+                    />
+                    <span className="level-mode-track" aria-hidden="true" />
+                    <span>{t('HEIGHT')}</span>
+                  </label>
                   <div className="wedge-illustration">
-                    <svg viewBox="0 0 320 200" role="img" aria-labelledby="wedge-example-title">
+                    <svg viewBox="0 0 320 220" role="img" aria-labelledby="wedge-example-title">
                       <title id="wedge-example-title">
-                        {t('Side view of a vehicle wheel resting on a stepped wedge')}
+                        {t(vehicle.levelingMode === 'height'
+                          ? 'Side view of a vehicle wheel resting on a rock'
+                          : 'Side view of a vehicle wheel resting on a stepped wedge')}
                       </title>
-                      <path className="wedge-example-body" d="M20 123 300 190V197H20Z" />
-                      <path className="wedge-example-seams" d="M112 145V197M205 167V197" />
+                      {vehicle.levelingMode === 'height' ? (
+                        <path className="wedge-example-body" d="M20 188 28 174 49 170 61 158 85 160 99 150 122 152 139 145 158 153 177 151 194 160 215 160 232 171 253 172 270 183 290 185 300 197H20Z" />
+                      ) : (
+                        <>
+                          <path className="wedge-example-body" d="M20 123 300 190V197H20Z" />
+                          {vehicle.wedgeHeightsCm.slice(1).map((_, index) => {
+                            const fraction = (index + 1) / vehicle.wedgeHeightsCm.length;
+                            const x = 20 + 280 * fraction;
+                            return (
+                              <line
+                                key={index}
+                                className="wedge-example-seams"
+                                x1={x}
+                                y1={123 + 67 * fraction}
+                                x2={x}
+                                y2="197"
+                              />
+                            );
+                          })}
+                          {vehicle.wedgeHeightsCm.map((_, index) => (
+                            <text
+                              className="wedge-example-label"
+                              key={index}
+                              x={20 + (280 * (index + 0.5)) / vehicle.wedgeHeightsCm.length}
+                              y="213"
+                            >
+                              {vehicle.wedgeHeightsCm.length - index}
+                            </text>
+                          ))}
+                        </>
+                      )}
                       <path className="wedge-example-car" d="M0 58H64C70 26 96 10 138 10S206 26 212 58H320" />
                       <circle className="wedge-example-wheel" cx="138" cy="83" r="66" />
                       <circle className="wedge-example-rim" cx="138" cy="83" r="42" />
                       <path className="wedge-example-spokes" d="M138 41V125M96 83H180M108 53 168 113M168 53 108 113" />
                       <circle className="wedge-example-hub" cx="138" cy="83" r="8" />
-                      <text className="wedge-example-label" x="65" y="184">
-                        {wedgeIllustrationHeights[0] ?? '—'}
-                      </text>
-                      <text className="wedge-example-label" x="158" y="189">
-                        {wedgeIllustrationHeights[1] ?? '—'}
-                      </text>
-                      <text className="wedge-example-label" x="250" y="194">
-                        {wedgeIllustrationHeights[2] ?? '—'}
-                      </text>
                     </svg>
                     <span>{t('Side view')}</span>
                   </div>
-                  <div className="wedge-list">
-                    {wedgeHeightInputs.map((height, index) => (
-                      <label className="wedge-row" key={`wedge-${index}`}>
-                        <span>{t('STEP {step}', { step: index + 1 })}</span>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={height}
-                          aria-label={t('Height of step {step} in centimeters', { step: index + 1 })}
-                          onChange={(event) => handleWedgeHeightChange(index, event.target.value)}
-                          onBlur={() => saveWedgeHeight(index)}
-                        />
-                        <span className="wedge-unit">CM</span>
-                        <button
-                          className="remove-wedge"
-                          type="button"
-                          aria-label={t('Remove step {step}', { step: index + 1 })}
-                          disabled={wedgeHeightInputs.length <= 1}
-                          onClick={() => removeWedgeHeight(index)}
-                        >
-                          <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5" />
-                          </svg>
-                        </button>
-                      </label>
-                    ))}
-                  </div>
-                  <button className="add-wedge" type="button" onClick={addWedgeHeight}>
-                    {t('+ ADD STEP')}
-                  </button>
+                  {vehicle.levelingMode === 'height' ? (
+                    <label className="maximum-height">
+                      <span>{t('Maximum height')} <span className="wedge-unit">CM</span></span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={maximumHeightInput}
+                        aria-invalid={maximumHeightError}
+                        aria-describedby={maximumHeightError ? 'maximum-height-error' : undefined}
+                        onChange={(event) => {
+                          setMaximumHeightInput(event.target.value);
+                          setMaximumHeightError(false);
+                        }}
+                        onBlur={saveMaximumHeight}
+                      />
+                      {maximumHeightError && (
+                        <small className="input-error" id="maximum-height-error">
+                          {t('Enter a height greater than 0 cm.')}
+                        </small>
+                      )}
+                    </label>
+                  ) : (
+                    <>
+                      <div className="wedge-list">
+                        {wedgeHeightInputs.map((height, index) => (
+                          <label className="wedge-row" key={`wedge-${index}`}>
+                            <span>{t('STEP {step}', { step: index + 1 })}</span>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={height}
+                              aria-label={t('Height of step {step} in centimeters', { step: index + 1 })}
+                              onChange={(event) => handleWedgeHeightChange(index, event.target.value)}
+                              onBlur={() => saveWedgeHeight(index)}
+                            />
+                            <span className="wedge-unit">CM</span>
+                            <button
+                              className="remove-wedge"
+                              type="button"
+                              aria-label={t('Remove step {step}', { step: index + 1 })}
+                              disabled={wedgeHeightInputs.length <= 1}
+                              onClick={() => removeWedgeHeight(index)}
+                            >
+                              <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5" />
+                              </svg>
+                            </button>
+                          </label>
+                        ))}
+                      </div>
+                      <button
+                        className="add-wedge"
+                        type="button"
+                        disabled={vehicle.wedgeHeightsCm.length >= MAX_WEDGE_STEPS}
+                        onClick={addWedgeHeight}
+                      >
+                        {t('+ ADD STEP')}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ) : activeMenu === 'calibration' ? (
               <div className="menu-content calibration-content">
                 <div className="settings-card calibration-settings-card">
-                  <div className="calibration-sensor">
-                    <span>{t('Sensor')}</span>
-                    <AppDropdown
-                      label={t('Sensor')}
-                      value={calibrationSettingsSource}
-                      options={[
-                        { value: 'simulation', label: t('Simulation') },
-                        { value: 'phone', label: t('Phone sensor') },
-                      ]}
-                      onChange={setCalibrationSettingsSource}
-                    />
-                  </div>
+                  {simulationEnabled && (
+                    <div className="calibration-sensor">
+                      <span>{t('Sensor')}</span>
+                      <AppDropdown
+                        label={t('Sensor')}
+                        value={calibrationSettingsSource}
+                        options={[
+                          { value: 'simulation', label: t('Simulation') },
+                          { value: 'phone', label: t('Phone sensor') },
+                        ]}
+                        onChange={setCalibrationSettingsSource}
+                      />
+                    </div>
+                  )}
                   <div className="calibration-slot-settings">
                     {calibrationSlots[calibrationSettingsSource].map((slot, index) => {
                       const hasCalibration = slot.pitch !== null && slot.roll !== null;
@@ -1732,7 +1857,7 @@ function App() {
                 </div>
               </div>
             ) : activeMenu === 'help' ? (
-              <HelpContent t={t} source={source} />
+              <HelpContent t={t} source={source} levelingMode={vehicle.levelingMode} />
             ) : activeMenu === 'offline' ? (
               <div className="menu-content pwa-content">
                 <div className="settings-card">
@@ -1746,20 +1871,19 @@ function App() {
                   </p>
                   {!pwa.online && <p>{t('You are offline.')}</p>}
                 </div>
-                {pwa.installed ? (
-                  <p>{t('The app is installed.')}</p>
+                {pwa.standalone ? null : pwa.installed ? (
+                  <p>{t('Open KEILOMAT APP from your home screen.')}</p>
                 ) : /Android/i.test(navigator.userAgent) ? (
                   pwa.canInstall ? (
                     <button className="feedback-submit" type="button" onClick={installApp}>
                       {t('INSTALL APP')}
                     </button>
                   ) : (
-                    <p>{t('To install on Android, use “Install app” or “Add to Home screen” in your browser menu.')}</p>
+                    <p>{t('Open KEILOMAT APP from your home screen, or install it from your browser menu.')}</p>
                   )
                 ) : (
-                  <p>{t('Installation is currently offered on Android.')}</p>
+                  pwa.offline !== 'ready' && <p>{t('Installation is currently offered on Android.')}</p>
                 )}
-                <p>{t('Feedback requires an internet connection.')}</p>
                 {pwa.error && <p className="input-error" role="alert">{t(pwa.error)}</p>}
               </div>
             ) : (

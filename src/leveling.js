@@ -39,6 +39,8 @@ export function calculateTwoWedgePlan({
   wheelbaseCm,
   trackWidthCm,
   wedgeHeightsCm,
+  maximumHeightCm,
+  levelToleranceCm = 0,
 }) {
   const pitchHalfRiseCm = (wheelbaseCm / 2) * Math.tan((pitchDegrees * Math.PI) / 180);
   const rollHalfRiseCm = (trackWidthCm / 2) * Math.tan((rollDegrees * Math.PI) / 180);
@@ -63,7 +65,7 @@ export function calculateTwoWedgePlan({
     { id: lowCornerId, requiredHeightCm: combinedRiseCm },
     { id: secondWheel, requiredHeightCm: dominantRiseCm },
   ];
-  const maximumWedgeHeightCm = sortedWedgeHeightsCm[sortedWedgeHeightsCm.length - 1] ?? 0;
+  const maximumWedgeHeightCm = maximumHeightCm ?? sortedWedgeHeightsCm[sortedWedgeHeightsCm.length - 1] ?? 0;
   const wedgeCapacityExceeded = placements.some(
     ({ requiredHeightCm }) => requiredHeightCm > maximumWedgeHeightCm,
   );
@@ -73,6 +75,7 @@ export function calculateTwoWedgePlan({
     highAxle,
     highSide,
     wedgeCapacityExceeded,
+    isLevel: combinedRiseCm < levelToleranceCm && !wedgeCapacityExceeded,
     wedgePlacements: placements.map(({ id, requiredHeightCm }) => {
       const wheel = wheelById.get(id);
       const step = getStepForHeight(requiredHeightCm, sortedWedgeHeightsCm);

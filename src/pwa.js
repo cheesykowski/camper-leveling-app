@@ -2,11 +2,13 @@ import { useSyncExternalStore } from 'react';
 import { registerSW } from 'virtual:pwa-register';
 import { hasCachedAssets } from './pwaCache.js';
 
+const standaloneDisplay = window.matchMedia('(display-mode: standalone)');
 let state = {
   offline: 'checking',
   online: navigator.onLine,
   canInstall: false,
-  installed: window.matchMedia('(display-mode: standalone)').matches,
+  installed: standaloneDisplay.matches,
+  standalone: standaloneDisplay.matches,
   updateAvailable: false,
   error: '',
 };
@@ -61,6 +63,9 @@ window.addEventListener('online', () => {
 window.addEventListener('offline', () => {
   updateState({ online: false });
   checkOfflineCache();
+});
+standaloneDisplay.addEventListener('change', (event) => {
+  updateState({ standalone: event.matches });
 });
 window.addEventListener('beforeinstallprompt', (event) => {
   event.preventDefault();

@@ -1,6 +1,6 @@
 # KEILOMAT
 
-KEILOMAT is a mobile-first web app that helps level a parked camper van. It can use a phone's orientation sensor or an interactive 3D simulation. Support for an external Bluetooth IMU is planned but is not connected yet.
+KEILOMAT is a mobile-first web app that helps level a parked camper van. It can use a phone's orientation sensor. Support for an external Bluetooth IMU is planned but is not connected yet.
 
 > **Status:** Early prototype. Sensor orientation and wedge recommendations must be validated with the actual vehicle and wedges. This app is not a safety-critical measuring or driving aid.
 
@@ -9,11 +9,11 @@ KEILOMAT is a mobile-first web app that helps level a parked camper van. It can 
 - Live pitch and roll readings from the browser's device-orientation API, when available
 - A three-second calibration that stores the trimmed mean of phone readings or the current simulated tilt
 - Separate calibration slots for simulation and phone; one calibration for the fixed external sensor
-- Interactive 3D tilt simulation integrated into the top view, limited to ±30° on pitch and roll
-- Selection between simulation, the phone sensor, and the currently unavailable external sensor
-- Locally stored wheelbase, track width, and individually editable wedge heights, including decimal values
-- A recommendation for up to two wedges based on pitch, roll, wheelbase, and track width
-- A color highlight on each top-view wedge whose required lift exceeds the tallest configured wedge
+- Developer-only 3D tilt simulation in the browser, limited to ±30° on pitch and roll
+- Selection between the phone sensor and the currently unavailable external sensor
+- Locally stored wheelbase, track width, and up to five individually editable wedge heights, including decimal values
+- A recommendation for up to two wheels, using wedge steps or required lift in centimeters
+- A color highlight when the required lift exceeds the configured maximum height
 - A vehicle top view showing the recommended wheel positions and wedge step numbers
 - A shared vehicle top view in the main screen and vehicle setup
 - A compact dashboard with sensor status, settings, and calibration controls
@@ -24,9 +24,9 @@ KEILOMAT is a mobile-first web app that helps level a parked camper van. It can 
 
 The default vehicle dimensions and wedge heights are examples. Update them before relying on the app.
 
-The recommendation places one wedge at the lowest corner using the combined pitch and roll correction, then places a second wedge on the adjacent wheel along the geometrically dominant axis. For each position, it selects the highest configured wedge height that does not exceed the calculated lift. A wedge and its step are orange when the required lift exceeds the tallest configured height; otherwise they are green. The app displays the integer step number rather than the calculated height. This prioritizes correction along the dominant axis; it does not guarantee that both axes are fully level. The model treats the vehicle as a rigid plane on level ground. Tire deformation, suspension travel, uneven ground, and chassis flex are not modeled. Verify sensor axes, signs, and real wedge heights on the vehicle before use.
+The recommendation identifies the lowest corner using the combined pitch and roll correction, then a second wheel along the geometrically dominant axis. In wedge mode it selects the highest configured step that does not exceed each calculated lift; below the smallest step, the vehicle is shown as level. In height mode it shows the required lift rounded to 0.1 cm; below 3 cm it is shown as level. Orange means the calculated lift exceeds the tallest wedge or the separately configured maximum height, respectively. If the maximum is exceeded, a warning takes precedence over the level indication. Settings with more than five wedge heights are reduced to the five lowest. The model prioritizes correction along the dominant axis; it does not guarantee that both axes are fully level. It treats the vehicle as a rigid plane on level ground. Tire deformation, suspension travel, uneven ground, and chassis flex are not modeled. Verify sensor axes, signs, support suitability, and heights on the vehicle before use.
 
-Simulation calibration slots are saved independently of real sensor slots. They record the simulated tilt at the end of the hold; the readings and 3D box then show the tilt relative to that reference. Calibration can be tested without changing phone calibration.
+For development, open the web version with `?simulation=1` to enable the interactive simulation. It is not available in the installed app. Simulation calibration slots are saved independently of phone slots; the readings and 3D box show tilt relative to the simulated calibration.
 
 ## Local development
 
@@ -54,7 +54,7 @@ npm test
 
 Open the deployed HTTPS app on Android and use the download icon beside the logo. When the browser offers installation, choose **Install app**; otherwise use **Install app** or **Add to Home screen** in the browser menu. The app can only be prepared while online. Wait until the offline status says it is ready before disconnecting.
 
-The app and its leveling calculations then work offline. Feedback requires an internet connection and is not queued. The external sensor is not connected yet. A new version is downloaded when online; the app asks before reloading to apply it.
+The installed app is labeled KEILOMAT APP; the browser version is labeled KEILOMAT WEB. Both currently use the same release. The app and its leveling calculations work offline. Feedback requires an internet connection and is not queued. The external sensor is not connected yet. A new version is downloaded when online; the app asks before reloading to apply it.
 
 Settings and calibration slots remain in the browser's local storage for the same site and browser profile; they are not synchronized across devices or browsers and can be lost when site data is cleared. Offline files can also be removed by the browser.
 

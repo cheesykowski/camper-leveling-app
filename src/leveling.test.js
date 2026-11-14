@@ -165,3 +165,62 @@ test('marks only placements exceeding wedge capacity, with equality still in ran
   );
   assert.equal(plan.wedgePlacements[1].step, 1);
 });
+
+test('marks level only below the configured lift tolerance', () => {
+  const pitchDegrees = (Math.atan(3 / dimensions.wheelbaseCm) * 180) / Math.PI;
+  const plan = (height) => calculateTwoWedgePlan({
+    ...dimensions,
+    pitchDegrees,
+    rollDegrees: 0,
+    levelToleranceCm: height,
+  });
+
+  assert.equal(plan(3.01).isLevel, true);
+  assert.equal(plan(3).isLevel, false);
+  assert.equal(plan(2.99).isLevel, false);
+});
+
+test('height mode compares capacity with its own maximum without clipping the required lift', () => {
+  const plan = calculateTwoWedgePlan({
+    ...dimensions,
+    pitchDegrees: 5,
+    rollDegrees: 1,
+    maximumHeightCm: 10,
+    levelToleranceCm: 3,
+  });
+
+  assert.equal(plan.isLevel, false);
+  assert.equal(plan.wedgeCapacityExceeded, true);
+  assert.ok(plan.wedgePlacements.every(({ requiredHeightCm }) => requiredHeightCm > 10));
+});
+
+test('exceeding the maximum is not hidden by a larger level tolerance', () => {
+  const pitchDegrees = (Math.atan(2 / dimensions.wheelbaseCm) * 180) / Math.PI;
+  const plan = calculateTwoWedgePlan({
+    ...dimensions,
+    pitchDegrees,
+    rollDegrees: 0,
+    maximumHeightCm: 1,
+    levelToleranceCm: 3,
+  });
+  assert.equal(plan.wedgeCapacityExceeded, true);
+  assert.equal(plan.isLevel, false);
+});
+
+test('combined lift can require a wedge even when each axis is below the first step', () => {
+  const plan = calculateTwoWedgePlan({
+    ...dimensions,
+    pitchDegrees: (Math.atan(2 / dimensions.wheelbaseCm) * 180) / Math.PI,
+    rollDegrees: (Math.atan(1.5 / dimensions.trackWidthCm) * 180) / Math.PI,
+    levelToleranceCm: 3,
+  });
+  assert.equal(plan.isLevel, false);
+  assert.deepEqual(plan.wedgePlacements.map(({ step }) => step), [1, 0]);
+});
+
+test('height mode treats a lift equal to the maximum as within capacity', () => {
+  const options = { ...dimensions, pitchDegrees: 1, rollDegrees: 0 };
+  const requiredHeight = calculateTwoWedgePlan(options).wedgePlacements[0].requiredHeightCm;
+  const plan = calculateTwoWedgePlan({ ...options, maximumHeightCm: requiredHeight });
+  assert.equal(plan.wedgeCapacityExceeded, false);
+});

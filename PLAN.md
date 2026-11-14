@@ -10,20 +10,20 @@ Build an Android-friendly web app that measures the tilt of a parked camper and 
 
 - [x] React/Vite project with a responsive mobile interface
 - [x] Pitch and roll readings via `DeviceOrientationEvent`, when the browser provides sensor access
-- [x] Interactive 3D simulation in the top view, controlled by mouse or touch; pitch and roll are limited to ±30°
-- [x] Selection between simulation, phone sensor, and an external sensor source that is not yet connected; unavailable data does not produce a leveling recommendation
+- [x] Developer-only 3D simulation in the browser, controlled by mouse or touch; pitch and roll are limited to ±30°
+- [x] Selection between phone sensor and an external sensor source that is not yet connected; unavailable data does not produce a leveling recommendation
 - [x] Independent calibration slots for simulation and phone; a single selected calibration for the fixed external sensor
 - [x] Three-second calibration that stores a trimmed mean of phone samples or the current simulated tilt
 - [x] Vehicle settings stored in browser `localStorage`
-- [x] Configurable wheelbase, track width, and wedge heights
+- [x] Configurable wheelbase, track width, up to five wedge heights, and an alternative lift-height mode
 - [x] Dominant tilt determined from geometry-scaled pitch and roll contributions
 - [x] Two-wedge plan with a combined step at the lowest corner and another step along the dominant axis
-- [x] Highlight each top-view wedge whose required lift exceeds the tallest configured wedge
+- [x] Highlight each wheel whose required lift exceeds the configured maximum
 - [x] Decimal wedge heights supported; recommendations use whole-number step indices and never round above the required lift
 - [x] Shared vehicle top view in the main screen and vehicle setup, including the two recommended wedge positions and step numbers
 - [x] Minimal 3D vehicle simulation and wedge-step illustration in setup
 - [x] Dashboard with vehicle/wedge settings and a three-second calibration hold
-- [x] Wedge heights can be edited, added, and removed individually
+- [x] Wedge heights can be edited, added, and removed individually; the height mode has a separate maximum
 - [x] Feedback dialog with optional name, category, free text, consent, and configured Formspree endpoint
 - [x] English and German language selection, stored locally without changing existing calibration and vehicle settings
 - [x] Illustrated help with separate setup and usage instructions for phone and external sensors
@@ -76,7 +76,7 @@ Integration requires the Arduino project or BLE protocol, device details, servic
 - **Initial sensor:** Phone orientation through the web `DeviceOrientationEvent` API.
 - **Target platform:** Android browser. Sensor and BLE support varies by browser; the BLE protocol is not yet defined.
 - **Vehicle values:** Example values until actual measurements are available.
-- **Lift model:** Pitch and roll are converted to lift contributions using half the wheelbase and half the track width. The larger geometric contribution determines the dominant axis. Two wedges are placed at the lowest diagonal wheel and its adjacent wheel along that axis. Each uses the highest configured wedge height, including decimal values, that does not exceed the required lift. Only the integer step number is displayed. The model prioritizes correction along the dominant axis and does not guarantee that both axes are fully level.
+- **Lift model:** Pitch and roll determine the required lift at the lowest corner and an adjacent wheel along the dominant axis. Wedge mode displays the highest step not exceeding the required lift, with a tolerance equal to the smallest step. Height mode displays the required lift rounded to 0.1 cm, with a 3 cm tolerance and a separate maximum height. Capacity warnings take precedence over the level indication. The model prioritizes correction along the dominant axis and does not guarantee that both axes are fully level.
 - **Calibration:** Calibrate on level ground with the sensor mounted in its intended position. Place the phone flat, screen up, top toward the vehicle's front, and keep each slot's position and orientation unchanged. The three-second phone hold stores the trimmed mean of captured samples to reduce the effect of brief spikes. Simulation slots are independent of real sensor slots and record the tilt at the end of the hold. The external sensor uses one reference; existing data is retained with the previously selected calibration as that reference. Verify the axis and sign conventions in the vehicle.
 - **Feedback:** Formspree receives and stores original submissions and can email notifications. The public repository must not contain raw responses or names; only manually reviewed, anonymized findings may be added. The endpoint URL is public and embedded at build time; private API keys must never be included in frontend code.
 
