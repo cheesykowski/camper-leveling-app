@@ -81,6 +81,7 @@ export function calculateTwoWedgePlan({
         id,
         label: wheel.label,
         requiredHeightCm,
+        wedgeCapacityExceeded: requiredHeightCm > maximumWedgeHeightCm,
         step,
         selectedHeightCm: step > 0 ? sortedWedgeHeightsCm[step - 1] : 0,
       };

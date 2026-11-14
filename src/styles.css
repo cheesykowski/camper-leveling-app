@@ -201,16 +201,6 @@ input:focus-visible {
   color: var(--amber);
 }
 
-.source-message {
-  grid-column: 1 / -1;
-  padding: 9px 11px;
-  border: 1px solid var(--amber);
-  background: #19160c;
-  color: var(--bright);
-  font-size: 0.64rem;
-  line-height: 1.5;
-}
-
 .main-screen {
   display: flex;
   width: min(100%, 620px);
@@ -376,23 +366,15 @@ input:focus-visible {
   text-transform: uppercase;
 }
 
+.hero-heading h2.sensor-unavailable {
+  color: var(--amber);
+}
+
 .hero-description {
   margin: 0;
   color: var(--dim);
   font-size: 0.64rem;
   line-height: 1.5;
-}
-
-.recommendation-warning {
-  max-width: 34rem;
-  margin: 0;
-  padding: 8px 11px;
-  border: 1px solid var(--amber);
-  background: rgb(255 200 87 / 8%);
-  color: #ffe4a3;
-  font-size: 0.66rem;
-  line-height: 1.4;
-  text-align: center;
 }
 
 .vehicle-diagram {
@@ -504,6 +486,12 @@ input:focus-visible {
   animation: wedge-pulse 1.6s steps(2, start) infinite;
 }
 
+.diagram-wedge.capacity-exceeded {
+  fill: #ff9a42;
+  stroke: #ffe4a3;
+  filter: drop-shadow(0 0 6px rgb(255 154 66 / 60%));
+}
+
 .diagram-height-bg {
   fill: #122218;
   stroke: var(--glow);
@@ -597,6 +585,11 @@ input:focus-visible {
   z-index: 1;
 }
 
+.calibrate-button > span:nth-child(2) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .calibrate-icon {
   font-size: 1rem;
   line-height: 1;
@@ -609,30 +602,12 @@ input:focus-visible {
   font-size: 0.58rem;
 }
 
-.hold-hint {
-  min-height: 1em;
-  margin: 0;
-  color: var(--dim);
-  font-size: 0.61rem;
-  text-align: center;
-}
-
 .quick-calibrations {
   display: flex;
   width: 100%;
   min-width: 0;
   max-width: 100%;
   gap: 4px;
-}
-
-.quick-calibrations-label {
-  margin: 0;
-  color: #a8bcae;
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  line-height: 1;
-  text-align: left;
 }
 
 .quick-calibration-button {
@@ -664,22 +639,22 @@ input:focus-visible {
   text-overflow: ellipsis;
 }
 
-.quick-calibration-offsets {
-  display: grid;
+.quick-calibration-status {
   color: #aebfb2;
   font-size: 0.46rem;
   font-weight: 500;
   letter-spacing: 0;
   line-height: 1.1;
-  white-space: nowrap;
 }
 
-.quick-calibration-empty {
-  color: #aebfb2;
-  font-size: 0.46rem;
-  font-weight: 500;
-  letter-spacing: 0;
-  line-height: 1.1;
+.quick-calibration-button.empty {
+  border-color: #58605a;
+  background: #171b18;
+  color: #b6bdb7;
+}
+
+.quick-calibration-button.empty .quick-calibration-status {
+  color: #a4aca5;
 }
 
 .quick-calibration-button.selected {
@@ -689,9 +664,21 @@ input:focus-visible {
   box-shadow: inset 0 0 0 1px rgb(167 255 117 / 22%);
 }
 
+.quick-calibration-button.empty.selected {
+  border-color: #a5b0a7;
+  background: #303832;
+  color: #d7ded8;
+  box-shadow: inset 0 0 0 1px rgb(165 176 167 / 35%);
+}
+
 .quick-calibration-button:hover:not(.selected) {
   border-color: var(--glow);
   background: rgb(167 255 117 / 9%);
+}
+
+.quick-calibration-button.empty:hover:not(.selected) {
+  border-color: #859088;
+  background: #242a25;
 }
 
 .calibration-content {
@@ -703,7 +690,7 @@ input:focus-visible {
   gap: 10px;
 }
 
-.calibration-settings-card > label {
+.calibration-sensor {
   display: grid;
   gap: 6px;
   color: var(--text);
@@ -717,20 +704,73 @@ input:focus-visible {
   font-weight: 400;
 }
 
-.calibration-settings-card select {
-  min-width: 0;
-  min-height: 40px;
-  padding: 7px 9px;
-  border: 1px solid #31533a;
-  border-radius: 0;
-  background: #070d0a;
-  color: var(--bright);
-  font: inherit;
-  font-size: 0.68rem;
+.calibration-sensor-dropdown {
+  position: relative;
 }
 
-.calibration-settings-card select {
-  color-scheme: dark;
+.calibration-sensor-dropdown summary {
+  display: flex;
+  min-width: 0;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 9px;
+  border: 1px solid #31533a;
+  background: #070d0a;
+  color: var(--bright);
+  cursor: pointer;
+  font-size: 0.68rem;
+  list-style: none;
+}
+
+.calibration-sensor-dropdown summary::-webkit-details-marker {
+  display: none;
+}
+
+.calibration-sensor-dropdown summary::after {
+  width: 7px;
+  height: 7px;
+  border-right: 1px solid var(--glow);
+  border-bottom: 1px solid var(--glow);
+  content: "";
+  transform: rotate(45deg) translateY(-2px);
+}
+
+.calibration-sensor-dropdown summary:focus-visible {
+  outline: 2px solid var(--glow);
+  outline-offset: 3px;
+}
+
+.calibration-sensor-options {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  left: 0;
+  padding: 4px;
+  border: 1px solid #31533a;
+  background: #0b130e;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 50%);
+}
+
+.calibration-sensor-options button {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.68rem;
+  text-align: left;
+}
+
+.calibration-sensor-options button[aria-pressed="true"],
+.calibration-sensor-options button:hover {
+  border-color: rgb(167 255 117 / 30%);
+  background: #122218;
+  color: var(--glow);
 }
 
 .calibration-slot-settings {
@@ -1363,7 +1403,6 @@ input:focus-visible {
 @keyframes wedge-pulse {
   50% {
     opacity: 0.68;
-    filter: drop-shadow(0 0 2px rgb(167 255 117 / 24%));
   }
 }
 
@@ -1520,11 +1559,6 @@ input:focus-visible {
     font-size: 0.62rem;
   }
 
-  .hold-hint {
-    font-size: 0.54rem;
-    line-height: 1.25;
-  }
-
   .bottom-menu {
     min-height: 48px;
     flex: 0 0 auto;
@@ -1543,8 +1577,7 @@ input:focus-visible {
     font-size: 0.55rem;
   }
 
-  .quick-calibration-offsets,
-  .quick-calibration-empty {
+  .quick-calibration-status {
     font-size: 0.44rem;
   }
 

@@ -19,9 +19,6 @@ const FORMSPREE_ENDPOINT = import.meta.env.VITE_FORMSPREE_ENDPOINT?.trim() || ''
 
 const formatCalibrationAngle = (angle) => `${angle >= 0 ? '+' : ''}${angle.toFixed(1)}°`;
 
-const getCalibrationOffsetLabel = ({ pitch, roll }) =>
-  `Pitch ${formatCalibrationAngle(pitch)} · Roll ${formatCalibrationAngle(roll)}`;
-
 const defaultVehicle = {
   wheelbaseCm: 240,
   trackWidthCm: 180,
@@ -87,7 +84,7 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
 
       {wheels.map((wheel) => {
         const placement = recommendation?.wedgePlacements?.find((item) => item.id === wheel.id);
-        const active = Boolean(placement && placement.step > 0);
+        const active = Boolean(placement && (placement.step > 0 || placement.wedgeCapacityExceeded));
         const labelX = wheel.side === 'left' ? 8 : 292;
         const wedgePoints =
           wheel.side === 'left'
@@ -98,13 +95,18 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
           <g key={wheel.id} className={active ? 'diagram-wheel active' : 'diagram-wheel'}>
             <title>
               {active
-                ? `${wheel.label}: step ${placement.step}`
+                ? `${wheel.label}: step ${placement.step}${
+                    placement.wedgeCapacityExceeded ? ', required lift exceeds wedge capacity' : ''
+                  }`
                 : `${wheel.label}: no wedge recommended`}
             </title>
             <rect className="diagram-tire" x={wheel.x} y={wheel.y} width="34" height="48" rx="10" />
             {active && (
               <>
-                <polygon className="diagram-wedge" points={wedgePoints} />
+                <polygon
+                  className={`diagram-wedge${placement.wedgeCapacityExceeded ? ' capacity-exceeded' : ''}`}
+                  points={wedgePoints}
+                />
                 <rect
                   className="diagram-height-bg"
                   x={labelX}
@@ -579,7 +581,11 @@ function App() {
         ? `${plan.highAxle === 'front' ? 'Front' : 'Rear'} is high`
         : `${plan.highSide === 'left' ? 'Left' : 'Right'} side is high`;
     const placementSummary = plan.wedgePlacements
-      .map(({ label, step }) => `${label}: ${step > 0 ? `step ${step}` : 'no wedge'}`)
+      .map(({ label, step, wedgeCapacityExceeded }) =>
+        `${label}: ${step > 0 ? `step ${step}` : 'no wedge'}${
+          wedgeCapacityExceeded ? ', required lift exceeds wedge capacity' : ''
+        }`,
+      )
       .join(' · ');
 
     return {
@@ -634,6 +640,8 @@ function App() {
   const sortedWedgeHeights = [...vehicle.wedgeHeightsCm].sort((a, b) => a - b);
   const calibrationSlotSource = source === 'external' ? 'external' : 'phone';
   const activeSlotId = calibrationSlotIds[calibrationSlotSource];
+  const activeSlot = calibrationSlots[calibrationSlotSource].find((slot) => slot.id === activeSlotId);
+  const activeSlotLabel = activeSlot?.name.trim() || String(calibrationSlotKeys.indexOf(activeSlotId) + 1);
   const wedgeIllustrationHeights = [
     sortedWedgeHeights[sortedWedgeHeights.length - 1],
     sortedWedgeHeights[Math.floor((sortedWedgeHeights.length - 1) / 2)],
@@ -744,7 +752,7 @@ function App() {
         return;
       }
     } else {
-      setSourceMessage('No sensor signal available. Check the device, browser permission, and HTTPS.');
+      setSourceMessage('Check the device, browser permission, and HTTPS.');
       return;
     }
 
@@ -841,11 +849,6 @@ function App() {
               </span>
             </button>
           ))}
-          {sourceMessage && (
-            <span className="source-message" role="status">
-              {sourceMessage}
-            </span>
-          )}
         </div>
       </header>
 
@@ -926,15 +929,15 @@ function App() {
 
         <section className="hero-panel" aria-label="Leveling recommendation">
           <div className="hero-heading">
-            <h2>{recommendation.title}</h2>
-            {recommendation.wedgeCapacityExceeded && (
-              <p className="recommendation-warning" role="status">
-                Required lift exceeds your tallest configured wedge. Reposition the vehicle or
-                configure taller wedges.
-              </p>
-            )}
+            <h2 className={recommendation.axis === 'unavailable' ? 'sensor-unavailable' : ''}>
+              {recommendation.title}
+            </h2>
             {recommendation.axis !== 'pitch' && recommendation.axis !== 'roll' && (
-              <p className="hero-description">{recommendation.description}</p>
+              <p className="hero-description" role="status">
+                {recommendation.axis === 'unavailable' && sourceMessage
+                  ? sourceMessage
+                  : recommendation.description}
+              </p>
             )}
           </div>
 
@@ -958,7 +961,6 @@ function App() {
             }`}
             type="button"
             disabled={source !== 'phone' || !sensorData.available}
-            aria-describedby="calibration-hint"
             onPointerDown={(event) => {
               event.currentTarget.setPointerCapture(event.pointerId);
               startCalibrationHold();
@@ -979,9 +981,7 @@ function App() {
               }
             }}
             onContextMenu={(event) => event.preventDefault()}
-            aria-label={`Hold for 3 seconds to overwrite calibration slot ${
-              calibrationSlotKeys.indexOf(activeSlotId) + 1
-            } on level ground`}
+            aria-label={`Hold for 3 seconds to overwrite calibration slot ${activeSlotLabel} on level ground`}
           >
             <span className="calibrate-icon" aria-hidden="true">
               {calibrationComplete ? '✓' : isHoldingCalibration ? '···' : '◎'}
@@ -991,24 +991,10 @@ function App() {
                 ? 'SLOT UPDATED'
                 : isHoldingCalibration
                   ? 'KEEP HOLDING'
-                  : `HOLD TO SET SLOT ${calibrationSlotKeys.indexOf(activeSlotId) + 1}`}
+                  : `HOLD TO SET SLOT ${activeSlotLabel}`}
             </span>
             {!calibrationComplete && <span className="hold-duration">3 SEC</span>}
           </button>
-          <p className="hold-hint" id="calibration-hint" aria-live="polite">
-            {source !== 'phone' || !sensorData.available
-              ? source === 'external'
-                ? 'Select an external sensor signal to calibrate its selected slot.'
-                : 'Select the phone sensor and wait for a signal to calibrate.'
-              : calibrationComplete
-                ? `Slot ${calibrationSlotKeys.indexOf(activeSlotId) + 1} updated.`
-                : isHoldingCalibration
-                  ? 'Keep holding to overwrite the selected slot'
-                  : 'Park on level ground, then hold to overwrite the selected slot'}
-          </p>
-          <p className="quick-calibrations-label">
-            PICK {calibrationSlotSource === 'phone' ? 'PHONE' : 'EXTERNAL'} CALIBRATION SLOT
-          </p>
           <div
             className="quick-calibrations"
             role="group"
@@ -1017,7 +1003,7 @@ function App() {
             {calibrationSlots[calibrationSlotSource].map((slot, index) => {
               const isSelected = slot.id === activeSlotId;
               const isCalibrated = slot.pitch !== null && slot.roll !== null;
-              const label = slot.name || `SLOT ${index + 1}`;
+              const label = slot.name.trim() || `SLOT ${index + 1}`;
 
               return (
                 <button
@@ -1027,11 +1013,11 @@ function App() {
                   key={slot.id}
                   type="button"
                   aria-label={`${label}, ${
-                    isCalibrated ? getCalibrationOffsetLabel(slot) : 'not calibrated'
+                    isCalibrated ? 'calibrated' : 'not calibrated'
                   }${isSelected ? ', selected' : ''}`}
                   aria-pressed={isSelected}
                   title={`${label} · ${
-                    isCalibrated ? getCalibrationOffsetLabel(slot) : 'Not calibrated'
+                    isCalibrated ? 'Calibrated' : 'Not calibrated'
                   }`}
                   onClick={() => {
                     setCalibrationSlotIds((current) => ({
@@ -1042,14 +1028,9 @@ function App() {
                   }}
                 >
                   <span className="quick-calibration-name">{label}</span>
-                  {isCalibrated ? (
-                    <span className="quick-calibration-offsets" aria-hidden="true">
-                      <span>Pitch {formatCalibrationAngle(slot.pitch)}</span>
-                      <span>Roll {formatCalibrationAngle(slot.roll)}</span>
-                    </span>
-                  ) : (
-                    <span className="quick-calibration-empty">NOT CALIBRATED</span>
-                  )}
+                  <span className="quick-calibration-status">
+                    {isCalibrated ? 'CALIBRATED' : 'NOT CALIBRATED'}
+                  </span>
                 </button>
               );
             })}
@@ -1066,8 +1047,10 @@ function App() {
         >
           <span className="menu-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24">
-              <path d="M8 3.5h8a3 3 0 0 1 3 3v11a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3v-11a3 3 0 0 1 3-3Z" />
-              <path d="M7 8h10m-10 8h10M4 7H2.5v4H4m16-4h1.5v4H20M4 13H2.5v4H4m16-4h1.5v4H20" />
+              <path d="M3 16v-4l2-1 2-4h9l3 4 2 1v4h-2m-11 0h8M3 16h1" />
+              <circle cx="6" cy="16" r="2" />
+              <circle cx="18" cy="16" r="2" />
+              <path d="M7 11h11M12 7v4" />
             </svg>
           </span>
           <span>VEHICLE</span>
@@ -1081,9 +1064,7 @@ function App() {
         >
           <span className="menu-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24">
-              <path d="M3 20h18l-7-8H7L3 20Z" />
-              <circle cx="15" cy="7" r="4" />
-              <path d="m13.5 7 1.5-1.5L16.5 7 15 8.5 13.5 7Z" />
+              <path d="M4 19h16L4 5Z" />
             </svg>
           </span>
           <span>WEDGES</span>
@@ -1152,7 +1133,7 @@ function App() {
                     : activeMenu === 'wedges'
                       ? 'Wedge setup'
                       : activeMenu === 'calibration'
-                      ? 'Calibration slots'
+                      ? 'Rename calibration slots'
                         : 'Send feedback'}
                 </h2>
               </div>
@@ -1317,16 +1298,49 @@ function App() {
             ) : activeMenu === 'calibration' ? (
               <div className="menu-content calibration-content">
                 <div className="settings-card calibration-settings-card">
-                  <label>
-                    Sensor
-                    <select
-                      value={calibrationSettingsSource}
-                      onChange={(event) => setCalibrationSettingsSource(event.target.value)}
+                  <div className="calibration-sensor">
+                    <span>Sensor</span>
+                    <details
+                      className="calibration-sensor-dropdown"
+                      onBlur={(event) => {
+                        if (!event.currentTarget.contains(event.relatedTarget)) {
+                          event.currentTarget.open = false;
+                        }
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Escape' && event.currentTarget.open) {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          event.currentTarget.open = false;
+                          event.currentTarget.querySelector('summary').focus();
+                        }
+                      }}
                     >
-                      <option value="phone">Phone sensor</option>
-                      <option value="external">External sensor</option>
-                    </select>
-                  </label>
+                      <summary aria-label={`Sensor: ${calibrationSettingsSource === 'phone' ? 'Phone sensor' : 'External sensor'}`}>
+                        {calibrationSettingsSource === 'phone' ? 'Phone sensor' : 'External sensor'}
+                      </summary>
+                      <div className="calibration-sensor-options" role="group" aria-label="Sensor">
+                        {[
+                          { id: 'phone', label: 'Phone sensor' },
+                          { id: 'external', label: 'External sensor' },
+                        ].map((sensor) => (
+                          <button
+                            key={sensor.id}
+                            type="button"
+                            aria-pressed={calibrationSettingsSource === sensor.id}
+                            onClick={(event) => {
+                              setCalibrationSettingsSource(sensor.id);
+                              const dropdown = event.currentTarget.closest('details');
+                              dropdown.open = false;
+                              dropdown.querySelector('summary').focus();
+                            }}
+                          >
+                            {sensor.label}
+                          </button>
+                        ))}
+                      </div>
+                    </details>
+                  </div>
                   <div className="calibration-slot-settings">
                     {calibrationSlots[calibrationSettingsSource].map((slot, index) => {
                       const hasCalibration = slot.pitch !== null && slot.roll !== null;

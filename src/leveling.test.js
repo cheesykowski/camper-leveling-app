@@ -144,3 +144,24 @@ test('flags when the required lift exceeds the tallest configured wedge', () => 
   assert.equal(steep.wedgeCapacityExceeded, true);
   assert.equal(withinCapacity.wedgeCapacityExceeded, false);
 });
+
+test('marks only placements exceeding wedge capacity, with equality still in range', () => {
+  const options = {
+    ...dimensions,
+    pitchDegrees: 1,
+    rollDegrees: 1,
+  };
+  const baseline = calculateTwoWedgePlan(options);
+  const dominantHeight = baseline.wedgePlacements[1].requiredHeightCm;
+  const plan = calculateTwoWedgePlan({
+    ...options,
+    wedgeHeightsCm: [dominantHeight],
+  });
+
+  assert.equal(plan.wedgeCapacityExceeded, true);
+  assert.deepEqual(
+    plan.wedgePlacements.map(({ wedgeCapacityExceeded }) => wedgeCapacityExceeded),
+    [true, false],
+  );
+  assert.equal(plan.wedgePlacements[1].step, 1);
+});
