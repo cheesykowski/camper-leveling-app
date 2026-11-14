@@ -13,7 +13,7 @@ Build an Android-friendly web app that measures the tilt of a parked camper and 
 - [x] Interactive 3D simulation in the top view, controlled by mouse or touch; pitch and roll are limited to ±30°
 - [x] Selection between simulation, phone sensor, and an external sensor source that is not yet connected; unavailable data does not produce a leveling recommendation
 - [x] Independent calibration slots for simulation, phone, and external sensor sources
-- [x] Three-second phone and simulation calibration that stores a trimmed mean of captured pitch and roll samples
+- [x] Three-second calibration that stores a trimmed mean of phone samples or the current simulated tilt
 - [x] Vehicle settings stored in browser `localStorage`
 - [x] Configurable wheelbase, track width, and wedge heights
 - [x] Dominant tilt determined from geometry-scaled pitch and roll contributions
@@ -71,7 +71,7 @@ Integration requires the Arduino project or BLE protocol, device details, servic
 - **Target platform:** Android browser. Sensor and BLE support varies by browser; the BLE protocol is not yet defined.
 - **Vehicle values:** Example values until actual measurements are available.
 - **Lift model:** Pitch and roll are converted to lift contributions using half the wheelbase and half the track width. The larger geometric contribution determines the dominant axis. Two wedges are placed at the lowest diagonal wheel and its adjacent wheel along that axis. Each uses the highest configured wedge height, including decimal values, that does not exceed the required lift. Only the integer step number is displayed. The model prioritizes correction along the dominant axis and does not guarantee that both axes are fully level.
-- **Calibration:** Calibrate on level ground with the sensor mounted in its intended position. The three-second hold stores the trimmed mean of captured phone or simulation pitch and roll samples to reduce the effect of brief spikes. Simulation slots are independent of real sensor slots. Verify the axis and sign conventions in the vehicle.
+- **Calibration:** Calibrate on level ground with the sensor mounted in its intended position. The three-second phone hold stores the trimmed mean of captured samples to reduce the effect of brief spikes. Simulation slots are independent of real sensor slots and record the tilt at the end of the hold. Verify the axis and sign conventions in the vehicle.
 - **Feedback:** Formspree receives and stores original submissions and can email notifications. The public repository must not contain raw responses or names; only manually reviewed, anonymized findings may be added. The endpoint URL is public and embedded at build time; private API keys must never be included in frontend code.
 
 ## Maintaining this plan

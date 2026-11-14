@@ -283,7 +283,7 @@ input:focus-visible {
 }
 
 .sim-view {
-  transform: rotateX(30deg) rotateY(-12deg);
+  transform: rotateX(30deg);
   transform-style: preserve-3d;
 }
 
@@ -1696,7 +1696,7 @@ input:focus-visible {
   }
 
   .sim-view {
-    transform: scale(0.72) rotateX(30deg) rotateY(-12deg);
+    transform: scale(0.72) rotateX(30deg);
   }
 }
 

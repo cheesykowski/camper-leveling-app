@@ -428,6 +428,7 @@ function App() {
   });
   const sensorDataRef = useRef(sensorData);
   const [simulatedTilt, setSimulatedTilt] = useState({ pitch: 0, roll: 0 });
+  const simulatedTiltRef = useRef(simulatedTilt);
   const [source, setSource] = useState('simulation');
   const [sourceMessage, setSourceMessage] = useState('');
   const sourceSelectionLocked = useRef(false);
@@ -441,9 +442,7 @@ function App() {
   const calibrationCaptureSource = useRef(null);
 
   useEffect(() => {
-    if (calibrationCaptureSource.current === 'simulation') {
-      calibrationSamples.current.push(simulatedTilt);
-    }
+    simulatedTiltRef.current = simulatedTilt;
   }, [simulatedTilt]);
 
   useEffect(() => {
@@ -620,14 +619,16 @@ function App() {
     const selectedSource = source;
     const selectedSlotId = calibrationSlotIds[selectedSource];
     calibrationCaptureSource.current = selectedSource;
-    calibrationSamples.current = [
-      selectedSource === 'simulation'
-        ? simulatedTilt
-        : { pitch: sensorDataRef.current.pitch, roll: sensorDataRef.current.roll },
-    ];
+    calibrationSamples.current = selectedSource === 'phone'
+      ? [{ pitch: sensorDataRef.current.pitch, roll: sensorDataRef.current.roll }]
+      : [];
     calibrationTimeout.current = window.setTimeout(() => {
-      const pitch = getTrimmedMean(calibrationSamples.current.map((sample) => sample.pitch));
-      const roll = getTrimmedMean(calibrationSamples.current.map((sample) => sample.roll));
+      const { pitch, roll } = selectedSource === 'simulation'
+        ? simulatedTiltRef.current
+        : {
+            pitch: getTrimmedMean(calibrationSamples.current.map((sample) => sample.pitch)),
+            roll: getTrimmedMean(calibrationSamples.current.map((sample) => sample.roll)),
+          };
       setCalibrationSlots((current) => ({
         ...current,
         [selectedSource]: replaceCalibrationSlotOffsets(current[selectedSource], selectedSlotId, {
@@ -973,7 +974,7 @@ function App() {
                     <div
                       className="sim-box"
                       style={{
-                        transform: `rotateX(${currentPitch}deg) rotateY(${currentRoll}deg)`,
+                        transform: `rotateX(${currentPitch}deg) rotateZ(${currentRoll}deg)`,
                       }}
                     />
                   </div>
