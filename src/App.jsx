@@ -891,7 +891,7 @@ function App() {
               <span>TOP VIEW</span>
               {source === 'simulation' && (
                 <div
-                  className="simulator-stage"
+                  className={`simulator-stage${vehicle.wheelbaseCm > 300 ? ' long-wheelbase' : ''}`}
                   role="application"
                   aria-label={`Simulate vehicle tilt. Drag vertically for pitch and horizontally for roll, or use the arrow keys. Pitch ${simulatedTilt.pitch.toFixed(1)} degrees, roll ${simulatedTilt.roll.toFixed(1)} degrees. Maximum tilt ${SIMULATION_MAX_TILT} degrees.`}
                   onPointerDown={startSimulationDrag}
