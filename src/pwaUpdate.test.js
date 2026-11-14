@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { activateUpdate } from './pwaUpdate.js';
+import { activateUpdate, checkForNewWorker } from './pwaUpdate.js';
 
 const fast = { timeout: 100, interval: 1 };
 
@@ -71,4 +71,35 @@ test('reports activation failure rather than claiming success', async () => {
   const old = { state: 'activated' };
   const registration = { active: old, waiting: { state: 'installed', postMessage() {} } };
   await assert.rejects(activateUpdate(registration, old, { timeout: 10, interval: 1 }), /did not activate/);
+});
+
+test('manual check distinguishes an up-to-date app from a waiting update', async () => {
+  const active = { state: 'activated' };
+  const registration = { active, waiting: null, update: async () => {} };
+  assert.equal(await checkForNewWorker(registration, active, fast), false);
+  registration.waiting = { state: 'installed' };
+  assert.equal(await checkForNewWorker(registration, active, fast), true);
+});
+
+test('manual check waits for download before offering the update', async () => {
+  const active = { state: 'activated' };
+  const worker = new EventTarget();
+  worker.state = 'installing';
+  const registration = { active, installing: worker, update: async () => {} };
+  setTimeout(() => {
+    worker.state = 'installed';
+    registration.waiting = worker;
+    worker.dispatchEvent(new Event('statechange'));
+  }, 2);
+  assert.equal(await checkForNewWorker(registration, active, fast), true);
+});
+
+test('manual check reports download failure and timeout', async () => {
+  const active = { state: 'activated' };
+  const worker = new EventTarget();
+  worker.state = 'redundant';
+  const registration = { active, installing: worker, update: async () => {} };
+  await assert.rejects(checkForNewWorker(registration, active, fast), /download failed/);
+  registration.update = () => new Promise(() => {});
+  await assert.rejects(checkForNewWorker(registration, active, { timeout: 10 }), /timed out/);
 });

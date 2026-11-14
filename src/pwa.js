@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { hasCachedAssets } from './pwaCache.js';
-import { activateUpdate } from './pwaUpdate.js';
+import { activateUpdate, checkForNewWorker } from './pwaUpdate.js';
 
 const standaloneDisplay = window.matchMedia('(display-mode: standalone)');
 let state = {
@@ -11,6 +11,8 @@ let state = {
   standalone: standaloneDisplay.matches,
   updateAvailable: false,
   updating: false,
+  checkingUpdate: false,
+  updateCheckResult: '',
   error: '',
 };
 const listeners = new Set();
@@ -19,6 +21,7 @@ let registration;
 let originalController;
 
 function updateState(changes) {
+  if (changes.updateAvailable) changes = { updateCheckResult: '', ...changes };
   state = { ...state, ...changes };
   listeners.forEach((listener) => listener());
 }
@@ -163,5 +166,21 @@ export async function applyUpdate() {
   } catch (error) {
     console.error('App update failed:', error);
     updateState({ updating: false, error: 'The update could not be installed.' });
+  }
+}
+
+export async function checkForUpdates() {
+  if (state.checkingUpdate || state.updating) return;
+  updateState({ checkingUpdate: true, updateCheckResult: '', error: '' });
+  try {
+    if (!registration) throw new Error('Service worker is not registered.');
+    const available = await checkForNewWorker(registration, originalController);
+    updateState({
+      checkingUpdate: false,
+      ...(available ? { updateAvailable: true } : { updateCheckResult: 'The app is up to date.' }),
+    });
+  } catch (error) {
+    console.error('Update check failed:', error);
+    updateState({ checkingUpdate: false, error: 'Could not check for updates.' });
   }
 }

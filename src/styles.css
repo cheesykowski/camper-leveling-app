@@ -607,6 +607,17 @@ select:focus-visible {
   transform-origin: left;
 }
 
+.calibrate-button.needs-calibration::after {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--glow);
+  content: "";
+}
+
 .calibrate-button.is-holding {
   border-color: var(--glow);
   background: #18371f;
@@ -1003,9 +1014,31 @@ select:focus-visible {
 }
 
 .menu-icon {
+  position: relative;
   display: inline-grid;
   flex: 0 0 22px;
   place-items: center;
+}
+
+.menu-button.needs-setup .menu-icon::after,
+.menu-tab.needs-setup::after {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--glow);
+  content: "";
+}
+
+.menu-button.needs-setup .menu-icon::after {
+  position: absolute;
+  top: -2px;
+  right: -3px;
+}
+
+.menu-tab.needs-setup::after {
+  display: inline-block;
+  margin-left: 5px;
+  vertical-align: middle;
 }
 
 .menu-icon svg {
@@ -1113,6 +1146,14 @@ select:focus-visible {
   padding: 14px;
   border: 1px solid rgb(68 112 77 / 45%);
   background: rgb(12 21 17 / 90%);
+}
+
+.wedge-height-error {
+  grid-column: 1 / -1;
+}
+
+.pwa-check-update {
+  margin-top: 10px;
 }
 
 .help-card {

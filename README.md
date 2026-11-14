@@ -56,6 +56,10 @@ Open the deployed HTTPS app on Android and use the download icon beside the logo
 
 The installed app is labeled KEILOMAT APP; the browser version is labeled KEILOMAT WEB. Both currently use the same release and, in the same browser profile, share the offline files. The app and its leveling calculations work offline. Feedback requires an internet connection and is not queued. The external sensor is not connected yet. A new version is downloaded when online; confirming the update in either view updates the shared offline files and reloads that view. Other open views offer their own reload so unfinished input is not interrupted.
 
+The download icon also offers a manual update check while online. If an older installed version's update button does nothing, close the installed app and all browser tabs for this site completely, then reopen the app while online. This allows the waiting update to activate without clearing saved settings.
+
+Confirm the vehicle dimensions and the wedge heights or maximum height in the settings; markers remain until each has been confirmed. A marker on the calibration button indicates that the selected slot or sensor is not calibrated. Existing settings are preserved, but must be confirmed once because earlier versions did not record confirmation.
+
 Settings and calibration slots remain in the browser's local storage for the same site and browser profile; they are not synchronized across devices or browsers and can be lost when site data is cleared. Offline files can also be removed by the browser.
 
 If offline access remains unavailable, clearing this site's browser data and reopening the app online can set up the cache again. **This also deletes the locally saved settings and calibrations.**

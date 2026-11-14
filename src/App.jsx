@@ -12,7 +12,7 @@ import {
 } from './calibration.js';
 import { calculateTwoWedgePlan, wheelCorners } from './leveling.js';
 import { normalizeLanguage, translate } from './i18n.js';
-import { applyUpdate, installApp, refreshOfflineStatus, usePwa } from './pwa.js';
+import { applyUpdate, checkForUpdates, installApp, refreshOfflineStatus, usePwa } from './pwa.js';
 import { initialSensorSource } from './appMode.js';
 
 const STORAGE_KEY = 'camper-leveling-demo-v1';
@@ -612,6 +612,7 @@ function App() {
         calibrationSlots: defaultCalibrationSlots,
         calibrationSlotIds: defaultCalibrationSlotIds,
         vehicle: defaultVehicle,
+        setupConfirmed: { vehicle: false, wedges: false, height: false },
       };
     }
 
@@ -653,6 +654,11 @@ function App() {
         language: normalizeLanguage(parsed.language),
         calibrationSlots,
         calibrationSlotIds: normalizeCalibrationSlotIds(parsed.calibrationSlotIds),
+        setupConfirmed: {
+          vehicle: parsed.setupConfirmed?.vehicle === true,
+          wedges: parsed.setupConfirmed?.wedges === true,
+          height: parsed.setupConfirmed?.height === true,
+        },
         vehicle: {
           wheelbaseCm: Number(parsed.vehicle?.wheelbaseCm ?? defaultVehicle.wheelbaseCm),
           trackWidthCm: Number(parsed.vehicle?.trackWidthCm ?? defaultVehicle.trackWidthCm),
@@ -671,6 +677,7 @@ function App() {
         calibrationSlots: defaultCalibrationSlots,
         calibrationSlotIds: defaultCalibrationSlotIds,
         vehicle: defaultVehicle,
+        setupConfirmed: { vehicle: false, wedges: false, height: false },
       };
     }
   }, []);
@@ -685,6 +692,8 @@ function App() {
   );
   const [calibrationSettingsSource, setCalibrationSettingsSource] = useState('phone');
   const [vehicle, setVehicle] = useState(loadedState.vehicle);
+  const [setupConfirmed, setSetupConfirmed] = useState(loadedState.setupConfirmed);
+  const wedgesConfirmed = setupConfirmed[vehicle.levelingMode === 'height' ? 'height' : 'wedges'];
   const [vehicleInputs, setVehicleInputs] = useState({
     wheelbaseCm: String(loadedState.vehicle.wheelbaseCm),
     trackWidthCm: String(loadedState.vehicle.trackWidthCm),
@@ -693,6 +702,7 @@ function App() {
   const [wedgeHeightInputs, setWedgeHeightInputs] = useState(
     loadedState.vehicle.wedgeHeightsCm.map(String),
   );
+  const [wedgeHeightErrors, setWedgeHeightErrors] = useState([]);
   const [maximumHeightInput, setMaximumHeightInput] = useState(String(loadedState.vehicle.maximumHeightCm));
   const [maximumHeightError, setMaximumHeightError] = useState(false);
   const [sensorData, setSensorData] = useState({
@@ -738,9 +748,10 @@ function App() {
         calibrationSlots,
         calibrationSlotIds,
         vehicle,
+        setupConfirmed,
       }),
     );
-  }, [language, calibrationSlots, calibrationSlotIds, vehicle]);
+  }, [language, calibrationSlots, calibrationSlotIds, vehicle, setupConfirmed]);
 
   useEffect(() => {
     const hasSensorAPI = 'DeviceOrientationEvent' in window;
@@ -976,6 +987,7 @@ function App() {
   const calibrationSlotSource = source;
   const activeSlotId = calibrationSlotIds[calibrationSlotSource];
   const activeSlot = calibrationSlots[calibrationSlotSource].find((slot) => slot.id === activeSlotId);
+  const needsCalibration = !activeSlot || activeSlot.pitch === null || activeSlot.roll === null;
   const activeSlotLabel = activeSlot?.name.trim() || String(calibrationSlotKeys.indexOf(activeSlotId) + 1);
   const noCalibration = source === 'external'
     ? !activeSlot || activeSlot.pitch === null || activeSlot.roll === null
@@ -1034,21 +1046,22 @@ function App() {
     setWedgeHeightInputs((current) =>
       current.map((height, heightIndex) => (heightIndex === index ? value : height)),
     );
+    setWedgeHeightErrors((current) => current.map((error, heightIndex) => heightIndex === index ? false : error));
   };
 
   const saveWedgeHeight = (index) => {
-    const height = Number(wedgeHeightInputs[index].replace(',', '.'));
-    if (!Number.isFinite(height) || height <= 0) {
-      setWedgeHeightInputs(vehicle.wedgeHeightsCm.map(String));
+    const heights = wedgeHeightInputs.map((value) => Number(value.replace(',', '.')));
+    const errors = heights.map((height) => !Number.isFinite(height) || height <= 0);
+    if (errors.some(Boolean)) {
+      setWedgeHeightErrors((current) => errors.map((error, heightIndex) =>
+        heightIndex === index ? error : Boolean(current[heightIndex]),
+      ));
       return;
     }
-
-    const heights = vehicle.wedgeHeightsCm.map((current, heightIndex) =>
-      heightIndex === index ? height : current,
-    );
     heights.sort((a, b) => a - b);
     setVehicle((current) => ({ ...current, wedgeHeightsCm: heights }));
     setWedgeHeightInputs(heights.map(String));
+    setWedgeHeightErrors([]);
   };
 
   const addWedgeHeight = () => {
@@ -1057,6 +1070,7 @@ function App() {
     const heights = [...vehicle.wedgeHeightsCm, highest + 3].sort((a, b) => a - b);
     setVehicle((current) => ({ ...current, wedgeHeightsCm: heights }));
     setWedgeHeightInputs(heights.map(String));
+    setWedgeHeightErrors([]);
   };
 
   const saveMaximumHeight = () => {
@@ -1074,7 +1088,52 @@ function App() {
     if (vehicle.wedgeHeightsCm.length <= 1) return;
     const heights = vehicle.wedgeHeightsCm.filter((_, heightIndex) => heightIndex !== index);
     setVehicle((current) => ({ ...current, wedgeHeightsCm: heights }));
-    setWedgeHeightInputs(heights.map(String));
+    setWedgeHeightInputs((current) => current.filter((_, heightIndex) => heightIndex !== index));
+    setWedgeHeightErrors((current) => current.filter((_, heightIndex) => heightIndex !== index));
+  };
+
+  const confirmVehicle = () => {
+    const errors = {};
+    for (const dimension of Object.keys(vehicleDimensionLimits)) {
+      const { min, max } = vehicleDimensionLimits[dimension];
+      const value = vehicleInputs[dimension];
+      const number = Number(value);
+      if (!value.trim() || !Number.isFinite(number) || number < min || number > max) {
+        errors[dimension] = { min, max };
+      }
+    }
+    setVehicleInputErrors(errors);
+    if (Object.keys(errors).length) return;
+    setVehicle((current) => ({
+      ...current,
+      wheelbaseCm: Number(vehicleInputs.wheelbaseCm),
+      trackWidthCm: Number(vehicleInputs.trackWidthCm),
+    }));
+    setSetupConfirmed((current) => ({ ...current, vehicle: true }));
+  };
+
+  const confirmWedges = () => {
+    if (vehicle.levelingMode === 'height') {
+      const height = Number(maximumHeightInput.replace(',', '.'));
+      if (!Number.isFinite(height) || height <= 0) {
+        setMaximumHeightError(true);
+        return;
+      }
+      setVehicle((current) => ({ ...current, maximumHeightCm: height }));
+      setMaximumHeightInput(String(height));
+    } else {
+      const heights = wedgeHeightInputs.map((value) => Number(value.replace(',', '.')));
+      const errors = heights.map((height) => !Number.isFinite(height) || height <= 0);
+      setWedgeHeightErrors(errors);
+      if (errors.some(Boolean)) return;
+      heights.sort((a, b) => a - b);
+      setVehicle((current) => ({ ...current, wedgeHeightsCm: heights }));
+      setWedgeHeightInputs(heights.map(String));
+    }
+    setSetupConfirmed((current) => ({
+      ...current,
+      [vehicle.levelingMode === 'height' ? 'height' : 'wedges']: true,
+    }));
   };
 
   const selectSource = async (nextSource) => {
@@ -1342,7 +1401,7 @@ function App() {
 
         <div className="action-area">
           <button
-            className={`calibrate-button ${isHoldingCalibration ? 'is-holding' : ''} ${
+            className={`calibrate-button${needsCalibration ? ' needs-calibration' : ''} ${isHoldingCalibration ? 'is-holding' : ''} ${
               calibrationComplete ? 'is-complete' : ''
             }`}
             type="button"
@@ -1368,11 +1427,11 @@ function App() {
               }
             }}
             onContextMenu={(event) => event.preventDefault()}
-            aria-label={source === 'external'
+            aria-label={`${source === 'external'
               ? t('Hold for 3 seconds to calibrate the sensor on level ground')
               : t('Hold for 3 seconds to overwrite calibration slot {slot} on level ground', {
                   slot: activeSlotLabel,
-                })}
+                })}${needsCalibration ? ` · ${t('Calibration needed')}` : ''}`}
           >
             <span className="calibrate-icon" aria-hidden="true">
               {calibrationComplete ? '✓' : isHoldingCalibration ? '···' : '◎'}
@@ -1438,9 +1497,10 @@ function App() {
 
       <nav className="bottom-menu" aria-label={t('Configuration, help and feedback')}>
         <button
-          className={activeMenu === 'vehicle' ? 'menu-button selected' : 'menu-button'}
+          className={`menu-button${activeMenu === 'vehicle' ? ' selected' : ''}${!setupConfirmed.vehicle ? ' needs-setup' : ''}`}
           type="button"
           aria-haspopup="dialog"
+          aria-label={`${t('VEHICLE')}${!setupConfirmed.vehicle ? ` · ${t('Confirmation needed')}` : ''}`}
           onClick={() => setActiveMenu('vehicle')}
         >
           <span className="menu-icon" aria-hidden="true">
@@ -1455,9 +1515,10 @@ function App() {
         </button>
         <span className="menu-divider" />
         <button
-          className={activeMenu === 'wedges' ? 'menu-button selected' : 'menu-button'}
+          className={`menu-button${activeMenu === 'wedges' ? ' selected' : ''}${!wedgesConfirmed ? ' needs-setup' : ''}`}
           type="button"
           aria-haspopup="dialog"
+          aria-label={`${t('WEDGES')}${!wedgesConfirmed ? ` · ${t('Confirmation needed')}` : ''}`}
           onClick={() => setActiveMenu('wedges')}
         >
           <span className="menu-icon" aria-hidden="true">
@@ -1568,19 +1629,21 @@ function App() {
             {activeMenu !== 'feedback' && activeMenu !== 'help' && activeMenu !== 'offline' && (
               <div className="menu-tabs" role="tablist" aria-label={t('Configuration sections')}>
                 <button
-                  className={activeMenu === 'vehicle' ? 'menu-tab active' : 'menu-tab'}
+                  className={`menu-tab${activeMenu === 'vehicle' ? ' active' : ''}${!setupConfirmed.vehicle ? ' needs-setup' : ''}`}
                   type="button"
                   role="tab"
                   aria-selected={activeMenu === 'vehicle'}
+                  aria-label={`${t('VEHICLE')}${!setupConfirmed.vehicle ? ` · ${t('Confirmation needed')}` : ''}`}
                   onClick={() => setActiveMenu('vehicle')}
                 >
                   {t('VEHICLE')}
                 </button>
                 <button
-                  className={activeMenu === 'wedges' ? 'menu-tab active' : 'menu-tab'}
+                  className={`menu-tab${activeMenu === 'wedges' ? ' active' : ''}${!wedgesConfirmed ? ' needs-setup' : ''}`}
                   type="button"
                   role="tab"
                   aria-selected={activeMenu === 'wedges'}
+                  aria-label={`${t('WEDGES')}${!wedgesConfirmed ? ` · ${t('Confirmation needed')}` : ''}`}
                   onClick={() => setActiveMenu('wedges')}
                 >
                   {t('WEDGES')}
@@ -1655,6 +1718,11 @@ function App() {
                     )}
                   </label>
                 </div>
+                {!setupConfirmed.vehicle && (
+                  <button className="feedback-submit" type="button" onClick={confirmVehicle}>
+                    {t('CONFIRM VEHICLE DIMENSIONS')}
+                  </button>
+                )}
               </div>
             ) : activeMenu === 'wedges' ? (
               <div className="menu-content">
@@ -1666,10 +1734,12 @@ function App() {
                       role="switch"
                       aria-label={t('Height mode')}
                       checked={vehicle.levelingMode === 'height'}
-                      onChange={(event) => setVehicle((current) => ({
-                        ...current,
-                        levelingMode: event.target.checked ? 'height' : 'wedge',
-                      }))}
+                      onChange={(event) => {
+                        setVehicle((current) => ({
+                          ...current,
+                          levelingMode: event.target.checked ? 'height' : 'wedge',
+                        }));
+                      }}
                     />
                     <span className="level-mode-track" aria-hidden="true" />
                     <span>{t('HEIGHT')}</span>
@@ -1752,6 +1822,8 @@ function App() {
                               inputMode="decimal"
                               value={height}
                               aria-label={t('Height of step {step} in centimeters', { step: index + 1 })}
+                              aria-invalid={Boolean(wedgeHeightErrors[index])}
+                              aria-describedby={wedgeHeightErrors[index] ? `wedge-height-error-${index}` : undefined}
                               onChange={(event) => handleWedgeHeightChange(index, event.target.value)}
                               onBlur={() => saveWedgeHeight(index)}
                             />
@@ -1767,13 +1839,22 @@ function App() {
                                 <path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5" />
                               </svg>
                             </button>
+                            {wedgeHeightErrors[index] && (
+                              <small className="input-error wedge-height-error" id={`wedge-height-error-${index}`}>
+                                {t('Enter a height greater than 0 cm.')}
+                              </small>
+                            )}
                           </label>
                         ))}
                       </div>
                       <button
                         className="add-wedge"
                         type="button"
-                        disabled={vehicle.wedgeHeightsCm.length >= MAX_WEDGE_STEPS}
+                        disabled={vehicle.wedgeHeightsCm.length >= MAX_WEDGE_STEPS
+                          || wedgeHeightInputs.some((value) => {
+                            const height = Number(value.replace(',', '.'));
+                            return !Number.isFinite(height) || height <= 0;
+                          })}
                         onClick={addWedgeHeight}
                       >
                         {t('+ ADD STEP')}
@@ -1781,6 +1862,11 @@ function App() {
                     </>
                   )}
                 </div>
+                {!wedgesConfirmed && (
+                  <button className="feedback-submit" type="button" onClick={confirmWedges}>
+                    {t(vehicle.levelingMode === 'height' ? 'CONFIRM MAXIMUM HEIGHT' : 'CONFIRM WEDGE HEIGHTS')}
+                  </button>
+                )}
               </div>
             ) : activeMenu === 'calibration' ? (
               <div className="menu-content calibration-content">
@@ -1872,6 +1958,15 @@ function App() {
                         : 'Offline access is unavailable.')}
                   </p>
                   {!pwa.online && <p>{t('You are offline.')}</p>}
+                  {pwa.updateCheckResult && <p role="status">{t(pwa.updateCheckResult)}</p>}
+                  <button
+                    className="feedback-submit pwa-check-update"
+                    type="button"
+                    disabled={(!pwa.online && !pwa.updateAvailable) || pwa.checkingUpdate || pwa.updating}
+                    onClick={pwa.updateAvailable ? applyUpdate : checkForUpdates}
+                  >
+                    {t(pwa.updating ? 'UPDATING…' : pwa.checkingUpdate ? 'CHECKING…' : pwa.updateAvailable ? 'UPDATE' : 'CHECK FOR UPDATES')}
+                  </button>
                 </div>
                 {pwa.standalone ? null : pwa.installed ? (
                   <p>{t('Open KEILOMAT APP from your home screen.')}</p>
