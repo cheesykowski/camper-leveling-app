@@ -245,50 +245,29 @@ input:focus-visible {
   background: var(--line);
 }
 
-.simulator {
-  display: grid;
-  width: min(100%, 360px);
-  justify-items: center;
-  gap: 6px;
-  padding: 9px 14px 7px;
-  border: 1px solid rgb(91 153 109 / 24%);
-  background:
-    radial-gradient(ellipse at center, rgb(43 94 58 / 20%), transparent 68%),
-    #09110c;
-}
-
-.simulator-heading,
-.simulator-readout {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.simulator-heading {
-  flex-wrap: wrap;
-}
-
-.simulator-heading > span:last-child,
-.simulator-readout {
-  color: var(--dim);
-  font-size: 0.58rem;
-}
-
-.simulator-heading > span:last-child {
-  text-align: right;
-}
-
 .simulator-stage {
+  position: relative;
   display: grid;
-  width: 100%;
-  height: 164px;
+  width: 100px;
+  height: 80px;
   place-items: center;
   perspective: 540px;
   touch-action: none;
   cursor: grab;
   user-select: none;
+}
+
+.simulator-arrows {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--glow);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  opacity: 0.75;
+  pointer-events: none;
 }
 
 .simulator-stage:active {
@@ -307,8 +286,8 @@ input:focus-visible {
 
 .sim-box {
   position: relative;
-  width: 112px;
-  height: 76px;
+  width: 46px;
+  height: 31px;
   border: 1px solid #77df80;
   background: #173c26;
   box-shadow: inset 0 0 16px rgb(119 223 128 / 15%);
@@ -323,10 +302,10 @@ input:focus-visible {
 }
 
 .sim-box::before {
-  top: -25px;
+  top: -10px;
   left: 0;
   width: 100%;
-  height: 25px;
+  height: 10px;
   border: 1px solid #77df80;
   background: #204a2c;
   transform: rotateX(90deg);
@@ -335,8 +314,8 @@ input:focus-visible {
 
 .sim-box::after {
   top: 0;
-  right: -25px;
-  width: 25px;
+  right: -10px;
+  width: 10px;
   height: 100%;
   border: 1px solid #4d9b60;
   background: #102719;
@@ -354,6 +333,9 @@ input:focus-visible {
 
 .hero-heading {
   display: grid;
+  width: 100%;
+  min-height: 60px;
+  align-content: start;
   justify-items: center;
   gap: 5px;
   text-align: center;
@@ -421,6 +403,8 @@ input:focus-visible {
 .diagram-heading {
   z-index: 1;
   width: min(100% - 24px, 360px);
+  min-height: 89px;
+  align-items: flex-start;
   justify-content: space-between;
   padding-top: 9px;
   color: var(--dim);
@@ -1387,11 +1371,6 @@ input:focus-visible {
   .source-option {
     min-width: 0;
   }
-
-  .simulator {
-    padding-right: 10px;
-    padding-left: 10px;
-  }
 }
 
 @keyframes calibrate-progress {
@@ -1492,21 +1471,6 @@ input:focus-visible {
     font-size: 0.85rem;
   }
 
-  .simulator {
-    flex: 0 0 auto;
-    gap: 4px;
-    padding: 6px 8px 5px;
-  }
-
-  .simulator-heading > span:last-child,
-  .simulator-readout {
-    font-size: 0.52rem;
-  }
-
-  .simulator-stage {
-    height: clamp(72px, 13svh, 110px);
-  }
-
   .hero-panel {
     min-height: 0;
     flex: 1;
@@ -1515,6 +1479,7 @@ input:focus-visible {
   }
 
   .hero-heading {
+    min-height: 54px;
     gap: 3px;
   }
 
@@ -1535,6 +1500,7 @@ input:focus-visible {
   }
 
   .diagram-heading {
+    min-height: 84px;
     padding-top: 4px;
     font-size: 0.52rem;
   }

@@ -9,7 +9,7 @@ KEILOMAT is a mobile-first web app that helps level a parked camper van. It can 
 - Live pitch and roll readings from the browser's device-orientation API, when available
 - A three-second phone calibration that stores the trimmed mean of the captured pitch and roll samples
 - Separate calibration slots for the phone and external sensor sources
-- Interactive 3D tilt simulation, limited to ±30° on pitch and roll
+- Interactive 3D tilt simulation integrated into the top view, limited to ±30° on pitch and roll
 - Selection between simulation, the phone sensor, and the currently unavailable external sensor
 - Locally stored wheelbase, track width, and individually editable wedge heights, including decimal values
 - A recommendation for up to two wedges based on pitch, roll, wheelbase, and track width

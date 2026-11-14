@@ -10,7 +10,7 @@ Build an Android-friendly web app that measures the tilt of a parked camper and 
 
 - [x] React/Vite project with a responsive mobile interface
 - [x] Pitch and roll readings via `DeviceOrientationEvent`, when the browser provides sensor access
-- [x] Interactive 3D simulation controlled by mouse or touch; pitch and roll are limited to ±30°
+- [x] Interactive 3D simulation in the top view, controlled by mouse or touch; pitch and roll are limited to ±30°
 - [x] Selection between simulation, phone sensor, and an external sensor source that is not yet connected; unavailable data does not produce a leveling recommendation
 - [x] Independent calibration slots for the phone and external sensor sources
 - [x] Three-second phone calibration that stores a trimmed mean of captured pitch and roll samples

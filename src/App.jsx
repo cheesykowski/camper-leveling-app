@@ -717,6 +717,7 @@ function App() {
   };
 
   const selectSource = async (nextSource) => {
+    dragStart.current = null;
     setSourceMessage('');
     if (nextSource === 'simulation') {
       sourceSelectionLocked.current = true;
@@ -871,62 +872,6 @@ function App() {
           </div>
         </div>
 
-        {source === 'simulation' && (
-          <section className="simulator" aria-label="Simulate vehicle tilt">
-            <div className="simulator-heading">
-              <span className="eyebrow">3D SIMULATION</span>
-              <span>Drag: ↑↓ Pitch · ←→ Roll · max. ±{SIMULATION_MAX_TILT}°</span>
-            </div>
-            <div
-              className="simulator-stage"
-              role="application"
-              aria-label="Drag the box with a mouse or touch. Vertical movement controls pitch, horizontal movement controls roll. Arrow keys adjust tilt in one-degree steps."
-              onPointerDown={startSimulationDrag}
-              onPointerMove={updateSimulationDrag}
-              onPointerUp={stopSimulationDrag}
-              onPointerCancel={stopSimulationDrag}
-              onLostPointerCapture={stopSimulationDrag}
-              onKeyDown={(event) => {
-                const adjustments = {
-                  ArrowUp: { pitch: 1, roll: 0 },
-                  ArrowDown: { pitch: -1, roll: 0 },
-                  ArrowRight: { pitch: 0, roll: 1 },
-                  ArrowLeft: { pitch: 0, roll: -1 },
-                };
-                const adjustment = adjustments[event.key];
-                if (!adjustment) return;
-                event.preventDefault();
-                setSimulatedTilt((current) => ({
-                  pitch: clamp(
-                    current.pitch + adjustment.pitch,
-                    -SIMULATION_MAX_TILT,
-                    SIMULATION_MAX_TILT,
-                  ),
-                  roll: clamp(
-                    current.roll + adjustment.roll,
-                    -SIMULATION_MAX_TILT,
-                    SIMULATION_MAX_TILT,
-                  ),
-                }));
-              }}
-              tabIndex={0}
-            >
-              <div className="sim-view">
-                <div
-                  className="sim-box"
-                  style={{
-                    transform: `rotateX(${simulatedTilt.pitch}deg) rotateY(${simulatedTilt.roll}deg)`,
-                  }}
-                />
-              </div>
-            </div>
-            <div className="simulator-readout" aria-live="polite">
-              <span>Pitch {simulatedTilt.pitch.toFixed(1)}°</span>
-              <span>Roll {simulatedTilt.roll.toFixed(1)}°</span>
-            </div>
-          </section>
-        )}
-
         <section className="hero-panel" aria-label="Leveling recommendation">
           <div className="hero-heading">
             <h2 className={recommendation.axis === 'unavailable' ? 'sensor-unavailable' : ''}>
@@ -944,6 +889,57 @@ function App() {
           <div className="vehicle-diagram">
             <div className="diagram-heading">
               <span>TOP VIEW</span>
+              {source === 'simulation' && (
+                <div
+                  className="simulator-stage"
+                  role="application"
+                  aria-label={`Simulate vehicle tilt. Drag vertically for pitch and horizontally for roll, or use the arrow keys. Pitch ${simulatedTilt.pitch.toFixed(1)} degrees, roll ${simulatedTilt.roll.toFixed(1)} degrees. Maximum tilt ${SIMULATION_MAX_TILT} degrees.`}
+                  onPointerDown={startSimulationDrag}
+                  onPointerMove={updateSimulationDrag}
+                  onPointerUp={stopSimulationDrag}
+                  onPointerCancel={stopSimulationDrag}
+                  onLostPointerCapture={stopSimulationDrag}
+                  onKeyDown={(event) => {
+                    const adjustments = {
+                      ArrowUp: { pitch: 1, roll: 0 },
+                      ArrowDown: { pitch: -1, roll: 0 },
+                      ArrowRight: { pitch: 0, roll: 1 },
+                      ArrowLeft: { pitch: 0, roll: -1 },
+                    };
+                    const adjustment = adjustments[event.key];
+                    if (!adjustment) return;
+                    event.preventDefault();
+                    setSimulatedTilt((current) => ({
+                      pitch: clamp(
+                        current.pitch + adjustment.pitch,
+                        -SIMULATION_MAX_TILT,
+                        SIMULATION_MAX_TILT,
+                      ),
+                      roll: clamp(
+                        current.roll + adjustment.roll,
+                        -SIMULATION_MAX_TILT,
+                        SIMULATION_MAX_TILT,
+                      ),
+                    }));
+                  }}
+                  tabIndex={0}
+                >
+                  <svg className="simulator-arrows" viewBox="0 0 100 80" aria-hidden="true">
+                    <path d="M17 51C8 42 13 27 25 22M20 20l5 2-1 5" />
+                    <path d="M83 29c9 9 4 24-8 29m5 2-5-2 1-5" />
+                    <path d="M33 12c12-6 28-5 38 1m-5-5 5 5-6 2" />
+                    <path d="M67 68c-12 6-28 5-38-1m5 5-5-5 6-2" />
+                  </svg>
+                  <div className="sim-view" aria-hidden="true">
+                    <div
+                      className="sim-box"
+                      style={{
+                        transform: `rotateX(${simulatedTilt.pitch}deg) rotateY(${simulatedTilt.roll}deg)`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
             <VehicleDiagram
               className="vehicle-svg"
