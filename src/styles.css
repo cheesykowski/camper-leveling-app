@@ -137,18 +137,6 @@ select:focus-visible {
   margin-bottom: 4px;
 }
 
-.language-select {
-  min-height: 24px;
-  padding: 2px;
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  background: var(--panel);
-  color: var(--bright);
-  cursor: pointer;
-  font-size: 0.58rem;
-  font-weight: 700;
-}
-
 .source-picker {
   position: relative;
   display: grid;
@@ -731,11 +719,11 @@ select:focus-visible {
   font-weight: 400;
 }
 
-.calibration-sensor-dropdown {
+.app-dropdown {
   position: relative;
 }
 
-.calibration-sensor-dropdown summary {
+.app-dropdown summary {
   display: flex;
   min-width: 0;
   min-height: 40px;
@@ -751,11 +739,11 @@ select:focus-visible {
   list-style: none;
 }
 
-.calibration-sensor-dropdown summary::-webkit-details-marker {
+.app-dropdown summary::-webkit-details-marker {
   display: none;
 }
 
-.calibration-sensor-dropdown summary::after {
+.app-dropdown summary::after {
   width: 7px;
   height: 7px;
   border-right: 1px solid var(--glow);
@@ -764,12 +752,12 @@ select:focus-visible {
   transform: rotate(45deg) translateY(-2px);
 }
 
-.calibration-sensor-dropdown summary:focus-visible {
+.app-dropdown summary:focus-visible {
   outline: 2px solid var(--glow);
   outline-offset: 3px;
 }
 
-.calibration-sensor-options {
+.app-dropdown-options {
   position: absolute;
   z-index: 2;
   right: 0;
@@ -780,7 +768,7 @@ select:focus-visible {
   box-shadow: 0 8px 20px rgb(0 0 0 / 50%);
 }
 
-.calibration-sensor-options button {
+.app-dropdown-options button {
   display: block;
   width: 100%;
   min-height: 40px;
@@ -793,11 +781,33 @@ select:focus-visible {
   text-align: left;
 }
 
-.calibration-sensor-options button[aria-pressed="true"],
-.calibration-sensor-options button:hover {
+.app-dropdown-options button[aria-pressed="true"],
+.app-dropdown-options button:hover {
   border-color: rgb(167 255 117 / 30%);
   background: #122218;
   color: var(--glow);
+}
+
+.language-select summary {
+  min-height: 24px;
+  gap: 5px;
+  padding: 2px 4px;
+  border-color: var(--line);
+  border-radius: 2px;
+  background: var(--panel);
+  font-size: 0.58rem;
+  font-weight: 700;
+}
+
+.language-select summary::after {
+  width: 5px;
+  height: 5px;
+}
+
+.language-select .app-dropdown-options {
+  right: 0;
+  left: auto;
+  min-width: 60px;
 }
 
 .calibration-slot-settings {
@@ -1208,7 +1218,6 @@ select:focus-visible {
 }
 
 .feedback-field input,
-.feedback-field select,
 .feedback-field textarea {
   width: 100%;
   min-height: 44px;
@@ -1220,8 +1229,9 @@ select:focus-visible {
   font: inherit;
 }
 
-.feedback-field select {
-  color-scheme: dark;
+.feedback-field .app-dropdown summary {
+  min-height: 44px;
+  font: inherit;
 }
 
 .feedback-field textarea {
@@ -1236,7 +1246,6 @@ select:focus-visible {
 }
 
 .feedback-field input:focus-visible,
-.feedback-field select:focus-visible,
 .feedback-field textarea:focus-visible,
 .feedback-consent input:focus-visible {
   outline: 2px solid var(--glow);

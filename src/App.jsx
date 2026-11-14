@@ -340,6 +340,54 @@ function HelpContent({ t, source }) {
   );
 }
 
+function AppDropdown({ label, value, options, onChange, placeholder, className = '', summaryRef, invalid, describedBy }) {
+  const selected = options.find((option) => option.value === value);
+  const selectedLabel = selected?.label ?? placeholder;
+
+  return (
+    <details
+      className={`app-dropdown ${className}`}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && event.currentTarget.open) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.currentTarget.open = false;
+          event.currentTarget.querySelector('summary').focus();
+        }
+      }}
+    >
+      <summary
+        ref={summaryRef}
+        aria-label={`${label}: ${selectedLabel}`}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
+      >
+        {selectedLabel}
+      </summary>
+      <div className="app-dropdown-options" role="group" aria-label={label}>
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={value === option.value}
+            onClick={(event) => {
+              const dropdown = event.currentTarget.closest('details');
+              onChange(option.value);
+              dropdown.open = false;
+              dropdown.querySelector('summary').focus();
+            }}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </details>
+  );
+}
+
 function FeedbackForm({ endpoint, t }) {
   const [feedback, setFeedback] = useState({
     name: '',
@@ -350,6 +398,9 @@ function FeedbackForm({ endpoint, t }) {
   });
   const [status, setStatus] = useState({ type: 'idle', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [categoryError, setCategoryError] = useState(false);
+  const categoryRef = useRef(null);
+  const categoryErrorId = useId();
 
   const handleChange = (event) => {
     const { name, type, value, checked } = event.target;
@@ -363,6 +414,11 @@ function FeedbackForm({ endpoint, t }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!endpoint) return;
+    if (!feedback.category) {
+      setCategoryError(true);
+      categoryRef.current.focus();
+      return;
+    }
 
     const formData = new FormData(event.currentTarget);
     setIsSubmitting(true);
@@ -427,31 +483,52 @@ function FeedbackForm({ endpoint, t }) {
         />
       </label>
       <div className="feedback-meta-fields">
-        <label className="feedback-field">
+        <div className="feedback-field">
           <span>{t('Category')}</span>
-          <select name="category" required value={feedback.category} onChange={handleChange}>
-            <option value="" disabled>
-              {t('Choose one')}
-            </option>
-            <option value="bug">{t('Something did not work')}</option>
-            <option value="usability">{t('Something was unclear')}</option>
-            <option value="idea">{t('I have an idea')}</option>
-            <option value="other">{t('Other feedback')}</option>
-          </select>
-        </label>
-        <label className="feedback-field">
+          <input type="hidden" name="category" value={feedback.category} />
+          <AppDropdown
+            label={t('Category')}
+            value={feedback.category}
+            placeholder={t('Choose one')}
+            options={[
+              { value: 'bug', label: t('Something did not work') },
+              { value: 'usability', label: t('Something was unclear') },
+              { value: 'idea', label: t('I have an idea') },
+              { value: 'other', label: t('Other feedback') },
+            ]}
+            summaryRef={categoryRef}
+            invalid={categoryError}
+            describedBy={categoryError ? categoryErrorId : undefined}
+            onChange={(value) => {
+              setFeedback((current) => ({ ...current, category: value }));
+              setCategoryError(false);
+              setStatus({ type: 'idle', message: '' });
+            }}
+          />
+          {categoryError && <small className="input-error" id={categoryErrorId} role="alert">{t('Choose a category.')}</small>}
+        </div>
+        <div className="feedback-field">
           <span>
             {t('Device')} <small>{t('OPTIONAL')}</small>
           </span>
-          <select name="device" value={feedback.device} onChange={handleChange}>
-            <option value="">{t('Choose one')}</option>
-            <option value="smartphone">{t('Smartphone')}</option>
-            <option value="tablet">{t('Tablet')}</option>
-            <option value="laptop">{t('Laptop')}</option>
-            <option value="desktop">{t('Desktop computer')}</option>
-            <option value="other">{t('Other / not listed')}</option>
-          </select>
-        </label>
+          <input type="hidden" name="device" value={feedback.device} />
+          <AppDropdown
+            label={t('Device')}
+            value={feedback.device}
+            options={[
+              { value: '', label: t('Choose one') },
+              { value: 'smartphone', label: t('Smartphone') },
+              { value: 'tablet', label: t('Tablet') },
+              { value: 'laptop', label: t('Laptop') },
+              { value: 'desktop', label: t('Desktop computer') },
+              { value: 'other', label: t('Other / not listed') },
+            ]}
+            onChange={(value) => {
+              setFeedback((current) => ({ ...current, device: value }));
+              setStatus({ type: 'idle', message: '' });
+            }}
+          />
+        </div>
       </div>
       <label className="feedback-field">
         <span>{t('What would you like to share?')}</span>
@@ -1024,16 +1101,13 @@ function App() {
           <div>
             <div className="brand-meta">
               <p className="eyebrow">{t('FIELD UNIT · 01')}</p>
-              <select
+              <AppDropdown
                 className="language-select"
-                aria-label={t('Language')}
-                title={t('Language')}
+                label={t('Language')}
                 value={language}
-                onChange={(event) => setLanguage(normalizeLanguage(event.target.value))}
-              >
-                <option value="en">EN</option>
-                <option value="de">DE</option>
-              </select>
+                options={[{ value: 'en', label: 'EN' }, { value: 'de', label: 'DE' }]}
+                onChange={(value) => setLanguage(normalizeLanguage(value))}
+              />
             </div>
             <h1>KEIL<span>OMAT</span></h1>
           </div>
@@ -1558,46 +1632,15 @@ function App() {
                 <div className="settings-card calibration-settings-card">
                   <div className="calibration-sensor">
                     <span>{t('Sensor')}</span>
-                    <details
-                      className="calibration-sensor-dropdown"
-                      onBlur={(event) => {
-                        if (!event.currentTarget.contains(event.relatedTarget)) {
-                          event.currentTarget.open = false;
-                        }
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Escape' && event.currentTarget.open) {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          event.currentTarget.open = false;
-                          event.currentTarget.querySelector('summary').focus();
-                        }
-                      }}
-                    >
-                      <summary aria-label={`${t('Sensor')}: ${t(calibrationSourceLabels[calibrationSettingsSource])}`}>
-                        {t(calibrationSourceLabels[calibrationSettingsSource])}
-                      </summary>
-                      <div className="calibration-sensor-options" role="group" aria-label={t('Sensor')}>
-                        {[
-                          { id: 'simulation', label: 'Simulation' },
-                          { id: 'phone', label: 'Phone sensor' },
-                        ].map((sensor) => (
-                          <button
-                            key={sensor.id}
-                            type="button"
-                            aria-pressed={calibrationSettingsSource === sensor.id}
-                            onClick={(event) => {
-                              setCalibrationSettingsSource(sensor.id);
-                              const dropdown = event.currentTarget.closest('details');
-                              dropdown.open = false;
-                              dropdown.querySelector('summary').focus();
-                            }}
-                          >
-                            {t(sensor.label)}
-                          </button>
-                        ))}
-                      </div>
-                    </details>
+                    <AppDropdown
+                      label={t('Sensor')}
+                      value={calibrationSettingsSource}
+                      options={[
+                        { value: 'simulation', label: t('Simulation') },
+                        { value: 'phone', label: t('Phone sensor') },
+                      ]}
+                      onChange={setCalibrationSettingsSource}
+                    />
                   </div>
                   <div className="calibration-slot-settings">
                     {calibrationSlots[calibrationSettingsSource].map((slot, index) => {

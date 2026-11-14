@@ -136,6 +136,7 @@ const german = {
   'Leave this empty': 'Dieses Feld leer lassen',
   'Your name': 'Dein Name',
   'Category': 'Kategorie',
+  'Choose a category.': 'Bitte eine Kategorie auswählen.',
   'Choose one': 'Bitte auswählen',
   'Something did not work': 'Etwas hat nicht funktioniert',
   'Something was unclear': 'Etwas war unklar',
