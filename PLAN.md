@@ -25,6 +25,7 @@ Build an Android-friendly web app that measures the tilt of a parked camper and 
 - [x] Dashboard with vehicle/wedge settings and a three-second calibration hold
 - [x] Wedge heights can be edited, added, and removed individually
 - [x] Feedback dialog with optional name, category, free text, consent, and configured Formspree endpoint
+- [x] English and German language selection, stored locally without changing existing calibration and vehicle settings
 - [x] GitHub Pages workflow and Vite base path configured
 - [ ] Verify browser permissions and real sensor orientation on the target Android device
 - [ ] Configure Formspree email notifications and test a submission and private storage
@@ -67,6 +68,7 @@ Integration requires the Arduino project or BLE protocol, device details, servic
 
 - **Frontend:** React and Vite.
 - **Persistence:** Browser `localStorage`; data is specific to the browser and device.
+- **Language:** English by default; German can be selected in the header and is saved locally.
 - **Initial sensor:** Phone orientation through the web `DeviceOrientationEvent` API.
 - **Target platform:** Android browser. Sensor and BLE support varies by browser; the BLE protocol is not yet defined.
 - **Vehicle values:** Example values until actual measurements are available.

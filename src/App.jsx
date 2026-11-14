@@ -11,6 +11,7 @@ import {
   replaceCalibrationSlotOffsets,
 } from './calibration.js';
 import { calculateTwoWedgePlan, wheelCorners } from './leveling.js';
+import { normalizeLanguage, translate } from './i18n.js';
 
 const STORAGE_KEY = 'camper-leveling-demo-v1';
 const SIMULATION_MAX_TILT = 30;
@@ -55,7 +56,7 @@ const getVehicleWheelPositions = ({ wheelbaseCm, trackWidthCm }) => {
   }));
 };
 
-function VehicleDiagram({ className, vehicle, recommendation, showMeasurements = false }) {
+function VehicleDiagram({ className, vehicle, recommendation, t, showMeasurements = false }) {
   const id = useId();
   const wheels = getVehicleWheelPositions(vehicle);
   const frontAxleY = wheels[0].y + 24;
@@ -70,10 +71,13 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
       role="img"
       aria-labelledby={`${id}-title ${id}-description`}
     >
-      <title id={`${id}-title`}>Vehicle top view and wheel positions</title>
+      <title id={`${id}-title`}>{t('Vehicle top view and wheel positions')}</title>
       <desc id={`${id}-description`}>
         {showMeasurements
-          ? `Wheelbase ${vehicle.wheelbaseCm} centimeters and track width ${vehicle.trackWidthCm} centimeters.`
+          ? t('Wheelbase {wheelbase} centimeters and track width {trackWidth} centimeters.', {
+              wheelbase: vehicle.wheelbaseCm,
+              trackWidth: vehicle.trackWidthCm,
+            })
           : recommendation?.description}
       </desc>
 
@@ -82,10 +86,10 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
       <path className="vehicle-roof" d="M133 147 Q180 136 227 147 L227 272 Q180 284 133 272 Z" />
       <path className="vehicle-glass" d="M138 289 Q180 278 222 289 L230 337 Q180 360 130 337 Z" />
       <text className="diagram-axle-label" x="180" y="20" textAnchor="middle">
-        FRONT ↑
+        {t('FRONT ↑')}
       </text>
       <text className="diagram-axle-label" x="180" y="413" textAnchor="middle">
-        REAR ↓
+        {t('REAR ↓')}
       </text>
 
       {wheels.map((wheel) => {
@@ -101,10 +105,14 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
           <g key={wheel.id} className={active ? 'diagram-wheel active' : 'diagram-wheel'}>
             <title>
               {active
-                ? `${wheel.label}: step ${placement.step}${
-                    placement.wedgeCapacityExceeded ? ', required lift exceeds wedge capacity' : ''
-                  }`
-                : `${wheel.label}: no wedge recommended`}
+                ? t('{wheel}: step {step}{warning}', {
+                    wheel: t(wheel.label),
+                    step: placement.step,
+                    warning: placement.wedgeCapacityExceeded
+                      ? t(', required lift exceeds wedge capacity')
+                      : '',
+                  })
+                : t('{wheel}: no wedge recommended', { wheel: t(wheel.label) })}
             </title>
             <rect className="diagram-tire" x={wheel.x} y={wheel.y} width="34" height="48" rx="10" />
             {active && (
@@ -127,7 +135,7 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
                   y={wheel.y + 28}
                   textAnchor="middle"
                 >
-                  STEP {placement.step}
+                  {t('STEP {step}', { step: placement.step })}
                 </text>
               </>
             )}
@@ -156,7 +164,7 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
             y="459"
             textAnchor="middle"
           >
-            TRACK WIDTH
+            {t('TRACK WIDTH')}
           </text>
           <line
             className="vehicle-dimension"
@@ -176,7 +184,7 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
             textAnchor="middle"
             transform={`rotate(-90 22 ${(frontAxleY + rearAxleY) / 2})`}
           >
-            WHEELBASE
+            {t('WHEELBASE')}
           </text>
         </g>
       )}
@@ -185,7 +193,7 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
   );
 }
 
-function FeedbackForm({ endpoint }) {
+function FeedbackForm({ endpoint, t }) {
   const [feedback, setFeedback] = useState({
     name: '',
     category: '',
@@ -223,7 +231,8 @@ function FeedbackForm({ endpoint }) {
       if (!response.ok) {
         setStatus({
           type: 'error',
-          message: `Feedback could not be sent (HTTP ${response.status}). Please try again later.`,
+          message: 'Feedback could not be sent (HTTP {status}). Please try again later.',
+          values: { status: response.status },
         });
         return;
       }
@@ -244,8 +253,8 @@ function FeedbackForm({ endpoint }) {
   if (!endpoint) {
     return (
       <div className="feedback-unconfigured" role="status">
-        <span className="eyebrow">FORM NOT CONNECTED</span>
-        <p>Feedback is not available yet. Please try again later.</p>
+        <span className="eyebrow">{t('FORM NOT CONNECTED')}</span>
+        <p>{t('Feedback is not available yet. Please try again later.')}</p>
       </div>
     );
   }
@@ -254,12 +263,12 @@ function FeedbackForm({ endpoint }) {
     <form className="feedback-form" onSubmit={handleSubmit}>
       <input type="hidden" name="_subject" value="KEILOMAT friend beta feedback" />
       <label className="feedback-honeypot" aria-hidden="true">
-        Leave this empty
+        {t('Leave this empty')}
         <input name="_gotcha" type="text" tabIndex="-1" autoComplete="off" />
       </label>
       <label className="feedback-field">
         <span>
-          Your name <small>OPTIONAL</small>
+          {t('Your name')} <small>{t('OPTIONAL')}</small>
         </span>
         <input
           name="name"
@@ -272,33 +281,33 @@ function FeedbackForm({ endpoint }) {
       </label>
       <div className="feedback-meta-fields">
         <label className="feedback-field">
-          <span>Category</span>
+          <span>{t('Category')}</span>
           <select name="category" required value={feedback.category} onChange={handleChange}>
             <option value="" disabled>
-              Choose one
+              {t('Choose one')}
             </option>
-            <option value="bug">Something did not work</option>
-            <option value="usability">Something was unclear</option>
-            <option value="idea">I have an idea</option>
-            <option value="other">Other feedback</option>
+            <option value="bug">{t('Something did not work')}</option>
+            <option value="usability">{t('Something was unclear')}</option>
+            <option value="idea">{t('I have an idea')}</option>
+            <option value="other">{t('Other feedback')}</option>
           </select>
         </label>
         <label className="feedback-field">
           <span>
-            Device <small>OPTIONAL</small>
+            {t('Device')} <small>{t('OPTIONAL')}</small>
           </span>
           <select name="device" value={feedback.device} onChange={handleChange}>
-            <option value="">Choose one</option>
-            <option value="smartphone">Smartphone</option>
-            <option value="tablet">Tablet</option>
-            <option value="laptop">Laptop</option>
-            <option value="desktop">Desktop computer</option>
-            <option value="other">Other / not listed</option>
+            <option value="">{t('Choose one')}</option>
+            <option value="smartphone">{t('Smartphone')}</option>
+            <option value="tablet">{t('Tablet')}</option>
+            <option value="laptop">{t('Laptop')}</option>
+            <option value="desktop">{t('Desktop computer')}</option>
+            <option value="other">{t('Other / not listed')}</option>
           </select>
         </label>
       </div>
       <label className="feedback-field">
-        <span>What would you like to share?</span>
+        <span>{t('What would you like to share?')}</span>
         <textarea
           name="message"
           required
@@ -306,7 +315,7 @@ function FeedbackForm({ endpoint }) {
           rows={5}
           value={feedback.message}
           onChange={handleChange}
-          placeholder="What were you trying to do? What felt unclear or could be better?"
+          placeholder={t('What were you trying to do? What felt unclear or could be better?')}
         />
         <small className="feedback-count">{feedback.message.length}/3000</small>
       </label>
@@ -320,9 +329,7 @@ function FeedbackForm({ endpoint }) {
           onChange={handleChange}
         />
         <span>
-          I agree to send this feedback to the app owner by email and store it in their Formspree
-          account. Only anonymized, reviewed takeaways may be added to the public repository. Please
-          do not include sensitive personal information.
+          {t('I agree to send this feedback to the app owner by email and store it in their Formspree account. Only anonymized, reviewed takeaways may be added to the public repository. Please do not include sensitive personal information.')}
         </span>
       </label>
       {status.message && (
@@ -330,11 +337,11 @@ function FeedbackForm({ endpoint }) {
           className={`feedback-status ${status.type}`}
           role={status.type === 'error' ? 'alert' : 'status'}
         >
-          {status.message}
+          {t(status.message, status.values)}
         </p>
       )}
       <button className="feedback-submit" type="submit" disabled={isSubmitting}>
-        {isSubmitting ? 'SENDING…' : 'SEND FEEDBACK'}
+        {t(isSubmitting ? 'SENDING…' : 'SEND FEEDBACK')}
       </button>
     </form>
   );
@@ -345,6 +352,7 @@ function App() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
       return {
+        language: 'en',
         calibrationSlots: defaultCalibrationSlots,
         calibrationSlotIds: defaultCalibrationSlotIds,
         vehicle: defaultVehicle,
@@ -384,6 +392,7 @@ function App() {
         parsed.calibrationProfileIds,
       );
       return {
+        language: normalizeLanguage(parsed.language),
         calibrationSlots,
         calibrationSlotIds: normalizeCalibrationSlotIds(parsed.calibrationSlotIds),
         vehicle: {
@@ -396,6 +405,7 @@ function App() {
       };
     } catch {
       return {
+        language: 'en',
         calibrationSlots: defaultCalibrationSlots,
         calibrationSlotIds: defaultCalibrationSlotIds,
         vehicle: defaultVehicle,
@@ -403,6 +413,8 @@ function App() {
     }
   }, []);
 
+  const [language, setLanguage] = useState(loadedState.language);
+  const t = useMemo(() => (message, values) => translate(language, message, values), [language]);
   const [calibrationSlots, setCalibrationSlots] = useState(
     loadedState.calibrationSlots,
   );
@@ -446,15 +458,20 @@ function App() {
   }, [simulatedTilt]);
 
   useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
+
+  useEffect(() => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
+        language,
         calibrationSlots,
         calibrationSlotIds,
         vehicle,
       }),
     );
-  }, [calibrationSlots, calibrationSlotIds, vehicle]);
+  }, [language, calibrationSlots, calibrationSlotIds, vehicle]);
 
   useEffect(() => {
     const hasSensorAPI = 'DeviceOrientationEvent' in window;
@@ -560,11 +577,11 @@ function App() {
     if (currentPitch === null || currentRoll === null) {
       return {
         axis: 'unavailable',
-        title: source === 'external' ? 'External sensor unavailable' : 'No sensor signal',
+        title: t(source === 'external' ? 'External sensor unavailable' : 'No sensor signal'),
         description:
           source === 'external'
-            ? 'The external Bluetooth connection is not available yet.'
-            : 'Choose simulation or wait for a signal from the phone sensor.',
+            ? t('The external Bluetooth connection is not available yet.')
+            : t('Choose simulation or wait for a signal from the phone sensor.'),
         wedgePlacements: [],
       };
     }
@@ -575,8 +592,8 @@ function App() {
     if (pitchAbs < 0.2 && rollAbs < 0.2) {
       return {
         axis: 'level',
-        title: 'Vehicle is level',
-        description: 'The app is within the target tolerance. No wedge adjustment needed right now.',
+        title: t('Vehicle is level'),
+        description: t('The app is within the target tolerance. No wedge adjustment needed right now.'),
         wedgePlacements: [],
       };
     }
@@ -590,12 +607,12 @@ function App() {
     });
     const title =
       plan.dominantAxis === 'pitch'
-        ? `${plan.highAxle === 'front' ? 'Front' : 'Rear'} is high`
-        : `${plan.highSide === 'left' ? 'Left' : 'Right'} side is high`;
+        ? t(plan.highAxle === 'front' ? 'Front is high' : 'Rear is high')
+        : t(plan.highSide === 'left' ? 'Left side is high' : 'Right side is high');
     const placementSummary = plan.wedgePlacements
       .map(({ label, step, wedgeCapacityExceeded }) =>
-        `${label}: ${step > 0 ? `step ${step}` : 'no wedge'}${
-          wedgeCapacityExceeded ? ', required lift exceeds wedge capacity' : ''
+        `${t(label)}: ${step > 0 ? t('step {step}', { step }) : t('no wedge')}${
+          wedgeCapacityExceeded ? t(', required lift exceeds wedge capacity') : ''
         }`,
       )
       .join(' · ');
@@ -603,10 +620,13 @@ function App() {
     return {
       axis: plan.dominantAxis,
       title,
-      description: `${plan.dominantAxis === 'pitch' ? 'Pitch' : 'Roll'} dominant · ${placementSummary}`,
+      description: t('{axis} dominant · {placements}', {
+        axis: t(plan.dominantAxis === 'pitch' ? 'Pitch' : 'Roll'),
+        placements: placementSummary,
+      }),
       ...plan,
     };
-  }, [currentPitch, currentRoll, source, vehicle]);
+  }, [currentPitch, currentRoll, source, vehicle, t]);
 
   const startCalibrationHold = () => {
     if (
@@ -677,10 +697,13 @@ function App() {
   const noCalibratedSlots = !calibrationSlots[calibrationSlotSource].some(
     (slot) => slot.pitch !== null && slot.roll !== null,
   );
+  const localizedSourceMessage = sourceMessage.startsWith('Sensor access failed: ')
+    ? t('Sensor access failed: {error}', { error: sourceMessage.slice('Sensor access failed: '.length) })
+    : sourceMessage ? t(sourceMessage) : '';
   const additionalInfo = [
-    recommendation.axis === 'unavailable' ? sourceMessage || recommendation.description : '',
-    recommendation.wedgeCapacityExceeded ? 'Required lift exceeds wedge capacity.' : '',
-    noCalibratedSlots ? 'No calibration slot has been set.' : '',
+    recommendation.axis === 'unavailable' ? localizedSourceMessage || recommendation.description : '',
+    recommendation.wedgeCapacityExceeded ? t('Required lift exceeds wedge capacity.') : '',
+    noCalibratedSlots ? t('No calibration slot has been set.') : '',
   ].filter(Boolean).join(' ') || (recommendation.axis === 'level' ? recommendation.description : '');
   const wedgeIllustrationHeights = [
     sortedWedgeHeights[sortedWedgeHeights.length - 1],
@@ -711,7 +734,7 @@ function App() {
     ) {
       setVehicleInputErrors((current) => ({
         ...current,
-        [dimension]: `Enter a value between ${min} and ${max} cm.`,
+        [dimension]: { min, max },
       }));
       return;
     }
@@ -848,11 +871,23 @@ function App() {
       <header className="topbar">
         <div className="brand">
           <div>
-            <p className="eyebrow">FIELD UNIT · 01</p>
+            <div className="brand-meta">
+              <p className="eyebrow">{t('FIELD UNIT · 01')}</p>
+              <select
+                className="language-select"
+                aria-label={t('Language')}
+                title={t('Language')}
+                value={language}
+                onChange={(event) => setLanguage(normalizeLanguage(event.target.value))}
+              >
+                <option value="en">EN</option>
+                <option value="de">DE</option>
+              </select>
+            </div>
             <h1>KEIL<span>OMAT</span></h1>
           </div>
         </div>
-        <div className="source-picker" role="group" aria-label="Select data source">
+        <div className="source-picker" role="group" aria-label={t('Select data source')}>
           {[
             { id: 'simulation', icon: '◇', label: 'SIMULATION', available: true },
             {
@@ -869,7 +904,7 @@ function App() {
               }`}
               type="button"
               aria-pressed={source === option.id}
-              aria-label={`${option.label}: ${option.available ? 'available' : 'unavailable'}`}
+              aria-label={`${t(option.label)}: ${t(option.available ? 'available' : 'unavailable')}`}
               onClick={() => selectSource(option.id)}
             >
               <span className="source-icon" aria-hidden="true">
@@ -886,9 +921,9 @@ function App() {
                   option.icon
                 )}
               </span>
-              <span>{option.label}</span>
+              <span>{t(option.label)}</span>
               <span className="source-availability">
-                {option.available ? (option.id === 'phone' ? 'LIVE' : 'READY') : 'OFFLINE'}
+                {t(option.available ? (option.id === 'phone' ? 'LIVE' : 'READY') : 'OFFLINE')}
               </span>
             </button>
           ))}
@@ -898,7 +933,7 @@ function App() {
       <main className="main-screen">
         <div className="telemetry">
           <div className="telemetry-item">
-            <span className="eyebrow">PITCH</span>
+            <span className="eyebrow">{t('PITCH')}</span>
             <strong>
               {currentPitch === null ? '—' : currentPitch.toFixed(1)}
               {currentPitch !== null && <small>°</small>}
@@ -906,7 +941,7 @@ function App() {
           </div>
           <span className="telemetry-divider" />
           <div className="telemetry-item">
-            <span className="eyebrow">ROLL</span>
+            <span className="eyebrow">{t('ROLL')}</span>
             <strong>
               {currentRoll === null ? '—' : currentRoll.toFixed(1)}
               {currentRoll !== null && <small>°</small>}
@@ -914,7 +949,7 @@ function App() {
           </div>
         </div>
 
-        <section className="hero-panel" aria-label="Leveling recommendation">
+        <section className="hero-panel" aria-label={t('Leveling recommendation')}>
           <div className="hero-heading">
             <h2 className={recommendation.axis === 'unavailable' ? 'sensor-unavailable' : ''}>
               {recommendation.title}
@@ -928,12 +963,16 @@ function App() {
 
           <div className="vehicle-diagram">
             <div className="diagram-heading">
-              <span>TOP VIEW</span>
+              <span>{t('TOP VIEW')}</span>
               {source === 'simulation' && (
                 <div
                   className={`simulator-stage${vehicle.wheelbaseCm > 300 ? ' long-wheelbase' : ''}`}
                   role="application"
-                  aria-label={`Simulate vehicle tilt. Drag vertically for pitch and horizontally for roll, or use the arrow keys. Calibrated pitch ${currentPitch.toFixed(1)} degrees, roll ${currentRoll.toFixed(1)} degrees. Simulated sensor range is ±${SIMULATION_MAX_TILT} degrees.`}
+                  aria-label={t('Simulate vehicle tilt. Drag vertically for pitch and horizontally for roll, or use the arrow keys. Calibrated pitch {pitch} degrees, roll {roll} degrees. Simulated sensor range is ±{max} degrees.', {
+                    pitch: currentPitch.toFixed(1),
+                    roll: currentRoll.toFixed(1),
+                    max: SIMULATION_MAX_TILT,
+                  })}
                   onPointerDown={startSimulationDrag}
                   onPointerMove={updateSimulationDrag}
                   onPointerUp={stopSimulationDrag}
@@ -985,6 +1024,7 @@ function App() {
               className="vehicle-svg"
               vehicle={vehicle}
               recommendation={recommendation}
+              t={t}
             />
           </div>
 
@@ -1018,29 +1058,33 @@ function App() {
               }
             }}
             onContextMenu={(event) => event.preventDefault()}
-            aria-label={`Hold for 3 seconds to overwrite calibration slot ${activeSlotLabel} on level ground`}
+            aria-label={t('Hold for 3 seconds to overwrite calibration slot {slot} on level ground', {
+              slot: activeSlotLabel,
+            })}
           >
             <span className="calibrate-icon" aria-hidden="true">
               {calibrationComplete ? '✓' : isHoldingCalibration ? '···' : '◎'}
             </span>
             <span>
               {calibrationComplete
-                ? 'SLOT UPDATED'
+                ? t('SLOT UPDATED')
                 : isHoldingCalibration
-                  ? 'KEEP HOLDING'
-                  : `HOLD TO SET SLOT ${activeSlotLabel}`}
+                  ? t('KEEP HOLDING')
+                  : t('HOLD TO SET SLOT {slot}', { slot: activeSlotLabel })}
             </span>
-            {!calibrationComplete && <span className="hold-duration">3 SEC</span>}
+            {!calibrationComplete && <span className="hold-duration">{t('3 SEC')}</span>}
           </button>
           <div
             className="quick-calibrations"
             role="group"
-            aria-label={`Select ${calibrationSlotSource} calibration slot`}
+            aria-label={t('Select {source} calibration slot', {
+              source: t(calibrationSourceLabels[calibrationSlotSource]),
+            })}
           >
             {calibrationSlots[calibrationSlotSource].map((slot, index) => {
               const isSelected = slot.id === activeSlotId;
               const isCalibrated = slot.pitch !== null && slot.roll !== null;
-              const label = slot.name.trim() || `SLOT ${index + 1}`;
+              const label = slot.name.trim() || t('SLOT {slot}', { slot: index + 1 });
 
               return (
                 <button
@@ -1050,11 +1094,11 @@ function App() {
                   key={slot.id}
                   type="button"
                   aria-label={`${label}, ${
-                    isCalibrated ? 'calibrated' : 'not calibrated'
-                  }${isSelected ? ', selected' : ''}`}
+                    t(isCalibrated ? 'calibrated' : 'not calibrated')
+                  }${isSelected ? t(', selected') : ''}`}
                   aria-pressed={isSelected}
                   title={`${label} · ${
-                    isCalibrated ? 'Calibrated' : 'Not calibrated'
+                    t(isCalibrated ? 'Calibrated' : 'Not calibrated')
                   }`}
                   onClick={() => {
                     cancelCalibrationHold();
@@ -1067,7 +1111,7 @@ function App() {
                 >
                   <span className="quick-calibration-name">{label}</span>
                   <span className="quick-calibration-status">
-                    {isCalibrated ? 'CALIBRATED' : 'NOT CALIBRATED'}
+                    {t(isCalibrated ? 'CALIBRATED' : 'NOT CALIBRATED')}
                   </span>
                 </button>
               );
@@ -1076,7 +1120,7 @@ function App() {
         </div>
       </main>
 
-      <nav className="bottom-menu" aria-label="Configuration and feedback">
+      <nav className="bottom-menu" aria-label={t('Configuration and feedback')}>
         <button
           className={activeMenu === 'vehicle' ? 'menu-button selected' : 'menu-button'}
           type="button"
@@ -1091,7 +1135,7 @@ function App() {
               <path d="M7 11h11M12 7v4" />
             </svg>
           </span>
-          <span>VEHICLE</span>
+          <span>{t('VEHICLE')}</span>
         </button>
         <span className="menu-divider" />
         <button
@@ -1105,7 +1149,7 @@ function App() {
               <path d="M4 19h16L4 5Z" />
             </svg>
           </span>
-          <span>WEDGES</span>
+          <span>{t('WEDGES')}</span>
         </button>
         <span className="menu-divider" />
         <button
@@ -1124,7 +1168,7 @@ function App() {
               <circle cx="12" cy="12" r="2" />
             </svg>
           </span>
-          <span>CALIBRATION</span>
+          <span>{t('CALIBRATION')}</span>
         </button>
         <span className="menu-divider" />
         <button
@@ -1135,8 +1179,8 @@ function App() {
           }
           type="button"
           aria-haspopup="dialog"
-          aria-label="Send feedback"
-          title="Send feedback"
+          aria-label={t('Send feedback')}
+          title={t('Send feedback')}
           onClick={() => setActiveMenu('feedback')}
         >
           <span className="menu-icon" aria-hidden="true">
@@ -1163,22 +1207,22 @@ function App() {
             <header className="menu-header">
               <div>
                 <span className="eyebrow">
-                  {activeMenu === 'feedback' ? 'FRIEND BETA' : 'CONFIGURATION'}
+                  {t(activeMenu === 'feedback' ? 'FRIEND BETA' : 'CONFIGURATION')}
                 </span>
                 <h2 id="menu-title">
-                  {activeMenu === 'vehicle'
+                  {t(activeMenu === 'vehicle'
                     ? 'Vehicle setup'
                     : activeMenu === 'wedges'
                       ? 'Wedge setup'
                       : activeMenu === 'calibration'
-                      ? 'Rename calibration slots'
-                        : 'Send feedback'}
+                        ? 'Rename calibration slots'
+                        : 'Send feedback')}
                 </h2>
               </div>
               <button
                 className="close-menu"
                 type="button"
-                aria-label="Close dialog"
+                aria-label={t('Close dialog')}
                 onClick={() => setActiveMenu(null)}
               >
                 ×
@@ -1186,7 +1230,7 @@ function App() {
             </header>
 
             {activeMenu !== 'feedback' && (
-              <div className="menu-tabs" role="tablist" aria-label="Configuration sections">
+              <div className="menu-tabs" role="tablist" aria-label={t('Configuration sections')}>
                 <button
                   className={activeMenu === 'vehicle' ? 'menu-tab active' : 'menu-tab'}
                   type="button"
@@ -1194,7 +1238,7 @@ function App() {
                   aria-selected={activeMenu === 'vehicle'}
                   onClick={() => setActiveMenu('vehicle')}
                 >
-                  VEHICLE
+                  {t('VEHICLE')}
                 </button>
                 <button
                   className={activeMenu === 'wedges' ? 'menu-tab active' : 'menu-tab'}
@@ -1203,7 +1247,7 @@ function App() {
                   aria-selected={activeMenu === 'wedges'}
                   onClick={() => setActiveMenu('wedges')}
                 >
-                  WEDGES
+                  {t('WEDGES')}
                 </button>
                 <button
                   className={activeMenu === 'calibration' ? 'menu-tab active' : 'menu-tab'}
@@ -1212,7 +1256,7 @@ function App() {
                   aria-selected={activeMenu === 'calibration'}
                   onClick={() => setActiveMenu('calibration')}
                 >
-                  CALIBRATION
+                  {t('CALIBRATION')}
                 </button>
               </div>
             )}
@@ -1220,16 +1264,17 @@ function App() {
             {activeMenu === 'vehicle' ? (
               <div className="menu-content">
                 <div className="settings-card vehicle-preview">
-                  <span className="eyebrow">VEHICLE DIMENSIONS · TOP VIEW</span>
+                  <span className="eyebrow">{t('VEHICLE DIMENSIONS · TOP VIEW')}</span>
                   <VehicleDiagram
                     className="vehicle-svg"
                     vehicle={vehicle}
+                    t={t}
                     showMeasurements
                   />
                 </div>
                 <div className="settings-card input-group">
                   <label>
-                    Wheelbase <span>CM</span>
+                    {t('Wheelbase')} <span>CM</span>
                     <input
                       type="number"
                       inputMode="numeric"
@@ -1246,12 +1291,12 @@ function App() {
                     />
                     {vehicleInputErrors.wheelbaseCm && (
                       <small className="input-error" id="wheelbase-error">
-                        {vehicleInputErrors.wheelbaseCm}
+                        {t('Enter a value between {min} and {max} cm.', vehicleInputErrors.wheelbaseCm)}
                       </small>
                     )}
                   </label>
                   <label>
-                    Track width <span>CM</span>
+                    {t('Track width')} <span>CM</span>
                     <input
                       type="number"
                       inputMode="numeric"
@@ -1268,7 +1313,7 @@ function App() {
                     />
                     {vehicleInputErrors.trackWidthCm && (
                       <small className="input-error" id="track-width-error">
-                        {vehicleInputErrors.trackWidthCm}
+                        {t('Enter a value between {min} and {max} cm.', vehicleInputErrors.trackWidthCm)}
                       </small>
                     )}
                   </label>
@@ -1280,7 +1325,7 @@ function App() {
                   <div className="wedge-illustration">
                     <svg viewBox="0 0 320 200" role="img" aria-labelledby="wedge-example-title">
                       <title id="wedge-example-title">
-                        Side view of a vehicle wheel resting on a stepped wedge
+                        {t('Side view of a vehicle wheel resting on a stepped wedge')}
                       </title>
                       <path className="wedge-example-body" d="M20 123 300 190V197H20Z" />
                       <path className="wedge-example-seams" d="M112 145V197M205 167V197" />
@@ -1299,17 +1344,17 @@ function App() {
                         {wedgeIllustrationHeights[2] ?? '—'}
                       </text>
                     </svg>
-                    <span>Side view</span>
+                    <span>{t('Side view')}</span>
                   </div>
                   <div className="wedge-list">
                     {wedgeHeightInputs.map((height, index) => (
                       <label className="wedge-row" key={`wedge-${index}`}>
-                        <span>STEP {index + 1}</span>
+                        <span>{t('STEP {step}', { step: index + 1 })}</span>
                         <input
                           type="text"
                           inputMode="decimal"
                           value={height}
-                          aria-label={`Height of step ${index + 1} in centimeters`}
+                          aria-label={t('Height of step {step} in centimeters', { step: index + 1 })}
                           onChange={(event) => handleWedgeHeightChange(index, event.target.value)}
                           onBlur={() => saveWedgeHeight(index)}
                         />
@@ -1317,7 +1362,7 @@ function App() {
                         <button
                           className="remove-wedge"
                           type="button"
-                          aria-label={`Remove step ${index + 1}`}
+                          aria-label={t('Remove step {step}', { step: index + 1 })}
                           disabled={wedgeHeightInputs.length <= 1}
                           onClick={() => removeWedgeHeight(index)}
                         >
@@ -1329,7 +1374,7 @@ function App() {
                     ))}
                   </div>
                   <button className="add-wedge" type="button" onClick={addWedgeHeight}>
-                    + ADD STEP
+                    {t('+ ADD STEP')}
                   </button>
                 </div>
               </div>
@@ -1337,7 +1382,7 @@ function App() {
               <div className="menu-content calibration-content">
                 <div className="settings-card calibration-settings-card">
                   <div className="calibration-sensor">
-                    <span>Sensor</span>
+                    <span>{t('Sensor')}</span>
                     <details
                       className="calibration-sensor-dropdown"
                       onBlur={(event) => {
@@ -1354,10 +1399,10 @@ function App() {
                         }
                       }}
                     >
-                      <summary aria-label={`Sensor: ${calibrationSourceLabels[calibrationSettingsSource]}`}>
-                        {calibrationSourceLabels[calibrationSettingsSource]}
+                      <summary aria-label={`${t('Sensor')}: ${t(calibrationSourceLabels[calibrationSettingsSource])}`}>
+                        {t(calibrationSourceLabels[calibrationSettingsSource])}
                       </summary>
-                      <div className="calibration-sensor-options" role="group" aria-label="Sensor">
+                      <div className="calibration-sensor-options" role="group" aria-label={t('Sensor')}>
                         {[
                           { id: 'simulation', label: 'Simulation' },
                           { id: 'phone', label: 'Phone sensor' },
@@ -1374,7 +1419,7 @@ function App() {
                               dropdown.querySelector('summary').focus();
                             }}
                           >
-                            {sensor.label}
+                            {t(sensor.label)}
                           </button>
                         ))}
                       </div>
@@ -1392,20 +1437,21 @@ function App() {
                           key={slot.id}
                         >
                           <div className="calibration-slot-heading">
-                            <span>SLOT {index + 1}</span>
-                            <small>{isSelected ? 'SELECTED ON MAIN SCREEN' : ''}</small>
+                            <span>{t('SLOT {slot}', { slot: index + 1 })}</span>
+                            <small>{isSelected ? t('SELECTED ON MAIN SCREEN') : ''}</small>
                           </div>
                           <div className="calibration-slot-detail">
                             <label className="calibration-slot-name">
-                              <span>Name <small>OPTIONAL</small></span>
+                              <span>{t('Name')} <small>{t('OPTIONAL')}</small></span>
                               <input
                                 type="text"
                                 maxLength={60}
-                                placeholder={`Slot ${index + 1}`}
+                                placeholder={t('Slot {slot}', { slot: index + 1 })}
                                 value={slot.name}
-                                aria-label={`Name for ${calibrationSettingsSource} slot ${
-                                  index + 1
-                                }`}
+                                aria-label={t('Name for {source} slot {slot}', {
+                                  source: t(calibrationSourceLabels[calibrationSettingsSource]),
+                                  slot: index + 1,
+                                })}
                                 onChange={(event) =>
                                   updateCalibrationSlotName(
                                     calibrationSettingsSource,
@@ -1424,11 +1470,11 @@ function App() {
                             >
                               {hasCalibration ? (
                                 <>
-                                  <span>Pitch {formatCalibrationAngle(slot.pitch)}</span>
-                                  <span>Roll {formatCalibrationAngle(slot.roll)}</span>
+                                  <span>{t('Pitch')} {formatCalibrationAngle(slot.pitch)}</span>
+                                  <span>{t('Roll')} {formatCalibrationAngle(slot.roll)}</span>
                                 </>
                               ) : (
-                                'Not calibrated'
+                                t('Not calibrated')
                               )}
                             </p>
                           </div>
@@ -1439,14 +1485,13 @@ function App() {
                 </div>
                 {calibrationSettingsSource === 'external' && (
                   <p className="settings-hint">
-                    External sensor calibration is unavailable until external sensor support is
-                    connected.
+                    {t('External sensor calibration is unavailable until external sensor support is connected.')}
                   </p>
                 )}
               </div>
             ) : (
               <div className="menu-content">
-                <FeedbackForm endpoint={FORMSPREE_ENDPOINT} />
+                <FeedbackForm endpoint={FORMSPREE_ENDPOINT} t={t} />
               </div>
             )}
           </section>

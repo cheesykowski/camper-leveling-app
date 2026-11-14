@@ -18,6 +18,7 @@ KEILOMAT is a mobile-first web app that helps level a parked camper van. It can 
 - A shared vehicle top view in the main screen and vehicle setup
 - A compact dashboard with sensor status, settings, and calibration controls
 - Browser-local storage of vehicle settings and calibration slots
+- English and German language selection, saved locally on the device
 
 The default vehicle dimensions and wedge heights are examples. Update them before relying on the app.
 
@@ -66,7 +67,8 @@ The endpoint URL is included in the public app bundle and is not a secret. Do no
 
 - `src/App.jsx` — UI, sensor status, settings, and calibration interaction
 - `src/calibration.js` — calibration slot normalization, migration, and offset utilities
-- `src/calibration.test.js` and `src/leveling.test.js` — unit tests
+- `src/i18n.js` — translations and language selection
+- `src/*.test.js` — unit tests
 - `src/leveling.js` — wedge recommendation calculations
 - `src/styles.css` — styling and responsive layouts
 - `src/main.jsx` — React entry point
