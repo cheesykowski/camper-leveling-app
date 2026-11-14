@@ -20,6 +20,7 @@ KEILOMAT is a mobile-first web app that helps level a parked camper van. It can 
 - Browser-local storage of vehicle settings and calibration slots
 - English and German language selection, saved locally on the device
 - An illustrated guide with separate setup and usage instructions for phone and external sensors
+- Android installation and offline use after the app has been cached
 
 The default vehicle dimensions and wedge heights are examples. Update them before relying on the app.
 
@@ -49,6 +50,18 @@ Run the unit tests with:
 npm test
 ```
 
+## Install and use offline
+
+Open the deployed HTTPS app on Android and use the download icon beside the logo. When the browser offers installation, choose **Install app**; otherwise use **Install app** or **Add to Home screen** in the browser menu. The app can only be prepared while online. Wait until the offline status says it is ready before disconnecting.
+
+The app and its leveling calculations then work offline. Feedback requires an internet connection and is not queued. The external sensor is not connected yet. A new version is downloaded when online; the app asks before reloading to apply it.
+
+Settings and calibration slots remain in the browser's local storage for the same site and browser profile; they are not synchronized across devices or browsers and can be lost when site data is cleared. Offline files can also be removed by the browser.
+
+If offline access remains unavailable, clearing this site's browser data and reopening the app online can set up the cache again. **This also deletes the locally saved settings and calibrations.**
+
+Offline and installation behavior is available in production builds (`npm run build` followed by `npm run preview`), not the Vite development server. Test a real Android device by installing while online, waiting for offline readiness, closing the app, enabling airplane mode, and reopening it. Verify the phone sensor and saved settings separately.
+
 ## Phone sensor access
 
 Open the app in a supported mobile browser. Motion-sensor access may require a secure connection (HTTPS) and browser permission. Readings depend on how the phone is mounted in the vehicle. Park the vehicle and place the phone in its intended position before calibrating.
@@ -71,6 +84,7 @@ The endpoint URL is included in the public app bundle and is not a secret. Do no
 - `src/App.jsx` — UI, sensor status, settings, and calibration interaction
 - `src/calibration.js` — calibration slot normalization, migration, and offset utilities
 - `src/i18n.js` — translations and language selection
+- `src/pwa.js` — offline readiness, installation, and update handling
 - `src/*.test.js` — unit tests
 - `src/leveling.js` — wedge recommendation calculations
 - `src/styles.css` — styling and responsive layouts

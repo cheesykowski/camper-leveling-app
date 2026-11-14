@@ -119,6 +119,65 @@ select:focus-visible {
   color: var(--glow);
 }
 
+.brand-heading {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.offline-button {
+  position: relative;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  padding: 3px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--glow);
+  cursor: pointer;
+}
+
+.offline-button svg {
+  width: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.offline-button.has-update::after {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+  content: "";
+}
+
+.pwa-update {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+  color: var(--amber);
+  font-size: 0.65rem;
+}
+
+.pwa-update button {
+  padding: 4px 8px;
+  border: 1px solid var(--amber);
+  background: var(--panel);
+  color: var(--amber);
+  cursor: pointer;
+  font-size: inherit;
+}
+
 .eyebrow {
   color: var(--dim);
   font-size: 0.62rem;
@@ -1117,6 +1176,17 @@ select:focus-visible {
   color: var(--text);
   font-size: 0.72rem;
   line-height: 1.5;
+}
+
+.pwa-content p {
+  margin: 6px 0 0;
+  color: var(--text);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.pwa-content .pwa-ready {
+  color: var(--glow);
 }
 
 .input-group label {

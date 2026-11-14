@@ -12,6 +12,7 @@ import {
 } from './calibration.js';
 import { calculateTwoWedgePlan, wheelCorners } from './leveling.js';
 import { normalizeLanguage, translate } from './i18n.js';
+import { applyUpdate, installApp, refreshOfflineStatus, usePwa } from './pwa.js';
 
 const STORAGE_KEY = 'camper-leveling-demo-v1';
 const SIMULATION_MAX_TILT = 30;
@@ -388,7 +389,7 @@ function AppDropdown({ label, value, options, onChange, placeholder, className =
   );
 }
 
-function FeedbackForm({ endpoint, t }) {
+function FeedbackForm({ endpoint, t, online }) {
   const [feedback, setFeedback] = useState({
     name: '',
     category: '',
@@ -556,6 +557,7 @@ function FeedbackForm({ endpoint, t }) {
           {t('I agree to send this feedback to the app owner by email and store it in their Formspree account. Only anonymized, reviewed takeaways may be added to the public repository. Please do not include sensitive personal information.')}
         </span>
       </label>
+      {!online && <p className="feedback-status" role="status">{t('Feedback requires an internet connection.')}</p>}
       {status.message && (
         <p
           className={`feedback-status ${status.type}`}
@@ -564,7 +566,7 @@ function FeedbackForm({ endpoint, t }) {
           {t(status.message, status.values)}
         </p>
       )}
-      <button className="feedback-submit" type="submit" disabled={isSubmitting}>
+      <button className="feedback-submit" type="submit" disabled={isSubmitting || !online}>
         {t(isSubmitting ? 'SENDING…' : 'SEND FEEDBACK')}
       </button>
     </form>
@@ -572,6 +574,7 @@ function FeedbackForm({ endpoint, t }) {
 }
 
 function App() {
+  const pwa = usePwa();
   const loadedState = useMemo(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
@@ -1109,7 +1112,24 @@ function App() {
                 onChange={(value) => setLanguage(normalizeLanguage(value))}
               />
             </div>
-            <h1>KEIL<span>OMAT</span></h1>
+            <div className="brand-heading">
+              <h1>KEIL<span>OMAT</span></h1>
+              <button
+                className={`offline-button${pwa.updateAvailable ? ' has-update' : ''}`}
+                type="button"
+                aria-haspopup="dialog"
+                aria-label={t('App installation and offline status')}
+                title={t('App installation and offline status')}
+                onClick={() => {
+                  refreshOfflineStatus();
+                  setActiveMenu('offline');
+                }}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 3v11m-4-4 4 4 4-4M4 16v4h16v-4" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
         <div className="source-picker" role="group" aria-label={t('Select data source')}>
@@ -1154,6 +1174,14 @@ function App() {
           ))}
         </div>
       </header>
+
+      {pwa.updateAvailable && (
+        <div className="pwa-update" role="status">
+          <span>{t('An update is available.')}</span>
+          <button type="button" onClick={applyUpdate}>{t('UPDATE')}</button>
+          {pwa.error && <span role="alert">{t(pwa.error)}</span>}
+        </div>
+      )}
 
       <main className="main-screen">
         <div className="telemetry">
@@ -1454,7 +1482,7 @@ function App() {
             <header className="menu-header">
               <div>
                 <span className="eyebrow">
-                  {t(activeMenu === 'feedback' ? 'FRIEND BETA' : activeMenu === 'help' ? 'GUIDE' : 'CONFIGURATION')}
+                  {t(activeMenu === 'feedback' ? 'FRIEND BETA' : activeMenu === 'help' ? 'GUIDE' : activeMenu === 'offline' ? 'APP' : 'CONFIGURATION')}
                 </span>
                 <h2 id="menu-title">
                   {t(activeMenu === 'vehicle'
@@ -1465,6 +1493,8 @@ function App() {
                         ? 'Rename calibration slots'
                         : activeMenu === 'help'
                           ? 'How it works'
+                          : activeMenu === 'offline'
+                            ? 'Install and use offline'
                           : 'Send feedback')}
                 </h2>
               </div>
@@ -1478,7 +1508,7 @@ function App() {
               </button>
             </header>
 
-            {activeMenu !== 'feedback' && activeMenu !== 'help' && (
+            {activeMenu !== 'feedback' && activeMenu !== 'help' && activeMenu !== 'offline' && (
               <div className="menu-tabs" role="tablist" aria-label={t('Configuration sections')}>
                 <button
                   className={activeMenu === 'vehicle' ? 'menu-tab active' : 'menu-tab'}
@@ -1703,9 +1733,38 @@ function App() {
               </div>
             ) : activeMenu === 'help' ? (
               <HelpContent t={t} source={source} />
+            ) : activeMenu === 'offline' ? (
+              <div className="menu-content pwa-content">
+                <div className="settings-card">
+                  <span className="eyebrow">{t('OFFLINE STATUS')}</span>
+                  <p className={pwa.offline === 'ready' ? 'pwa-ready' : ''} role="status">
+                    {t(pwa.offline === 'ready'
+                      ? 'Ready to use offline.'
+                      : pwa.offline === 'checking'
+                        ? 'Preparing offline access…'
+                        : 'Offline access is unavailable.')}
+                  </p>
+                  {!pwa.online && <p>{t('You are offline.')}</p>}
+                </div>
+                {pwa.installed ? (
+                  <p>{t('The app is installed.')}</p>
+                ) : /Android/i.test(navigator.userAgent) ? (
+                  pwa.canInstall ? (
+                    <button className="feedback-submit" type="button" onClick={installApp}>
+                      {t('INSTALL APP')}
+                    </button>
+                  ) : (
+                    <p>{t('To install on Android, use “Install app” or “Add to Home screen” in your browser menu.')}</p>
+                  )
+                ) : (
+                  <p>{t('Installation is currently offered on Android.')}</p>
+                )}
+                <p>{t('Feedback requires an internet connection.')}</p>
+                {pwa.error && <p className="input-error" role="alert">{t(pwa.error)}</p>}
+              </div>
             ) : (
               <div className="menu-content">
-                <FeedbackForm endpoint={FORMSPREE_ENDPOINT} t={t} />
+                <FeedbackForm endpoint={FORMSPREE_ENDPOINT} t={t} online={pwa.online} />
               </div>
             )}
           </section>
