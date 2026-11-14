@@ -1152,10 +1152,6 @@ select:focus-visible {
   grid-column: 1 / -1;
 }
 
-.pwa-check-update {
-  margin-top: 10px;
-}
-
 .help-card {
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr);

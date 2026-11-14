@@ -52,7 +52,7 @@ npm test
 
 ## Install and use offline
 
-Open the deployed HTTPS app on Android and use the download icon beside the logo. When the browser offers installation, choose **Install app**; otherwise use **Install app** or **Add to Home screen** in the browser menu. The app can only be prepared while online. Wait until the offline status says it is ready before disconnecting.
+Open the deployed HTTPS app while online; its offline files are downloaded automatically, independently of installation. Use the download icon beside the logo and wait until the offline status says it is ready before disconnecting. On Android, choose **Install app** when offered, or use **Install app** or **Add to Home screen** in the browser menu.
 
 The installed app is labeled KEILOMAT APP; the browser version is labeled KEILOMAT WEB. Both currently use the same release and, in the same browser profile, share the offline files. The app and its leveling calculations work offline. Feedback requires an internet connection and is not queued. The external sensor is not connected yet. A new version is downloaded when online; confirming the update in either view updates the shared offline files and reloads that view. Other open views offer their own reload so unfinished input is not interrupted.
 

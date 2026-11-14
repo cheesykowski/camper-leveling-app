@@ -1612,7 +1612,7 @@ function App() {
                         : activeMenu === 'help'
                           ? 'How it works'
                           : activeMenu === 'offline'
-                            ? 'Install and use offline'
+                            ? 'App and offline access'
                           : 'Send feedback')}
                 </h2>
               </div>
@@ -1958,29 +1958,25 @@ function App() {
                         : 'Offline access is unavailable.')}
                   </p>
                   {!pwa.online && <p>{t('You are offline.')}</p>}
-                  {pwa.updateCheckResult && <p role="status">{t(pwa.updateCheckResult)}</p>}
-                  <button
-                    className="feedback-submit pwa-check-update"
-                    type="button"
-                    disabled={(!pwa.online && !pwa.updateAvailable) || pwa.checkingUpdate || pwa.updating}
-                    onClick={pwa.updateAvailable ? applyUpdate : checkForUpdates}
-                  >
-                    {t(pwa.updating ? 'UPDATING…' : pwa.checkingUpdate ? 'CHECKING…' : pwa.updateAvailable ? 'UPDATE' : 'CHECK FOR UPDATES')}
-                  </button>
                 </div>
-                {pwa.standalone ? null : pwa.installed ? (
-                  <p>{t('Open KEILOMAT APP from your home screen.')}</p>
-                ) : /Android/i.test(navigator.userAgent) ? (
+                {!pwa.standalone && !pwa.installed && /Android/i.test(navigator.userAgent) && (
                   pwa.canInstall ? (
                     <button className="feedback-submit" type="button" onClick={installApp}>
                       {t('INSTALL APP')}
                     </button>
                   ) : (
-                    <p>{t('Open KEILOMAT APP from your home screen, or install it from your browser menu.')}</p>
+                    <p>{t('If not installed, use “Install app” or “Add to Home screen” in your browser menu.')}</p>
                   )
-                ) : (
-                  pwa.offline !== 'ready' && <p>{t('Installation is currently offered on Android.')}</p>
                 )}
+                {pwa.updateCheckResult && <p role="status">{t(pwa.updateCheckResult)}</p>}
+                <button
+                  className="feedback-submit"
+                  type="button"
+                  disabled={(!pwa.online && !pwa.updateAvailable) || pwa.checkingUpdate || pwa.updating}
+                  onClick={pwa.updateAvailable ? applyUpdate : checkForUpdates}
+                >
+                  {t(pwa.updating ? 'UPDATING…' : pwa.checkingUpdate ? 'CHECKING…' : pwa.updateAvailable ? 'UPDATE' : 'CHECK FOR UPDATES')}
+                </button>
                 {pwa.error && <p className="input-error" role="alert">{t(pwa.error)}</p>}
               </div>
             ) : (
