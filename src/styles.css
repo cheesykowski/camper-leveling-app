@@ -1216,10 +1216,6 @@ select:focus-visible {
   line-height: 1.5;
 }
 
-.pwa-content .pwa-ready {
-  color: var(--glow);
-}
-
 .input-group label {
   display: grid;
   gap: 8px;

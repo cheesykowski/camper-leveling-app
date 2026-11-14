@@ -1228,8 +1228,8 @@ function App() {
               className={`offline-button${pwa.updateAvailable ? ' has-update' : ''}`}
               type="button"
               aria-haspopup="dialog"
-              aria-label={t('App installation and offline status')}
-              title={t('App installation and offline status')}
+              aria-label={`${t('App and updates')}${pwa.updateAvailable ? ` · ${t('An update is available.')}` : ''}`}
+              title={`${t('App and updates')}${pwa.updateAvailable ? ` · ${t('An update is available.')}` : ''}`}
               onClick={() => {
                 refreshOfflineStatus();
                 setActiveMenu('offline');
@@ -1612,7 +1612,7 @@ function App() {
                         : activeMenu === 'help'
                           ? 'How it works'
                           : activeMenu === 'offline'
-                            ? 'App and offline access'
+                            ? 'App and updates'
                           : 'Send feedback')}
                 </h2>
               </div>
@@ -1948,21 +1948,20 @@ function App() {
               <HelpContent t={t} source={source} levelingMode={vehicle.levelingMode} />
             ) : activeMenu === 'offline' ? (
               <div className="menu-content pwa-content">
-                <div className="settings-card">
-                  <span className="eyebrow">{t('OFFLINE STATUS')}</span>
-                  <p className={pwa.offline === 'ready' ? 'pwa-ready' : ''} role="status">
-                    {t(pwa.offline === 'ready'
-                      ? 'Ready to use offline.'
-                      : pwa.offline === 'checking'
+                {pwa.offline !== 'ready' && (
+                  <div className="settings-card">
+                    <p role="status">
+                      {t(pwa.offline === 'checking'
                         ? 'Preparing offline access…'
                         : 'Offline access is unavailable.')}
-                  </p>
-                  {!pwa.online && <p>{t('You are offline.')}</p>}
-                </div>
+                    </p>
+                  </div>
+                )}
+                {!pwa.online && <p>{t('You are offline.')}</p>}
                 {!pwa.standalone && !pwa.installed && /Android/i.test(navigator.userAgent) && (
                   pwa.canInstall ? (
                     <button className="feedback-submit" type="button" onClick={installApp}>
-                      {t('INSTALL APP')}
+                      {t('ADD TO HOME SCREEN')}
                     </button>
                   ) : (
                     <p>{t('If not installed, use “Install app” or “Add to Home screen” in your browser menu.')}</p>
