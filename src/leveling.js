@@ -72,6 +72,8 @@ export function calculateTwoWedgePlan({
 
   return {
     dominantAxis,
+    lowAxle,
+    lowSide,
     highAxle,
     highSide,
     wedgeCapacityExceeded,

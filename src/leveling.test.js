@@ -97,8 +97,12 @@ test('reports the high axle and side opposite the low direction', () => {
 
   assert.equal(positiveTilt.highAxle, 'front');
   assert.equal(positiveTilt.highSide, 'left');
+  assert.equal(positiveTilt.lowAxle, 'rear');
+  assert.equal(positiveTilt.lowSide, 'right');
   assert.equal(negativeTilt.highAxle, 'rear');
   assert.equal(negativeTilt.highSide, 'right');
+  assert.equal(negativeTilt.lowAxle, 'front');
+  assert.equal(negativeTilt.lowSide, 'left');
 });
 
 test('does not recommend a fractional or higher step when lift is below the first tier', () => {

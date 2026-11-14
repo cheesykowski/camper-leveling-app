@@ -878,8 +878,8 @@ function App() {
 
     const title =
       plan.dominantAxis === 'pitch'
-        ? t(plan.highAxle === 'front' ? 'Front is high' : 'Rear is high')
-        : t(plan.highSide === 'left' ? 'Left side is high' : 'Right side is high');
+        ? t(plan.lowAxle === 'front' ? 'Front is low' : 'Rear is low')
+        : t(plan.lowSide === 'left' ? 'Left side is low' : 'Right side is low');
     const placementSummary = plan.wedgePlacements
       .map(({ label, step, requiredHeightCm, wedgeCapacityExceeded }) =>
         `${t(label)}: ${heightMode
@@ -1232,7 +1232,9 @@ function App() {
       {pwa.updateAvailable && (
         <div className="pwa-update" role="status">
           <span>{t('An update is available.')}</span>
-          <button type="button" onClick={applyUpdate}>{t('UPDATE')}</button>
+          <button type="button" onClick={applyUpdate} disabled={pwa.updating}>
+            {t(pwa.updating ? 'UPDATING…' : 'UPDATE')}
+          </button>
           {pwa.error && <span role="alert">{t(pwa.error)}</span>}
         </div>
       )}

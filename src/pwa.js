@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
-import { registerSW } from 'virtual:pwa-register';
 import { hasCachedAssets } from './pwaCache.js';
+import { activateUpdate } from './pwaUpdate.js';
 
 const standaloneDisplay = window.matchMedia('(display-mode: standalone)');
 let state = {
@@ -10,11 +10,13 @@ let state = {
   installed: standaloneDisplay.matches,
   standalone: standaloneDisplay.matches,
   updateAvailable: false,
+  updating: false,
   error: '',
 };
 const listeners = new Set();
 let installPrompt;
 let registration;
+let originalController;
 
 function updateState(changes) {
   state = { ...state, ...changes };
@@ -59,6 +61,7 @@ async function checkOfflineCache() {
 window.addEventListener('online', () => {
   updateState({ online: true });
   checkOfflineCache();
+  checkForUpdate();
 });
 window.addEventListener('offline', () => {
   updateState({ online: false });
@@ -77,37 +80,53 @@ window.addEventListener('appinstalled', () => {
   updateState({ installed: true, canInstall: false });
 });
 
-let updateServiceWorker;
+function checkForUpdate() {
+  if (navigator.onLine && registration) {
+    registration.update().catch((error) => console.error('Service worker update check failed:', error));
+  }
+}
+
 if (import.meta.env.PROD && window.isSecureContext && 'serviceWorker' in navigator) {
-  updateServiceWorker = registerSW({
-    immediate: true,
-    onOfflineReady: () => checkOfflineCache(),
-    onNeedRefresh: () => updateState({ updateAvailable: true }),
-    onRegisteredSW: (_url, workerRegistration) => {
-      registration = workerRegistration;
-      if (!registration) {
-        updateState({ offline: 'unavailable', error: 'Offline support could not be started.' });
-        return;
-      }
-      if (registration.active) checkOfflineCache();
-      else if (registration.installing) {
-        const installing = registration.installing;
-        installing.addEventListener('statechange', () => {
-          if (registration.active) checkOfflineCache();
-          else if (installing.state === 'redundant') {
-            updateState({ offline: 'unavailable', error: 'Offline support could not be started.' });
-          }
-        });
-      }
-      navigator.serviceWorker.ready.then(() => checkOfflineCache()).catch((error) => {
-        console.error('Service worker did not become ready:', error);
-        updateState({ offline: 'unavailable', error: 'Offline support could not be started.' });
+  const baseUrl = new URL(import.meta.env.BASE_URL, window.location.origin);
+  originalController = navigator.serviceWorker.controller;
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (originalController && navigator.serviceWorker.controller !== originalController) {
+      updateState({ updateAvailable: true });
+    }
+  });
+
+  navigator.serviceWorker.register(new URL('sw.js', baseUrl), { scope: baseUrl.pathname }).then((workerRegistration) => {
+    registration = workerRegistration;
+    if (!originalController) originalController = registration.active;
+    const watchInstalling = () => {
+      const worker = registration.installing;
+      if (!worker) return;
+      worker.addEventListener('statechange', () => {
+        if (worker.state === 'installed' && (originalController || registration.active)) {
+          updateState({ updateAvailable: true });
+        } else if (worker.state === 'activated') {
+          checkOfflineCache();
+        } else if (worker.state === 'redundant' && !registration.active) {
+          updateState({ offline: 'unavailable', error: 'Offline support could not be started.' });
+        }
       });
-    },
-    onRegisterError: (error) => {
-      console.error('Service worker registration failed:', error);
+    };
+    registration.addEventListener('updatefound', watchInstalling);
+    watchInstalling();
+    if (registration.waiting) updateState({ updateAvailable: true });
+    if (registration.active) checkOfflineCache();
+    navigator.serviceWorker.ready.then(() => checkOfflineCache()).catch((error) => {
+      console.error('Service worker did not become ready:', error);
       updateState({ offline: 'unavailable', error: 'Offline support could not be started.' });
-    },
+    });
+  }).catch((error) => {
+    console.error('Service worker registration failed:', error);
+    updateState({ offline: 'unavailable', error: 'Offline support could not be started.' });
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkForUpdate();
   });
 } else {
   updateState({ offline: 'unavailable' });
@@ -135,10 +154,14 @@ export async function installApp() {
 }
 
 export async function applyUpdate() {
+  if (state.updating) return;
+  updateState({ updating: true, error: '' });
   try {
-    await updateServiceWorker(true);
+    if (!registration) throw new Error('Service worker is not registered.');
+    await activateUpdate(registration, originalController);
+    window.location.reload();
   } catch (error) {
     console.error('App update failed:', error);
-    updateState({ error: 'The update could not be installed.' });
+    updateState({ updating: false, error: 'The update could not be installed.' });
   }
 }

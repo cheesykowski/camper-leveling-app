@@ -17,6 +17,7 @@ Build an Android-friendly web app that measures the tilt of a parked camper and 
 - [x] Vehicle settings stored in browser `localStorage`
 - [x] Configurable wheelbase, track width, up to five wedge heights, and an alternative lift-height mode
 - [x] Dominant tilt determined from geometry-scaled pitch and roll contributions
+- [x] Direction label identifies the low axle or side where support is needed
 - [x] Two-wedge plan with a combined step at the lowest corner and another step along the dominant axis
 - [x] Highlight each wheel whose required lift exceeds the configured maximum
 - [x] Decimal wedge heights supported; recommendations use whole-number step indices and never round above the required lift
@@ -72,7 +73,7 @@ Integration requires the Arduino project or BLE protocol, device details, servic
 - **Frontend:** React and Vite.
 - **Persistence:** Browser `localStorage`; data is specific to the browser and device.
 - **Language:** English by default; German can be selected in the header and is saved locally.
-- **Offline:** A service worker precaches the production app. Android installation is offered in the app when the browser supports it; feedback requires a connection. Updates are applied only after user confirmation.
+- **Offline:** A service worker precaches the production app. Android installation is offered in the app when the browser supports it; feedback requires a connection. Confirming an update activates the shared offline version and reloads only the confirming view; other open views offer their own reload.
 - **Initial sensor:** Phone orientation through the web `DeviceOrientationEvent` API.
 - **Target platform:** Android browser. Sensor and BLE support varies by browser; the BLE protocol is not yet defined.
 - **Vehicle values:** Example values until actual measurements are available.
