@@ -643,6 +643,16 @@ input:focus-visible {
   line-height: 1.1;
 }
 
+.quick-calibration-button.calibrated {
+  border-color: #65af63;
+  background: #142a1b;
+  color: var(--bright);
+}
+
+.quick-calibration-button.calibrated .quick-calibration-status {
+  color: var(--glow);
+}
+
 .quick-calibration-button.empty {
   border-color: #58605a;
   background: #171b18;

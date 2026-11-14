@@ -23,7 +23,7 @@ The default vehicle dimensions and wedge heights are examples. Update them befor
 
 The recommendation places one wedge at the lowest corner using the combined pitch and roll correction, then places a second wedge on the adjacent wheel along the geometrically dominant axis. For each position, it selects the highest configured wedge height that does not exceed the calculated lift. A wedge and its step are orange when the required lift exceeds the tallest configured height; otherwise they are green. The app displays the integer step number rather than the calculated height. This prioritizes correction along the dominant axis; it does not guarantee that both axes are fully level. The model treats the vehicle as a rigid plane on level ground. Tire deformation, suspension travel, uneven ground, and chassis flex are not modeled. Verify sensor axes, signs, and real wedge heights on the vehicle before use.
 
-Simulation calibration slots are saved independently of real sensor slots. Their offsets affect only the simulation readings and can be used to test calibration without changing phone calibration.
+Simulation calibration slots are saved independently of real sensor slots. Their offsets affect only the simulation readings and the orientation of the 3D box, so calibration can be tested without changing phone calibration.
 
 ## Local development
 

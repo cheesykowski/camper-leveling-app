@@ -932,7 +932,7 @@ function App() {
                 <div
                   className={`simulator-stage${vehicle.wheelbaseCm > 300 ? ' long-wheelbase' : ''}`}
                   role="application"
-                  aria-label={`Simulate vehicle tilt. Drag vertically for pitch and horizontally for roll, or use the arrow keys. Simulated sensor pitch ${simulatedTilt.pitch.toFixed(1)} degrees, roll ${simulatedTilt.roll.toFixed(1)} degrees. Maximum tilt ${SIMULATION_MAX_TILT} degrees.`}
+                  aria-label={`Simulate vehicle tilt. Drag vertically for pitch and horizontally for roll, or use the arrow keys. Calibrated pitch ${currentPitch.toFixed(1)} degrees, roll ${currentRoll.toFixed(1)} degrees. Simulated sensor range is ±${SIMULATION_MAX_TILT} degrees.`}
                   onPointerDown={startSimulationDrag}
                   onPointerMove={updateSimulationDrag}
                   onPointerUp={stopSimulationDrag}
@@ -973,7 +973,7 @@ function App() {
                     <div
                       className="sim-box"
                       style={{
-                        transform: `rotateX(${simulatedTilt.pitch}deg) rotateY(${simulatedTilt.roll}deg)`,
+                        transform: `rotateX(${currentPitch}deg) rotateY(${currentRoll}deg)`,
                       }}
                     />
                   </div>
