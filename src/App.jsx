@@ -974,7 +974,7 @@ function App() {
                     <div
                       className="sim-box"
                       style={{
-                        transform: `rotateX(${currentPitch}deg) rotateZ(${currentRoll}deg)`,
+                        transform: `rotateX(${currentPitch}deg) rotateY(${currentRoll}deg)`,
                       }}
                     />
                   </div>
