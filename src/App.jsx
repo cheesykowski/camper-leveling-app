@@ -30,6 +30,12 @@ const vehicleDimensionLimits = {
   trackWidthCm: { min: 80, max: 400 },
 };
 
+const calibrationSourceLabels = {
+  simulation: 'Simulation',
+  phone: 'Phone sensor',
+  external: 'External sensor',
+};
+
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 const getVehicleWheelPositions = ({ wheelbaseCm, trackWidthCm }) => {
@@ -60,7 +66,7 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
   return (
     <svg
       className={className}
-      viewBox="0 0 360 420"
+      viewBox={showMeasurements ? '0 0 360 470' : '0 0 360 420'}
       role="img"
       aria-labelledby={`${id}-title ${id}-description`}
     >
@@ -108,14 +114,19 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
                   points={wedgePoints}
                 />
                 <rect
-                  className="diagram-height-bg"
+                  className={`diagram-height-bg${placement.wedgeCapacityExceeded ? ' capacity-exceeded' : ''}`}
                   x={labelX}
                   y={wheel.y + 12}
                   width="60"
                   height="24"
                   rx="12"
                 />
-                <text className="diagram-height" x={labelX + 30} y={wheel.y + 28} textAnchor="middle">
+                <text
+                  className={`diagram-height${placement.wedgeCapacityExceeded ? ' capacity-exceeded' : ''}`}
+                  x={labelX + 30}
+                  y={wheel.y + 28}
+                  textAnchor="middle"
+                >
                   STEP {placement.step}
                 </text>
               </>
@@ -129,23 +140,23 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
           <line
             className="vehicle-dimension"
             x1={leftWheelCenterX}
-            y1="68"
+            y1="436"
             x2={rightWheelCenterX}
-            y2="68"
+            y2="436"
           />
           <path
             className="vehicle-dimension-arrow"
-            d={`M${leftWheelCenterX - 6} 68 ${leftWheelCenterX + 2} 64v8z M${
+            d={`M${leftWheelCenterX - 6} 436 ${leftWheelCenterX + 2} 432v8z M${
               rightWheelCenterX + 6
-            } 68 ${rightWheelCenterX - 2} 64v8z`}
+            } 436 ${rightWheelCenterX - 2} 432v8z`}
           />
           <text
             className="vehicle-dimension-label"
             x="180"
-            y="58"
+            y="459"
             textAnchor="middle"
           >
-            TRACK WIDTH · {vehicle.trackWidthCm} CM
+            TRACK WIDTH
           </text>
           <line
             className="vehicle-dimension"
@@ -165,7 +176,7 @@ function VehicleDiagram({ className, vehicle, recommendation, showMeasurements =
             textAnchor="middle"
             transform={`rotate(-90 22 ${(frontAxleY + rearAxleY) / 2})`}
           >
-            WHEELBASE · {vehicle.wheelbaseCm} CM
+            WHEELBASE
           </text>
         </g>
       )}
@@ -427,6 +438,13 @@ function App() {
   const [calibrationComplete, setCalibrationComplete] = useState(false);
   const calibrationTimeout = useRef(null);
   const calibrationSamples = useRef([]);
+  const calibrationCaptureSource = useRef(null);
+
+  useEffect(() => {
+    if (calibrationCaptureSource.current === 'simulation') {
+      calibrationSamples.current.push(simulatedTilt);
+    }
+  }, [simulatedTilt]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -456,7 +474,7 @@ function App() {
       if (!Number.isFinite(event.beta) || !Number.isFinite(event.gamma)) return;
       const pitch = event.beta;
       const roll = event.gamma;
-      if (calibrationTimeout.current !== null) {
+      if (calibrationCaptureSource.current === 'phone') {
         calibrationSamples.current.push({ pitch, roll });
       }
       const nextSensorData = {
@@ -469,7 +487,9 @@ function App() {
 
       sensorDataRef.current = nextSensorData;
       setSensorData(nextSensorData);
-      if (!sourceSelectionLocked.current) setSource('phone');
+      if (!sourceSelectionLocked.current && calibrationCaptureSource.current !== 'simulation') {
+        setSource('phone');
+      }
       setSourceMessage((current) =>
         current.toLowerCase().includes('external sensor') ? current : '',
       );
@@ -523,23 +543,16 @@ function App() {
     [],
   );
 
-  const calibrationSource = source === 'phone' || source === 'external' ? source : null;
-  const activeCalibration = calibrationSource
-    ? getActiveCalibration(
-        calibrationSource,
-        calibrationSlots,
-        calibrationSlotIds,
-      )
-    : defaultCalibration;
+  const activeCalibration = getActiveCalibration(source, calibrationSlots, calibrationSlotIds);
   const currentRoll =
     source === 'simulation'
-      ? simulatedTilt.roll
+      ? simulatedTilt.roll - activeCalibration.roll
       : source === 'phone' && sensorData.available
         ? sensorData.roll - activeCalibration.roll
         : null;
   const currentPitch =
     source === 'simulation'
-      ? simulatedTilt.pitch
+      ? simulatedTilt.pitch - activeCalibration.pitch
       : source === 'phone' && sensorData.available
         ? sensorData.pitch - activeCalibration.pitch
         : null;
@@ -597,22 +610,33 @@ function App() {
   }, [currentPitch, currentRoll, source, vehicle]);
 
   const startCalibrationHold = () => {
-    if (calibrationTimeout.current !== null || !sensorData.available || source !== 'phone') return;
+    if (
+      calibrationTimeout.current !== null ||
+      (source !== 'simulation' && (source !== 'phone' || !sensorData.available))
+    ) return;
 
     setCalibrationComplete(false);
     setIsHoldingCalibration(true);
+    const selectedSource = source;
+    const selectedSlotId = calibrationSlotIds[selectedSource];
+    calibrationCaptureSource.current = selectedSource;
     calibrationSamples.current = [
-      { pitch: sensorDataRef.current.pitch, roll: sensorDataRef.current.roll },
+      selectedSource === 'simulation'
+        ? simulatedTilt
+        : { pitch: sensorDataRef.current.pitch, roll: sensorDataRef.current.roll },
     ];
-    const selectedSlotId = calibrationSlotIds.phone;
     calibrationTimeout.current = window.setTimeout(() => {
       const pitch = getTrimmedMean(calibrationSamples.current.map((sample) => sample.pitch));
       const roll = getTrimmedMean(calibrationSamples.current.map((sample) => sample.roll));
       setCalibrationSlots((current) => ({
         ...current,
-        phone: replaceCalibrationSlotOffsets(current.phone, selectedSlotId, { pitch, roll }),
+        [selectedSource]: replaceCalibrationSlotOffsets(current[selectedSource], selectedSlotId, {
+          pitch,
+          roll,
+        }),
       }));
       calibrationSamples.current = [];
+      calibrationCaptureSource.current = null;
       calibrationTimeout.current = null;
       setIsHoldingCalibration(false);
       setCalibrationComplete(true);
@@ -624,9 +648,16 @@ function App() {
       window.clearTimeout(calibrationTimeout.current);
       calibrationTimeout.current = null;
       calibrationSamples.current = [];
+      calibrationCaptureSource.current = null;
       setIsHoldingCalibration(false);
     }
   };
+
+  useEffect(() => {
+    if (!sensorData.available && calibrationCaptureSource.current === 'phone') {
+      cancelCalibrationHold();
+    }
+  }, [sensorData.available]);
 
   const updateCalibrationSlotName = (sourceName, slotId, name) => {
     setCalibrationSlots((current) => ({
@@ -638,10 +669,18 @@ function App() {
   };
 
   const sortedWedgeHeights = [...vehicle.wedgeHeightsCm].sort((a, b) => a - b);
-  const calibrationSlotSource = source === 'external' ? 'external' : 'phone';
+  const calibrationSlotSource = source;
   const activeSlotId = calibrationSlotIds[calibrationSlotSource];
   const activeSlot = calibrationSlots[calibrationSlotSource].find((slot) => slot.id === activeSlotId);
   const activeSlotLabel = activeSlot?.name.trim() || String(calibrationSlotKeys.indexOf(activeSlotId) + 1);
+  const noCalibratedSlots = !calibrationSlots[calibrationSlotSource].some(
+    (slot) => slot.pitch !== null && slot.roll !== null,
+  );
+  const additionalInfo = [
+    recommendation.axis === 'unavailable' ? sourceMessage || recommendation.description : '',
+    recommendation.wedgeCapacityExceeded ? 'Required lift exceeds wedge capacity.' : '',
+    noCalibratedSlots ? 'No calibration slot has been set.' : '',
+  ].filter(Boolean).join(' ') || (recommendation.axis === 'level' ? recommendation.description : '');
   const wedgeIllustrationHeights = [
     sortedWedgeHeights[sortedWedgeHeights.length - 1],
     sortedWedgeHeights[Math.floor((sortedWedgeHeights.length - 1) / 2)],
@@ -718,6 +757,8 @@ function App() {
 
   const selectSource = async (nextSource) => {
     dragStart.current = null;
+    cancelCalibrationHold();
+    setCalibrationComplete(false);
     setSourceMessage('');
     if (nextSource === 'simulation') {
       sourceSelectionLocked.current = true;
@@ -877,11 +918,9 @@ function App() {
             <h2 className={recommendation.axis === 'unavailable' ? 'sensor-unavailable' : ''}>
               {recommendation.title}
             </h2>
-            {recommendation.axis !== 'pitch' && recommendation.axis !== 'roll' && (
+            {additionalInfo && (
               <p className="hero-description" role="status">
-                {recommendation.axis === 'unavailable' && sourceMessage
-                  ? sourceMessage
-                  : recommendation.description}
+                {additionalInfo}
               </p>
             )}
           </div>
@@ -893,7 +932,7 @@ function App() {
                 <div
                   className={`simulator-stage${vehicle.wheelbaseCm > 300 ? ' long-wheelbase' : ''}`}
                   role="application"
-                  aria-label={`Simulate vehicle tilt. Drag vertically for pitch and horizontally for roll, or use the arrow keys. Pitch ${simulatedTilt.pitch.toFixed(1)} degrees, roll ${simulatedTilt.roll.toFixed(1)} degrees. Maximum tilt ${SIMULATION_MAX_TILT} degrees.`}
+                  aria-label={`Simulate vehicle tilt. Drag vertically for pitch and horizontally for roll, or use the arrow keys. Simulated sensor pitch ${simulatedTilt.pitch.toFixed(1)} degrees, roll ${simulatedTilt.roll.toFixed(1)} degrees. Maximum tilt ${SIMULATION_MAX_TILT} degrees.`}
                   onPointerDown={startSimulationDrag}
                   onPointerMove={updateSimulationDrag}
                   onPointerUp={stopSimulationDrag}
@@ -956,7 +995,7 @@ function App() {
               calibrationComplete ? 'is-complete' : ''
             }`}
             type="button"
-            disabled={source !== 'phone' || !sensorData.available}
+            disabled={source === 'external' || (source === 'phone' && !sensorData.available)}
             onPointerDown={(event) => {
               event.currentTarget.setPointerCapture(event.pointerId);
               startCalibrationHold();
@@ -964,6 +1003,7 @@ function App() {
             onPointerUp={cancelCalibrationHold}
             onPointerCancel={cancelCalibrationHold}
             onLostPointerCapture={cancelCalibrationHold}
+            onBlur={cancelCalibrationHold}
             onKeyDown={(event) => {
               if (event.key === ' ' || event.key === 'Enter') {
                 event.preventDefault();
@@ -1016,6 +1056,7 @@ function App() {
                     isCalibrated ? 'Calibrated' : 'Not calibrated'
                   }`}
                   onClick={() => {
+                    cancelCalibrationHold();
                     setCalibrationSlotIds((current) => ({
                       ...current,
                       [calibrationSlotSource]: slot.id,
@@ -1071,7 +1112,7 @@ function App() {
           type="button"
           aria-haspopup="dialog"
           onClick={() => {
-            setCalibrationSettingsSource(source === 'external' ? 'external' : 'phone');
+            setCalibrationSettingsSource(source);
             setActiveMenu('calibration');
           }}
         >
@@ -1312,11 +1353,12 @@ function App() {
                         }
                       }}
                     >
-                      <summary aria-label={`Sensor: ${calibrationSettingsSource === 'phone' ? 'Phone sensor' : 'External sensor'}`}>
-                        {calibrationSettingsSource === 'phone' ? 'Phone sensor' : 'External sensor'}
+                      <summary aria-label={`Sensor: ${calibrationSourceLabels[calibrationSettingsSource]}`}>
+                        {calibrationSourceLabels[calibrationSettingsSource]}
                       </summary>
                       <div className="calibration-sensor-options" role="group" aria-label="Sensor">
                         {[
+                          { id: 'simulation', label: 'Simulation' },
                           { id: 'phone', label: 'Phone sensor' },
                           { id: 'external', label: 'External sensor' },
                         ].map((sensor) => (

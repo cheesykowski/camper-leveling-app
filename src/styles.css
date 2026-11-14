@@ -492,6 +492,16 @@ input:focus-visible {
   letter-spacing: 0;
 }
 
+.diagram-height-bg.capacity-exceeded {
+  fill: #392411;
+  stroke: #ff9a42;
+  filter: drop-shadow(0 0 5px rgb(255 154 66 / 35%));
+}
+
+.diagram-height.capacity-exceeded {
+  fill: #ffd18a;
+}
+
 .action-area {
   display: grid;
   width: min(100%, 340px);
@@ -1059,7 +1069,7 @@ input:focus-visible {
 .vehicle-dimension-label {
   fill: var(--glow);
   font-family: inherit;
-  font-size: 10px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.6px;
 }

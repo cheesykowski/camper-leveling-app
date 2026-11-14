@@ -72,19 +72,25 @@ test('uses the selected slot offset and zero for an empty slot', () => {
   assert.deepEqual(selectedIds, defaultCalibrationSlotIds);
 });
 
-test('keeps phone and external slot values and selections independent', () => {
+test('keeps simulation, phone and external slot values and selections independent', () => {
   const slots = normalizeCalibrationSlots(
     {
+      simulation: [{ name: 'Test', pitch: 8, roll: -6 }],
       phone: [{ name: 'Cab', pitch: 1, roll: 2 }],
       external: [{ name: 'Sensor', pitch: -3, roll: 4 }],
     },
     defaultCalibrations,
   );
   const selectedIds = normalizeCalibrationSlotIds({
+    simulation: 'slot-1',
     phone: 'slot-1',
     external: 'slot-1',
   });
 
+  assert.deepEqual(getActiveCalibration('simulation', slots, selectedIds), {
+    pitch: 8,
+    roll: -6,
+  });
   assert.deepEqual(getActiveCalibration('phone', slots, selectedIds), {
     pitch: 1,
     roll: 2,
@@ -93,6 +99,20 @@ test('keeps phone and external slot values and selections independent', () => {
     pitch: -3,
     roll: 4,
   });
+});
+
+test('adds empty simulation slots when loading settings from before simulation calibration', () => {
+  const slots = normalizeCalibrationSlots(
+    { phone: [{ name: 'Cab', pitch: 1, roll: 2 }] },
+    defaultCalibrations,
+  );
+
+  assert.deepEqual(slots.simulation, [
+    { id: 'slot-1', name: '', pitch: null, roll: null },
+    { id: 'slot-2', name: '', pitch: null, roll: null },
+    { id: 'slot-3', name: '', pitch: null, roll: null },
+  ]);
+  assert.equal(slots.phone[0].name, 'Cab');
 });
 
 test('recalibrates only the selected slot while preserving its name and other slots', () => {

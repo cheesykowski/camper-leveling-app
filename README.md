@@ -7,8 +7,8 @@ KEILOMAT is a mobile-first web app that helps level a parked camper van. It can 
 ## Prototype features
 
 - Live pitch and roll readings from the browser's device-orientation API, when available
-- A three-second phone calibration that stores the trimmed mean of the captured pitch and roll samples
-- Separate calibration slots for the phone and external sensor sources
+- A three-second phone or simulation calibration that stores the trimmed mean of captured pitch and roll samples
+- Separate calibration slots for simulation, phone, and external sensor sources
 - Interactive 3D tilt simulation integrated into the top view, limited to ±30° on pitch and roll
 - Selection between simulation, the phone sensor, and the currently unavailable external sensor
 - Locally stored wheelbase, track width, and individually editable wedge heights, including decimal values
@@ -21,7 +21,9 @@ KEILOMAT is a mobile-first web app that helps level a parked camper van. It can 
 
 The default vehicle dimensions and wedge heights are examples. Update them before relying on the app.
 
-The recommendation places one wedge at the lowest corner using the combined pitch and roll correction, then places a second wedge on the adjacent wheel along the geometrically dominant axis. For each position, it selects the highest configured wedge height that does not exceed the calculated lift. The app displays the integer step number rather than the calculated height. This prioritizes correction along the dominant axis; it does not guarantee that both axes are fully level. The model treats the vehicle as a rigid plane on level ground. Tire deformation, suspension travel, uneven ground, and chassis flex are not modeled. Verify sensor axes, signs, and real wedge heights on the vehicle before use.
+The recommendation places one wedge at the lowest corner using the combined pitch and roll correction, then places a second wedge on the adjacent wheel along the geometrically dominant axis. For each position, it selects the highest configured wedge height that does not exceed the calculated lift. A wedge and its step are orange when the required lift exceeds the tallest configured height; otherwise they are green. The app displays the integer step number rather than the calculated height. This prioritizes correction along the dominant axis; it does not guarantee that both axes are fully level. The model treats the vehicle as a rigid plane on level ground. Tire deformation, suspension travel, uneven ground, and chassis flex are not modeled. Verify sensor axes, signs, and real wedge heights on the vehicle before use.
+
+Simulation calibration slots are saved independently of real sensor slots. Their offsets affect only the simulation readings and can be used to test calibration without changing phone calibration.
 
 ## Local development
 
