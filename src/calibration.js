@@ -17,6 +17,7 @@ export const defaultCalibrationSlots = {
   simulation: createEmptySlots(),
   phone: createEmptySlots(),
   phoneRelative: createEmptySlots(),
+  phoneMotion: createEmptySlots(),
   external: createEmptySlots(),
 };
 
@@ -24,10 +25,11 @@ export const defaultCalibrationSlotIds = {
   simulation: calibrationSlotIds[0],
   phone: calibrationSlotIds[0],
   phoneRelative: calibrationSlotIds[0],
+  phoneMotion: calibrationSlotIds[0],
   external: calibrationSlotIds[0],
 };
 
-const calibrationSources = ['simulation', 'phone', 'phoneRelative', 'external'];
+const calibrationSources = ['simulation', 'phone', 'phoneRelative', 'phoneMotion', 'external'];
 
 export function getTrimmedMean(values) {
   const sortedValues = values.filter(Number.isFinite).sort((a, b) => a - b);

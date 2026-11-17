@@ -318,6 +318,7 @@ select:focus-visible {
 
 .sensor-debug {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   align-items: center;
   gap: 4px;

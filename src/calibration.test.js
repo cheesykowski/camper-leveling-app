@@ -126,6 +126,17 @@ test('keeps relative orientation calibration independent of the existing phone s
   assert.equal(slots.phoneRelative[0].pitch, 7);
 });
 
+test('keeps motion calibration independent and restores it from saved slots', () => {
+  const slots = normalizeCalibrationSlots({
+    phone: [{ pitch: 1, roll: 2 }],
+    phoneMotion: [{ pitch: 3, roll: -4 }],
+  }, defaultCalibrations);
+  const ids = normalizeCalibrationSlotIds({ phoneMotion: 'slot-1' });
+  assert.deepEqual(getActiveCalibration('phoneMotion', slots, ids), { pitch: 3, roll: -4 });
+  assert.deepEqual(getActiveCalibration('phone', slots, ids), { pitch: 1, roll: 2 });
+  assert.equal(slots.phoneRelative[0].pitch, null);
+});
+
 test('recalibrates only the selected slot while preserving its name and other slots', () => {
   const slots = normalizeCalibrationSlots(
     {
