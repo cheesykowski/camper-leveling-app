@@ -316,6 +316,29 @@ select:focus-visible {
   background: var(--line);
 }
 
+.sensor-debug {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  color: var(--dim);
+  font-size: 0.56rem;
+}
+
+.sensor-debug button {
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--dim);
+  cursor: pointer;
+  font-size: inherit;
+}
+
+.sensor-debug button.selected {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
 .simulator-stage {
   position: absolute;
   z-index: 2;

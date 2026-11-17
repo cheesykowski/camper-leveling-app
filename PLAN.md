@@ -10,6 +10,7 @@ Build an Android-friendly web app that measures the tilt of a parked camper and 
 
 - [x] React/Vite project with a responsive mobile interface
 - [x] Pitch and roll readings via `DeviceOrientationEvent`, when the browser provides sensor access
+- [x] Developer-only comparison with `RelativeOrientationSensor`, using independent, session-only calibration slots
 - [x] Developer-only 3D simulation in the browser, controlled by mouse or touch; pitch and roll are limited to ±30°
 - [x] Selection between phone sensor and an external sensor source that is not yet connected; unavailable data does not produce a leveling recommendation
 - [x] Independent calibration slots for simulation and phone; a single selected calibration for the fixed external sensor
@@ -32,6 +33,7 @@ Build an Android-friendly web app that measures the tilt of a parked camper and 
 - [x] Installable PWA and cached offline app, with an explicit update prompt
 - [x] GitHub Pages workflow and Vite base path configured
 - [ ] Verify browser permissions and real sensor orientation on the target Android device
+- [ ] Compare the two phone orientation sources and recovery after lateral movement on the target Android device
 - [ ] Verify sun compass directions and location permissions on target phones, away from magnetic interference
 - [ ] Verify installation, offline launch, updates, and phone sensor access on an Android device
 - [ ] Configure Formspree email notifications and test a submission and private storage
@@ -45,7 +47,7 @@ Default vehicle and wedge values are placeholders. The calculations and sensor c
 
 - Verify sensor permissions and orientation on the target Android device.
 - Test browser reloads and local storage on Android.
-- Evaluate live sensor filtering separately from the calibration sample average.
+- Compare the browser orientation sources after lateral movement before considering any live sensor filtering; calibration averaging remains separate.
 
 ### 2. Refine the vehicle and wedge model
 
@@ -78,6 +80,7 @@ Integration requires the Arduino project or BLE protocol, device details, servic
 - **Offline:** A service worker precaches the production app. Android installation is offered in the app when the browser supports it; feedback requires a connection. The offline dialog can check for updates; confirming an update activates the shared offline version and reloads only the confirming view; other open views offer their own reload.
 - **Initial setup:** Vehicle dimensions and wedge or height settings require explicit confirmation; the selected sensor position needs calibration. Subtle markers indicate unfinished steps.
 - **Initial sensor:** Phone orientation through the web `DeviceOrientationEvent` API.
+- **Sensor comparison:** The opt-in web debug view can select `RelativeOrientationSensor` instead; it uses separate calibration slots that are discarded on reload, signal loss, or when the page becomes hidden because the reference frame may change. The normal phone source remains the default.
 - **Sun view:** SunCalc calculates events locally from the device date and location; a supported absolute phone compass supplies approximate vehicle-relative directions. Location is not stored. Bearings are true-north based; compass readings can be magnetic and affected by nearby metal.
 - **Target platform:** Android browser. Sensor and BLE support varies by browser; the BLE protocol is not yet defined.
 - **Vehicle values:** Example values until actual measurements are available.

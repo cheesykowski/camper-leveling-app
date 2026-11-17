@@ -115,6 +115,17 @@ test('adds empty simulation slots when loading settings from before simulation c
   assert.equal(slots.phone[0].name, 'Cab');
 });
 
+test('keeps relative orientation calibration independent of the existing phone slots', () => {
+  const slots = normalizeCalibrationSlots(
+    { phone: [{ name: 'Cab', pitch: 1, roll: 2 }] },
+    defaultCalibrations,
+  );
+  assert.equal(slots.phoneRelative[0].pitch, null);
+  slots.phoneRelative = replaceCalibrationSlotOffsets(slots.phoneRelative, 'slot-1', { pitch: 7, roll: -4 });
+  assert.equal(slots.phone[0].pitch, 1);
+  assert.equal(slots.phoneRelative[0].pitch, 7);
+});
+
 test('recalibrates only the selected slot while preserving its name and other slots', () => {
   const slots = normalizeCalibrationSlots(
     {

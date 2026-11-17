@@ -73,6 +73,8 @@ Open the app in a supported mobile browser. Motion-sensor access may require a s
 
 Place the phone flat and securely, screen up and top toward the vehicle's front. For each calibration slot, use the same phone position and orientation when calibrating and measuring. Verify the sensor axes and recommendations on the actual vehicle. An external sensor is intended to be mounted permanently and calibrated in place; it is not connected yet. Existing external calibration data is retained, with the previously selected calibration used as the single reference.
 
+For a development comparison, open the web app with `?sensorDebug=1` and switch between **DEVICE ORIENTATION** and **RELATIVE SENSOR**. The second option uses the browser's `RelativeOrientationSensor` when supported and reports permission, availability, and signal errors rather than switching back automatically. If access fails, resolve the permission or device issue and reload the page to retry. It can use the same underlying sensor fusion as the original source; an improvement is not guaranteed. Calibrate each source separately on the same level reference before comparing. The relative sensor's calibration slots last only while the page remains open and visible with a working signal, because its reference frame can change when restarted; the existing phone calibrations remain unchanged. The debug switch is not available in the installed app. Test tilt signs and recovery on the actual device before relying on either source.
+
 ## Sun directions
 
 Select the sun icon in the top view and allow location and compass access. The symbols and times for sunrise, solar noon (the highest point), and sunset appear around the vehicle according to their calculated directions. The curved line follows the sun's horizontal direction, so its span varies with location and season. Place the phone flat, screen up, in portrait orientation with its top toward the vehicle's front. Times use the device's current date and time zone. At high latitudes an event may not occur on that date, and solar noon may be below the horizon. If location access fails, close and reopen the view to retry.
@@ -98,6 +100,7 @@ The endpoint URL is included in the public app bundle and is not a secret. Do no
 - `src/pwa.js` — offline readiness, installation, and update handling
 - `src/*.test.js` — unit tests
 - `src/leveling.js` — wedge recommendation calculations
+- `src/orientation.js` — relative sensor quaternion conversion
 - `src/sun.js` — solar event and compass direction calculations
 - `src/styles.css` — styling and responsive layouts
 - `src/main.jsx` — React entry point
