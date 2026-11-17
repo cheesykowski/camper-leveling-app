@@ -15,7 +15,6 @@ import { normalizeLanguage, translate } from './i18n.js';
 import { applyUpdate, checkForUpdates, installApp, refreshOfflineStatus, usePwa } from './pwa.js';
 import { initialSensorSource } from './appMode.js';
 import { calculateSunEvents, compassHeading, sunMarkerPosition } from './sun.js';
-import logo from './assets/keilomat-logo.svg';
 
 const STORAGE_KEY = 'camper-leveling-demo-v1';
 const SIMULATION_MAX_TILT = 30;
@@ -50,6 +49,22 @@ const calibrationSourceLabels = {
 };
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+function SunSymbol({ event }) {
+  return (
+    <g className="sun-symbol">
+      <circle cx="0" cy="-2" r="4" />
+      {event === 'solarNoon' ? (
+        <path d="M0-10v2M0 4v2M-8-2h2M6-2h2M-6-8l1.5 1.5M4.5 2.5 6 4M6-8 4.5-6.5M-4.5 2.5-6 4" />
+      ) : (
+        <>
+          <path d="M-8 4h16" />
+          {event === 'sunrise' ? <path d="M9 1v-8m-3 3 3-3 3 3" /> : <path d="M9-7v8m-3-3 3 3 3-3" />}
+        </>
+      )}
+    </g>
+  );
+}
 
 const getVehicleWheelPositions = ({ wheelbaseCm, trackWidthCm }) => {
   const trackHalfWidth = clamp(66 + ((trackWidthCm - 80) / 320) * 10, 66, 76);
@@ -170,12 +185,12 @@ function VehicleDiagram({ className, vehicle, recommendation, t, language, showM
         );
       })}
 
-      {sunMarkers.map(({ number, azimuth, heading }) => {
+      {sunMarkers.map(({ key, azimuth, heading }) => {
         const point = sunMarkerPosition(azimuth, heading);
         return (
-          <g className="sun-marker" key={number} aria-hidden="true">
-            <circle cx={point.x} cy={point.y} r="13" />
-            <text x={point.x} y={point.y + 4} textAnchor="middle">{number}</text>
+          <g className="sun-marker" key={key} transform={`translate(${point.x} ${point.y})`} aria-hidden="true">
+            <circle className="sun-marker-bg" r="16" />
+            <SunSymbol event={key} />
           </g>
         );
       })}
@@ -230,30 +245,85 @@ function VehicleDiagram({ className, vehicle, recommendation, t, language, showM
   );
 }
 
-function SunView({ vehicle, t, language }) {
+function requestSunData() {
+  const location = new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve({ error: 'Location is unavailable in this browser.' });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => resolve({ latitude: coords.latitude, longitude: coords.longitude }),
+      (error) => resolve({ error: error.code === 1
+        ? 'Location permission was denied. Allow access and reopen this view.'
+        : 'Could not get your location. Check GPS and reopen this view.' }),
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
+    );
+  });
+  let compass;
+  if (!('DeviceOrientationEvent' in window)) {
+    compass = Promise.resolve('unavailable');
+  } else if (typeof window.DeviceOrientationEvent.requestPermission === 'function') {
+    try {
+      compass = window.DeviceOrientationEvent.requestPermission(true).then(
+        (permission) => permission === 'granted' ? 'granted' : 'denied',
+        () => 'failed',
+      );
+    } catch {
+      compass = Promise.resolve('failed');
+    }
+  } else {
+    compass = Promise.resolve('granted');
+  }
+  return { location, compass };
+}
+
+function SunView({ vehicle, t, language, request }) {
   const [location, setLocation] = useState(null);
-  const [locationStatus, setLocationStatus] = useState('');
-  const [compassStatus, setCompassStatus] = useState('');
+  const [locationStatus, setLocationStatus] = useState('Finding your location…');
+  const [compassStatus, setCompassStatus] = useState('Waiting for compass…');
   const [compassEnabled, setCompassEnabled] = useState(false);
   const [heading, setHeading] = useState(null);
+  const [lockedHeading, setLockedHeading] = useState(null);
   const [today, setToday] = useState(() => new Date());
-  const mounted = useRef(true);
 
   useEffect(() => {
-    mounted.current = true;
     const timer = window.setInterval(() => setToday(new Date()), 60000);
-    return () => {
-      mounted.current = false;
-      window.clearInterval(timer);
-    };
+    return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    request.location.then(
+      (result) => {
+        if (!active) return;
+        if (result.error) setLocationStatus(result.error);
+        else {
+          setLocation(result);
+          setLocationStatus('');
+        }
+      },
+      () => {
+        if (active) setLocationStatus('Could not get your location. Check GPS and reopen this view.');
+      },
+    );
+    request.compass.then((result) => {
+      if (!active) return;
+      if (result === 'granted') setCompassEnabled(true);
+      else setCompassStatus(result === 'denied'
+        ? 'Compass permission was denied. Times are still shown.'
+        : result === 'failed'
+          ? 'Compass permission failed. Times are still shown.'
+          : 'Compass unavailable. Times are still shown.');
+    });
+    return () => { active = false; };
+  }, [request]);
 
   useEffect(() => {
     if (!compassEnabled) return undefined;
     let timeout;
     const noSignal = () => {
       setHeading(null);
-      setCompassStatus('Compass unavailable. Times and bearings are still shown.');
+      setCompassStatus('Compass unavailable. Times are still shown.');
     };
     const onOrientation = (event) => {
       const angle = window.screen.orientation?.angle ?? window.orientation ?? 0;
@@ -279,94 +349,75 @@ function SunView({ vehicle, t, language }) {
     };
   }, [compassEnabled]);
 
-  const start = () => {
-    setLocation(null);
-    if (!navigator.geolocation) {
-      setLocationStatus('Location is unavailable in this browser.');
-    } else {
-      setLocationStatus('Finding your location…');
-      navigator.geolocation.getCurrentPosition(
-        ({ coords }) => {
-          if (!mounted.current) return;
-          setLocation({ latitude: coords.latitude, longitude: coords.longitude });
-          setLocationStatus('');
-        },
-        (error) => {
-          if (!mounted.current) return;
-          setLocationStatus(error.code === 1
-            ? 'Location permission was denied.'
-            : 'Could not get your location. Check GPS and try again.');
-        },
-        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
-      );
-    }
-
-    if (compassEnabled) return;
-    if (!('DeviceOrientationEvent' in window)) {
-      setCompassStatus('Compass unavailable. Times and bearings are still shown.');
-    } else if (typeof window.DeviceOrientationEvent.requestPermission === 'function') {
-      window.DeviceOrientationEvent.requestPermission(true).then((permission) => {
-        if (!mounted.current) return;
-        if (permission === 'granted') {
-          setCompassStatus('Waiting for compass…');
-          setCompassEnabled(true);
-        } else {
-          setCompassStatus('Compass permission was denied. Times and bearings are still shown.');
-        }
-      }).catch(() => {
-        if (mounted.current) setCompassStatus('Compass permission failed. Times and bearings are still shown.');
-      });
-    } else {
-      setCompassStatus('Waiting for compass…');
-      setCompassEnabled(true);
-    }
-  };
-
   const events = useMemo(
     () => location ? calculateSunEvents(today, location.latitude, location.longitude) : null,
     [today, location],
   );
   const items = [
-    { key: 'sunrise', label: 'Sunrise', number: 1 },
-    { key: 'solarNoon', label: 'Highest point', number: 2 },
-    { key: 'sunset', label: 'Sunset', number: 3 },
+    { key: 'sunrise', label: 'Sunrise', x: 45, y: 94 },
+    { key: 'solarNoon', label: 'Highest point', x: 180, y: 23 },
+    { key: 'sunset', label: 'Sunset', x: 315, y: 94 },
   ];
-  const markers = events && heading !== null
+  const vehicleHeading = lockedHeading ?? heading;
+  const markers = events && vehicleHeading !== null
     ? items.filter((item) => events[item.key]).map((item) => ({
-        number: item.number,
+        key: item.key,
         azimuth: events[item.key].azimuth,
-        heading,
+        heading: vehicleHeading,
       }))
     : [];
   const timeFormatter = new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit' });
 
   return (
     <div className="sun-view">
-      <p>{t('See today’s sun directions relative to your vehicle. Place the phone flat, screen up, in portrait orientation with its top toward the vehicle’s front.')}</p>
-      <button className="sun-start" type="button" onClick={start} disabled={locationStatus === 'Finding your location…'}>
-        {t(location ? 'REFRESH LOCATION' : 'USE MY LOCATION')}
-      </button>
       {locationStatus && <p role="status">{t(locationStatus)}</p>}
-      {compassStatus && <p role="status">{t(compassStatus)}</p>}
+      {compassStatus && lockedHeading === null && <p role="status">{t(compassStatus)}</p>}
       {events && (
         <>
-          <p>{new Intl.DateTimeFormat(language, { dateStyle: 'full' }).format(today)} · {t('Device time zone')}</p>
-          <div className="sun-diagram">
-            <VehicleDiagram className="sun-vehicle-svg" vehicle={vehicle} t={t} language={language} sunMarkers={markers} />
-          </div>
-          <div className="sun-events">
+          <p>{new Intl.DateTimeFormat(language, { dateStyle: 'medium' }).format(today)}</p>
+          <svg className="sun-arc" viewBox="0 0 360 135" role="img" aria-label={items.map((item) => {
+            const event = events[item.key];
+            return `${t(item.label)}: ${event ? timeFormatter.format(event.time) : t('No event today')}`;
+          }).join(' · ')}>
+            <path className="sun-arc-line" d="M45 94 A135 71 0 0 1 315 94" />
             {items.map((item) => {
               const event = events[item.key];
               return (
-                <div className="sun-event" key={item.key}>
-                  <span><b>{item.number}</b> {t(item.label)}</span>
-                  <strong>{event ? timeFormatter.format(event.time) : t('No event today')}</strong>
-                  <small>{event ? t('{degrees}° from north', { degrees: Math.round(event.azimuth) % 360 }) : '—'}</small>
-                </div>
+                <g key={item.key} transform={`translate(${item.x} ${item.y})`}>
+                  <SunSymbol event={item.key} />
+                  <text y="28" textAnchor="middle">{event ? timeFormatter.format(event.time) : '—'}</text>
+                </g>
               );
             })}
+          </svg>
+          <div className="sun-diagram">
+            <VehicleDiagram className="sun-vehicle-svg" vehicle={vehicle} t={t} language={language} sunMarkers={markers} />
           </div>
-          <p>{t('Bearings are true north. Compass directions are approximate and may use magnetic north; calibrate your phone and keep it away from metal. Solar noon can be below the horizon.')}</p>
+          {(heading !== null || lockedHeading !== null) && (
+            <button
+              className={`sun-lock${lockedHeading !== null ? ' locked' : ''}`}
+              type="button"
+              aria-pressed={lockedHeading !== null}
+              aria-label={t(lockedHeading === null ? 'Lock vehicle direction' : 'Unlock vehicle direction')}
+              title={t(lockedHeading === null ? 'Lock vehicle direction' : 'Unlock vehicle direction')}
+              onClick={() => setLockedHeading(lockedHeading === null ? heading : null)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="5" y="10" width="14" height="11" rx="2" />
+                {lockedHeading === null
+                  ? <path d="M8 10V7a4 4 0 0 1 7-2" />
+                  : <path d="M8 10V7a4 4 0 0 1 8 0v3" />}
+                <path d="M12 14v3" />
+              </svg>
+            </button>
+          )}
+          <details className="sun-info">
+            <summary aria-label={t('Sun view information')}>ⓘ</summary>
+            <p>{t('See today’s sun directions relative to your vehicle. Place the phone flat, screen up, in portrait orientation with its top toward the vehicle’s front.')}</p>
+            <p>{t('Bearings are true north. Compass directions are approximate and may use magnetic north; calibrate your phone and keep it away from metal. Solar noon can be below the horizon.')}</p>
+            <p>{t('Times use the device time zone. A dash means no event today.')}</p>
+            <p>{t('To reduce interference, move away from the vehicle, point the phone top parallel to its front, and lock the direction. Unlock and measure again if the vehicle moves.')}</p>
+          </details>
         </>
       )}
     </div>
@@ -877,6 +928,7 @@ function App() {
   const dragStart = useRef(null);
   const sensorTimeout = useRef(null);
   const [activeMenu, setActiveMenu] = useState(null);
+  const [sunRequest, setSunRequest] = useState(null);
   const [isHoldingCalibration, setIsHoldingCalibration] = useState(false);
   const [calibrationComplete, setCalibrationComplete] = useState(false);
   const calibrationTimeout = useRef(null);
@@ -1377,10 +1429,7 @@ function App() {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
-          <h1 aria-label={`KEILOMAT ${pwa.standalone ? 'APP' : 'WEB'}`}>
-            <img src={logo} alt="" />
-            <small>{pwa.standalone ? 'APP' : 'WEB'}</small>
-          </h1>
+          <h1>KEIL<span>OMAT</span> <small>{pwa.standalone ? 'APP' : 'WEB'}</small></h1>
         </div>
         <div className="header-actions">
           <div className="source-picker" role="group" aria-label={t('Select data source')}>
@@ -1492,8 +1541,21 @@ function App() {
           <div className="vehicle-diagram">
             <div className="diagram-heading">
               <span>{t('TOP VIEW')}{source === 'simulation' ? ` · ${t('SIMULATION')}` : ''}</span>
-              <button className="sun-open" type="button" onClick={() => setActiveMenu('sun')}>
-                {t('SUN')}
+              <button
+                className="sun-open"
+                type="button"
+                aria-haspopup="dialog"
+                aria-label={t('Sun directions')}
+                title={t('Sun directions')}
+                onClick={() => {
+                  setSunRequest(requestSunData());
+                  setActiveMenu('sun');
+                }}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M19 5l-2 2M7 17l-2 2" />
+                </svg>
               </button>
               {source === 'simulation' && (
                 <div
@@ -1791,7 +1853,7 @@ function App() {
               </button>
             </header>
 
-            {activeMenu === 'sun' && <SunView vehicle={vehicle} t={t} language={language} />}
+            {activeMenu === 'sun' && <SunView vehicle={vehicle} t={t} language={language} request={sunRequest} />}
 
             {activeMenu !== 'feedback' && activeMenu !== 'help' && activeMenu !== 'offline' && activeMenu !== 'sun' && (
               <div className="menu-tabs" role="tablist" aria-label={t('Configuration sections')}>

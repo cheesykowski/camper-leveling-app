@@ -119,10 +119,8 @@ select:focus-visible {
   white-space: nowrap;
 }
 
-.brand h1 img {
-  display: block;
-  width: 160px;
-  height: auto;
+.brand h1 span {
+  color: var(--glow);
 }
 
 .brand h1 small {
@@ -488,37 +486,35 @@ select:focus-visible {
   letter-spacing: 0.14em;
 }
 
-.sun-open,
-.sun-start {
+.sun-open {
   border: 1px solid var(--amber);
   background: #211a0c;
   color: var(--amber);
   cursor: pointer;
-  font-weight: 700;
-}
-
-.sun-open {
   position: relative;
   z-index: 3;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
   margin-left: 10px;
   margin-right: auto;
-  padding: 5px 9px;
+  padding: 4px;
 }
 
-.sun-start {
-  padding: 10px 14px;
-}
-
-.sun-start:disabled {
-  opacity: 0.6;
-  cursor: wait;
+.sun-open svg {
+  width: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.7;
 }
 
 .sun-view {
   display: grid;
   justify-items: center;
-  gap: 12px;
-  padding: 16px 0;
+  gap: 8px;
+  padding: 8px 0;
 }
 
 .sun-view p {
@@ -531,52 +527,94 @@ select:focus-visible {
 
 .sun-diagram {
   width: 100%;
-  border: 1px solid var(--line);
-  background: #09110c;
   text-align: center;
+}
+
+.sun-lock {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  padding: 5px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+}
+
+.sun-lock.locked {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.sun-lock svg {
+  width: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
 }
 
 .sun-vehicle-svg {
   display: block;
-  width: min(100%, 300px);
-  max-height: 42vh;
+  width: min(100%, 190px);
+  max-height: 32vh;
   margin: auto;
 }
 
-.sun-marker circle {
+.sun-marker-bg {
   fill: var(--amber);
   stroke: #241a05;
   stroke-width: 2;
 }
 
-.sun-marker text {
-  fill: #241a05;
-  font-size: 12px;
+.sun-symbol {
+  fill: none;
+  stroke: var(--amber);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.sun-marker .sun-symbol {
+  stroke: #241a05;
+}
+
+.sun-arc {
+  display: block;
+  width: min(100%, 360px);
+  overflow: visible;
+}
+
+.sun-arc-line {
+  fill: none;
+  stroke: #826b35;
+  stroke-dasharray: 4 5;
+}
+
+.sun-arc text {
+  fill: var(--bright);
+  font-size: 13px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
-.sun-events {
-  display: grid;
+.sun-info {
   width: 100%;
-  gap: 7px;
-}
-
-.sun-event {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: 3px 10px;
-  font-size: 0.78rem;
-}
-
-.sun-event b {
-  color: var(--amber);
-}
-
-.sun-event small {
-  grid-column: 2;
   color: var(--dim);
-  text-align: right;
+}
+
+.sun-info summary {
+  width: fit-content;
+  margin: auto;
+  cursor: pointer;
+  font-size: 1rem;
+  list-style: none;
+}
+
+.sun-info p {
+  margin-top: 8px;
 }
 
 .vehicle-svg {
@@ -1807,10 +1845,6 @@ select:focus-visible {
   .brand h1 {
     font-size: 0.76rem;
     letter-spacing: 0.04em;
-  }
-
-  .brand h1 img {
-    width: clamp(110px, 36vw, 145px);
   }
 
   .header-actions {
