@@ -22,7 +22,7 @@ Build an Android-friendly web app that measures the tilt of a parked camper and 
 - [x] Highlight each wheel whose required lift exceeds the configured maximum
 - [x] Decimal wedge heights supported; recommendations use whole-number step indices and never round above the required lift
 - [x] Shared vehicle top view in the main screen and vehicle setup, including the two recommended wedge positions and step numbers
-- [x] Local sun-event calculations and compass implementation retained; sun view hidden for now
+- [x] Optional local sun-event calculations and a compass-relative sun arc around the vehicle
 - [x] Minimal 3D vehicle simulation and wedge-step illustration in setup
 - [x] Dashboard with vehicle/wedge settings and a three-second calibration hold
 - [x] Slide-out side menu for sensor selection, settings, help, feedback, language, and app updates
@@ -82,7 +82,7 @@ Integration requires the Arduino project or BLE protocol, device details, servic
 - **Offline:** A service worker precaches the production app. Android installation is offered in the app when the browser supports it; feedback requires a connection. The offline dialog can check for updates; confirming an update activates the shared offline version and reloads only the confirming view; other open views offer their own reload.
 - **Initial setup:** Vehicle dimensions and wedge or height settings require explicit confirmation; the selected sensor position needs calibration. A checklist shows unfinished steps until all are complete and the selected sensor is available.
 - **Phone sensor:** `devicemotion` acceleration including gravity and rotation rates are combined with a fast complementary filter. Linear acceleration can temporarily mimic tilt. Previously saved motion calibration slots are retained; older orientation-source calibrations remain stored separately and are not applied.
-- **Sun view:** Hidden for now; SunCalc calculations and compass implementation are retained for future work. Bearings are true-north based; compass readings can be magnetic and affected by nearby metal.
+- **Sun view:** SunCalc calculates events locally from the device date and location; a supported absolute phone compass supplies approximate vehicle-relative directions. Location is not stored. Bearings are true-north based; compass readings can be magnetic and affected by nearby metal.
 - **Target platform:** Android browser. Sensor and BLE support varies by browser; the BLE protocol is not yet defined.
 - **Vehicle values:** Example values until actual measurements are available.
 - **Lift model:** Pitch and roll determine the required lift at the lowest corner and an adjacent wheel along the dominant axis. Wedge mode displays the highest step not exceeding the required lift, with a tolerance equal to the smallest step. Height mode displays the required lift rounded to 0.1 cm, with a 3 cm tolerance and a separate maximum height. Capacity warnings take precedence over the level indication. The model prioritizes correction along the dominant axis and does not guarantee that both axes are fully level.

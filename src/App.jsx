@@ -1591,6 +1591,22 @@ function App() {
           <div className="vehicle-diagram">
             <div className="diagram-heading">
               <span>{t('TOP VIEW')}{source === 'simulation' ? ` · ${t('SIMULATION')}` : ''}</span>
+              <button
+                className="sun-open"
+                type="button"
+                aria-haspopup="dialog"
+                aria-label={t('Sun directions')}
+                title={t('Sun directions')}
+                onClick={() => {
+                  setSunRequest(requestSunData());
+                  setActiveMenu('sun');
+                }}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M19 5l-2 2M7 17l-2 2" />
+                </svg>
+              </button>
               {source === 'simulation' && (
                 <div
                   className={`simulator-stage${vehicle.wheelbaseCm > 300 ? ' long-wheelbase' : ''}`}

@@ -16,6 +16,7 @@ KEILOMAT is a mobile-first web app that helps level a parked camper van. It can 
 - A color highlight when the required lift exceeds the configured maximum height
 - A vehicle top view showing the recommended wheel positions and wedge step numbers
 - A shared vehicle top view in the main screen and vehicle setup
+- An optional sun view with today's sunrise, solar noon, and sunset times and directions, calculated locally using SunCalc
 - A compact dashboard with a slide-out menu for sensor selection, settings, language, help, feedback, and updates
 - A compact setup checklist with progress and a shortcut to the next step
 - Browser-local storage of vehicle settings and calibration slots
@@ -77,7 +78,9 @@ The phone source combines acceleration including gravity with gyroscope readings
 
 ## Sun directions
 
-The sun view is currently hidden. Its local SunCalc calculations and compass implementation remain available for future development.
+Select the sun icon in the top view and allow location and compass access. The symbols and times for sunrise, solar noon (the highest point), and sunset appear around the vehicle according to their calculated directions. The curved line follows the sun's horizontal direction, so its span varies with location and season. Place the phone flat, screen up, in portrait orientation with its top toward the vehicle's front. Times use the device's current date and time zone. At high latitudes an event may not occur on that date, and solar noon may be below the horizon. If location access fails, close and reopen the view to retry.
+
+The app calculates sun positions on the device using SunCalc and does not store or send the location. GPS and compass access require browser support and typically HTTPS; GPS may take time or be unavailable indoors or offline. When the compass is unavailable, a symbolic arc shows the times without vehicle-relative directions. Compass headings may reference magnetic rather than true north and are sensitive to interference, especially inside a vehicle; calibrate the compass and verify directions outside, away from metal. Terrain, buildings, and atmospheric conditions can change the visible sunrise and sunset.
 
 ## Feedback
 
