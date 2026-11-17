@@ -51,8 +51,7 @@ const calibrationSourceLabels = {
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
-function CalibrationSlotButtons({ slots, selectedId, sourceName, t, onSelect, onStartHold, onCancelHold, holdingSlotId }) {
-  const canHold = Boolean(onStartHold);
+function CalibrationSlotButtons({ slots, selectedId, sourceName, t, onSelect }) {
   return (
     <div
       className="quick-calibrations"
@@ -66,36 +65,13 @@ function CalibrationSlotButtons({ slots, selectedId, sourceName, t, onSelect, on
         const status = t(isCalibrated ? 'calibrated' : 'not calibrated');
         return (
           <button
-            className={`quick-calibration-button${isSelected ? ' selected' : ''}${isCalibrated ? ' calibrated' : ' empty'}${holdingSlotId === slot.id ? ' is-holding' : ''}${canHold ? ' can-hold' : ''}`}
+            className={`quick-calibration-button${isSelected ? ' selected' : ''}${isCalibrated ? ' calibrated' : ' empty'}`}
             key={slot.id}
             type="button"
-            aria-label={`${label}, ${status}${isSelected ? t(', selected') : ''}${canHold ? ` · ${t('Hold for 3 seconds to calibrate')}` : ''}`}
+            aria-label={`${label}, ${status}${isSelected ? t(', selected') : ''}`}
             aria-pressed={isSelected}
             title={`${label} · ${t(isCalibrated ? 'Calibrated' : 'Not calibrated')}`}
             onClick={() => onSelect(slot.id)}
-            onPointerDown={canHold ? (event) => {
-              if (event.button !== 0) return;
-              event.currentTarget.setPointerCapture(event.pointerId);
-              onStartHold(slot.id);
-            } : undefined}
-            onPointerUp={canHold ? onCancelHold : undefined}
-            onPointerCancel={canHold ? onCancelHold : undefined}
-            onLostPointerCapture={canHold ? onCancelHold : undefined}
-            onBlur={canHold ? onCancelHold : undefined}
-            onKeyDown={canHold ? (event) => {
-              if (event.key === ' ' || event.key === 'Enter') {
-                event.preventDefault();
-                if (!event.repeat) onStartHold(slot.id);
-              }
-            } : undefined}
-            onKeyUp={canHold ? (event) => {
-              if (event.key === ' ' || event.key === 'Enter') {
-                event.preventDefault();
-                onCancelHold();
-                onSelect(slot.id);
-              }
-            } : undefined}
-            onContextMenu={canHold ? (event) => event.preventDefault() : undefined}
           >
             <span className="quick-calibration-name">{label}</span>
             <span className="quick-calibration-status">{t(isCalibrated ? 'CALIBRATED' : 'NOT CALIBRATED')}</span>
@@ -550,10 +526,11 @@ function HelpIllustration({ type }) {
         </>
       ) : type === 'calibration-hold' ? (
         <>
-          <rect x="9" y="12" width="82" height="24" rx="3" />
-          <path d="M36 12v24M64 12v24M17 24h11M45 24h10M72 24h11" />
-          <path d="M44 64 34 51c-2-3 1-6 4-4l6 5V29c0-5 7-5 7 0v12c2-3 6-1 6 2 3-3 7-1 7 2 3-2 7 0 7 4l-3 15" />
-          <path d="M42 20l-4-4m21 0-4 4" />
+          <rect x="9" y="5" width="82" height="14" rx="2" />
+          <path d="M36 5v14M64 5v14M17 12h11M45 12h10M72 12h11" />
+          <rect x="9" y="24" width="82" height="18" rx="2" />
+          <path d="M44 68 34 57c-2-3 1-6 4-4l6 5V40c0-5 7-5 7 0v8c2-3 6-1 6 2 3-3 7-1 7 2 3-2 7 0 7 4l-3 12" />
+          <path d="M42 34l-4-4m21 0-4 4" />
         </>
       ) : (
         <>
@@ -580,7 +557,7 @@ function CalibrationInstructions({ t }) {
     {
       icon: 'calibration-hold',
       title: 'Calibrate a slot',
-      text: 'Keep the phone in place and hold a slot for 3 seconds.',
+      text: 'Select a slot, then keep the phone in place and hold the calibration button for 3 seconds.',
     },
   ];
 
@@ -607,7 +584,7 @@ function CalibrationInstructions({ t }) {
   );
 }
 
-function HelpContent({ t, source, levelingMode }) {
+function HelpContent({ t, source, levelingMode, onNavigate }) {
   const id = useId();
   const [phase, setPhase] = useState('setup');
   const [mode, setMode] = useState(source === 'external' ? 'external' : 'phone');
@@ -616,14 +593,24 @@ function HelpContent({ t, source, levelingMode }) {
   const isPhone = mode === 'phone';
   const steps = phase === 'setup'
     ? [
-        { icon: 'vehicle', title: 'Set up vehicle and wedges', text: 'Enter your wheelbase, track width and wedge step heights in the settings.' },
+        {
+          icon: 'vehicle',
+          title: levelingMode === 'height' ? 'Set up vehicle and supports' : 'Set up vehicle and wedges',
+          text: levelingMode === 'height'
+            ? 'Enter your wheelbase, track width and maximum height in the settings.'
+            : 'Enter your wheelbase, track width and wedge step heights in the settings.',
+          actions: [
+            { target: 'vehicle', label: 'SET UP VEHICLE' },
+            { target: 'wedges', label: levelingMode === 'height' ? 'SET UP SUPPORT' : 'SET UP WEDGES' },
+          ],
+        },
         { icon: 'level', title: 'Find a level reference', text: 'First level the parked vehicle using a spirit level.' },
         isPhone
           ? { icon: 'phone', title: 'Place the phone', text: 'Place the phone flat and securely, screen up and top toward the front of the vehicle. Select PHONE and a calibration slot.' }
           : { icon: 'external', title: 'Mount the external sensor', text: 'Mount the sensor securely in the vehicle. Recalibrate if it moves.' },
         isPhone
-          ? { icon: 'level', title: 'Calibrate', text: 'With the phone in place, open Calibration and hold a slot for 3 seconds. Calibrate a separate slot for each phone position.' }
-          : { icon: 'level', title: 'Calibrate', text: 'Once external sensors are supported, select EXTERNAL and calibrate the sensor in Calibration.' },
+          ? { icon: 'level', title: 'Calibrate', text: 'With the phone in place, open Calibration, select a slot and hold the calibration button for 3 seconds. Calibrate a separate slot for each phone position.', actions: [{ target: 'calibration', label: 'GO TO CALIBRATION' }] }
+          : { icon: 'level', title: 'Calibrate', text: 'Once external sensors are supported, select EXTERNAL and calibrate the sensor in Calibration.', actions: [{ target: 'calibration', label: 'GO TO CALIBRATION' }] },
       ]
     : [
         isPhone
@@ -670,6 +657,15 @@ function HelpContent({ t, source, levelingMode }) {
                         <span className="eyebrow">{String(index + 1).padStart(2, '0')}</span>
                         <h3>{t(step.title)}</h3>
                         <p>{t(step.text)}</p>
+                        {step.actions && (
+                          <div className="help-actions">
+                            {step.actions.map((action) => (
+                              <button type="button" key={action.target} onClick={() => onNavigate(action.target)}>
+                                {t(action.label)} <span aria-hidden="true">→</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </article>
                   ))}
@@ -2313,10 +2309,42 @@ function App() {
                         sourceName={calibrationSlotSource}
                         t={t}
                         onSelect={(slotId) => selectCalibrationSlot(calibrationSlotSource, slotId)}
-                        onStartHold={setupSensorAvailable ? startCalibrationHold : undefined}
-                        onCancelHold={cancelCalibrationHold}
-                        holdingSlotId={holdingSlotId}
                       />
+                      <button
+                        className={`calibrate-button${holdingSlotId ? ' is-holding' : ''}`}
+                        type="button"
+                        disabled={!setupSensorAvailable || !activeSlot}
+                        aria-label={t('Hold for 3 seconds to calibrate slot {slot}', {
+                          slot: activeSlot?.name.trim() || String(activeSlotNumber),
+                        })}
+                        onPointerDown={(event) => {
+                          if (event.button !== 0) return;
+                          event.currentTarget.setPointerCapture(event.pointerId);
+                          startCalibrationHold(activeSlotId);
+                        }}
+                        onPointerUp={cancelCalibrationHold}
+                        onPointerCancel={cancelCalibrationHold}
+                        onLostPointerCapture={cancelCalibrationHold}
+                        onBlur={cancelCalibrationHold}
+                        onKeyDown={(event) => {
+                          if (event.key === ' ' || event.key === 'Enter') {
+                            event.preventDefault();
+                            if (!event.repeat) startCalibrationHold(activeSlotId);
+                          }
+                        }}
+                        onKeyUp={(event) => {
+                          if (event.key === ' ' || event.key === 'Enter') {
+                            event.preventDefault();
+                            cancelCalibrationHold();
+                          }
+                        }}
+                        onContextMenu={(event) => event.preventDefault()}
+                      >
+                        <span>{holdingSlotId ? t('KEEP HOLDING') : t('HOLD TO SET SLOT {slot}', {
+                          slot: activeSlot?.name.trim() || String(activeSlotNumber),
+                        })}</span>
+                        <span className="hold-duration">{t('3 SEC')}</span>
+                      </button>
                       {calibrationComplete && <p className="calibration-instructions" role="status">{t('SLOT UPDATED')}</p>}
                       {activeSlot && (
                         <label className="calibration-slot-name">
@@ -2341,7 +2369,15 @@ function App() {
                 )}
               </div>
             ) : activeMenu === 'help' ? (
-              <HelpContent t={t} source={source} levelingMode={vehicle.levelingMode} />
+              <HelpContent
+                t={t}
+                source={source}
+                levelingMode={vehicle.levelingMode}
+                onNavigate={(menu) => {
+                  if (menu === 'calibration') openCalibration();
+                  setActiveMenu(menu);
+                }}
+              />
             ) : activeMenu === 'offline' ? (
               <div className="menu-content pwa-content">
                 {pwa.offline !== 'ready' && (

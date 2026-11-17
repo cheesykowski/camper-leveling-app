@@ -787,18 +787,53 @@ select:focus-visible {
   white-space: nowrap;
 }
 
-.quick-calibration-button.can-hold {
+.calibrate-button {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 64px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  overflow: hidden;
+  padding: 10px;
+  border: 1px solid #65af63;
+  background: #102719;
+  color: var(--glow);
+  cursor: pointer;
+  font-size: 0.69rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
 }
 
-.quick-calibration-button.is-holding {
+.calibrate-button:not(:disabled):hover,
+.calibrate-button.is-holding {
   border-color: var(--glow);
   background: #18371f;
 }
 
-.quick-calibration-button.is-holding::after {
+.calibrate-button:disabled {
+  border-color: #47634f;
+  background: #0e1a12;
+  color: #b6c8ba;
+  cursor: not-allowed;
+}
+
+.calibrate-button > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.hold-duration {
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.calibrate-button.is-holding::after {
   position: absolute;
   right: 0;
   bottom: 0;
@@ -1365,6 +1400,28 @@ select:focus-visible {
   color: var(--text);
   font-size: 0.7rem;
   line-height: 1.5;
+}
+
+.help-actions {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.help-actions button {
+  min-height: 36px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  background: #102719;
+  color: var(--glow);
+  cursor: pointer;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.help-actions button:hover {
+  border-color: var(--glow);
 }
 
 .help-intro {
@@ -2090,7 +2147,7 @@ select:focus-visible {
     transition-duration: 0.01ms !important;
   }
 
-  .quick-calibration-button.is-holding::after {
+  .calibrate-button.is-holding::after {
     display: none;
   }
 }

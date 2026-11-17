@@ -25,13 +25,13 @@ Build an Android-friendly web app that measures the tilt of a parked camper and 
 - [x] Shared vehicle top view in the main screen and vehicle setup, including the two recommended wedge positions and step numbers
 - [x] Local sun-event calculations and compass implementation retained; sun view hidden for now
 - [x] Minimal 3D vehicle simulation and wedge-step illustration in setup
-- [x] Dashboard slot selection and three-second calibration holds in calibration settings
+- [x] Dashboard slot selection and a separate three-second calibration button in calibration settings
 - [x] Slide-out side menu for sensor selection, settings, help, feedback, language, and app updates
 - [x] Guided setup with progress, sequential confirmation, and skippable steps that remain open
 - [x] Wedge heights can be edited, added, and removed individually; the height mode has a separate maximum
 - [x] Feedback dialog with optional name, category, free text, consent, and configured Formspree endpoint
 - [x] English and German language selection, stored locally without changing existing calibration and vehicle settings
-- [x] Illustrated help with separate setup and usage instructions for phone and external sensors
+- [x] Illustrated help with separate setup and usage instructions and links to the relevant settings
 - [x] Installable PWA and cached offline app, with an explicit update prompt
 - [x] GitHub Pages workflow and Vite base path configured
 - [ ] Verify browser permissions and real sensor orientation on the target Android device
@@ -87,7 +87,7 @@ Integration requires the Arduino project or BLE protocol, device details, servic
 - **Target platform:** Android browser. Sensor and BLE support varies by browser; the BLE protocol is not yet defined.
 - **Vehicle values:** Example values until actual measurements are available.
 - **Lift model:** Pitch and roll determine the required lift at the lowest corner and an adjacent wheel along the dominant axis. Wedge mode displays the highest step not exceeding the required lift, with a tolerance equal to the smallest step. Height mode displays the required lift rounded to 0.1 cm, with a 3 cm tolerance and a separate maximum height. Capacity warnings take precedence over the level indication. The model prioritizes correction along the dominant axis and does not guarantee that both axes are fully level.
-- **Calibration:** Select slots on the home screen; an uncalibrated slot opens calibration settings for the selected source. For the phone, illustrated steps explain leveling, positioning the phone, and holding a slot for three seconds to calibrate and select it. Tap a slot to rename it. Each slot represents a separate phone position; when measuring, use the matching calibrated slot and exactly the same position and orientation. Place the phone flat, screen up, top toward the vehicle's front. The phone hold stores the trimmed mean of captured samples to reduce the effect of brief spikes. Simulation slots are independent of real sensor slots and record the tilt at the end of the hold. The external sensor uses one reference; existing data is retained with the previously selected calibration as that reference. Verify the axis and sign conventions in the vehicle.
+- **Calibration:** Select slots on the home screen; an uncalibrated slot opens calibration settings for the selected source. For the phone, illustrated steps explain leveling, positioning the phone, selecting a slot, and holding the calibration button for three seconds. Tap a slot to rename it. Each slot represents a separate phone position; when measuring, use the matching calibrated slot and exactly the same position and orientation. Place the phone flat, screen up, top toward the vehicle's front. The phone hold stores the trimmed mean of captured samples to reduce the effect of brief spikes. Simulation slots are independent of real sensor slots and record the tilt at the end of the hold. The external sensor uses one reference; existing data is retained with the previously selected calibration as that reference. Verify the axis and sign conventions in the vehicle.
 - **Feedback:** Formspree receives and stores original submissions and can email notifications. The public repository must not contain raw responses or names; only manually reviewed, anonymized findings may be added. The endpoint URL is public and embedded at build time; private API keys must never be included in frontend code.
 
 ## Maintaining this plan
