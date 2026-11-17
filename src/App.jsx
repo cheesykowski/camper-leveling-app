@@ -14,7 +14,7 @@ import { calculateTwoWedgePlan, wheelCorners } from './leveling.js';
 import { normalizeLanguage, translate } from './i18n.js';
 import { applyUpdate, checkForUpdates, installApp, refreshOfflineStatus, usePwa } from './pwa.js';
 import { initialSensorSource } from './appMode.js';
-import { calculateSunEvents, compassHeading, sunMarkerPosition } from './sun.js';
+import { calculateSunEvents, compassHeading, sunArcPoints, sunLabelPositions, sunMarkerPosition } from './sun.js';
 
 const STORAGE_KEY = 'camper-leveling-demo-v1';
 const SIMULATION_MAX_TILT = 30;
@@ -83,7 +83,7 @@ const getVehicleWheelPositions = ({ wheelbaseCm, trackWidthCm }) => {
   }));
 };
 
-function VehicleDiagram({ className, vehicle, recommendation, t, language, showMeasurements = false, sunMarkers = [] }) {
+function VehicleDiagram({ className, vehicle, recommendation, t, language, showMeasurements = false }) {
   const id = useId();
   const wheels = getVehicleWheelPositions(vehicle);
   const frontAxleY = wheels[0].y + 24;
@@ -185,16 +185,6 @@ function VehicleDiagram({ className, vehicle, recommendation, t, language, showM
         );
       })}
 
-      {sunMarkers.map(({ key, azimuth, heading }) => {
-        const point = sunMarkerPosition(azimuth, heading);
-        return (
-          <g className="sun-marker" key={key} transform={`translate(${point.x} ${point.y})`} aria-hidden="true">
-            <circle className="sun-marker-bg" r="16" />
-            <SunSymbol event={key} />
-          </g>
-        );
-      })}
-
       {showMeasurements && (
         <g className="vehicle-measurements">
           <line
@@ -283,7 +273,6 @@ function SunView({ vehicle, t, language, request }) {
   const [compassStatus, setCompassStatus] = useState('Waiting for compass…');
   const [compassEnabled, setCompassEnabled] = useState(false);
   const [heading, setHeading] = useState(null);
-  const [lockedHeading, setLockedHeading] = useState(null);
   const [today, setToday] = useState(() => new Date());
 
   useEffect(() => {
@@ -358,65 +347,72 @@ function SunView({ vehicle, t, language, request }) {
     { key: 'solarNoon', label: 'Highest point', x: 180, y: 23 },
     { key: 'sunset', label: 'Sunset', x: 315, y: 94 },
   ];
-  const vehicleHeading = lockedHeading ?? heading;
-  const markers = events && vehicleHeading !== null
-    ? items.filter((item) => events[item.key]).map((item) => ({
+  const markers = events && heading !== null
+    ? sunLabelPositions(items.filter((item) => events[item.key]).map((item) => ({
         key: item.key,
         azimuth: events[item.key].azimuth,
-        heading: vehicleHeading,
-      }))
+        heading,
+      })))
     : [];
+  const arcs = useMemo(() => events ? [
+    sunArcPoints(events.sunrise, events.solarNoon, location.latitude, location.longitude, 0),
+    sunArcPoints(events.solarNoon, events.sunset, location.latitude, location.longitude, 0),
+  ] : [], [events, location]);
   const timeFormatter = new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit' });
 
   return (
     <div className="sun-view">
       {locationStatus && <p role="status">{t(locationStatus)}</p>}
-      {compassStatus && lockedHeading === null && <p role="status">{t(compassStatus)}</p>}
+      {compassStatus && <p role="status">{t(compassStatus)}</p>}
       {events && (
         <>
           <p>{new Intl.DateTimeFormat(language, { dateStyle: 'medium' }).format(today)}</p>
-          <svg className="sun-arc" viewBox="0 0 360 135" role="img" aria-label={items.map((item) => {
-            const event = events[item.key];
-            return `${t(item.label)}: ${event ? timeFormatter.format(event.time) : t('No event today')}`;
-          }).join(' · ')}>
-            <path className="sun-arc-line" d="M45 94 A135 71 0 0 1 315 94" />
-            {items.map((item) => {
+          {heading === null ? (
+            <svg className="sun-arc" viewBox="0 0 360 135" role="img" aria-label={items.map((item) => {
               const event = events[item.key];
-              return (
+              return `${t(item.label)}: ${event ? timeFormatter.format(event.time) : t('No event today')}`;
+            }).join(' · ')}>
+              <path className="sun-arc-line" d="M45 94 A135 71 0 0 1 315 94" />
+              {items.map((item) => (
                 <g key={item.key} transform={`translate(${item.x} ${item.y})`}>
                   <SunSymbol event={item.key} />
-                  <text y="28" textAnchor="middle">{event ? timeFormatter.format(event.time) : '—'}</text>
+                  <text y="28" textAnchor="middle">{events[item.key] ? timeFormatter.format(events[item.key].time) : '—'}</text>
                 </g>
-              );
-            })}
-          </svg>
-          <div className="sun-diagram">
-            <VehicleDiagram className="sun-vehicle-svg" vehicle={vehicle} t={t} language={language} sunMarkers={markers} />
-          </div>
-          {(heading !== null || lockedHeading !== null) && (
-            <button
-              className={`sun-lock${lockedHeading !== null ? ' locked' : ''}`}
-              type="button"
-              aria-pressed={lockedHeading !== null}
-              aria-label={t(lockedHeading === null ? 'Lock vehicle direction' : 'Unlock vehicle direction')}
-              title={t(lockedHeading === null ? 'Lock vehicle direction' : 'Unlock vehicle direction')}
-              onClick={() => setLockedHeading(lockedHeading === null ? heading : null)}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="5" y="10" width="14" height="11" rx="2" />
-                {lockedHeading === null
-                  ? <path d="M8 10V7a4 4 0 0 1 7-2" />
-                  : <path d="M8 10V7a4 4 0 0 1 8 0v3" />}
-                <path d="M12 14v3" />
+              ))}
+            </svg>
+          ) : (
+            <div className="sun-diagram">
+              <svg className="sun-directions" viewBox="0 0 480 480" role="img" aria-label={items.map((item) => {
+                const event = events[item.key];
+                return `${t(item.label)}: ${event ? timeFormatter.format(event.time) : t('No event today')}`;
+              }).join(' · ')}>
+                <g transform={`rotate(${-heading} 240 240)`}>
+                  {arcs.map((points, index) => points.length > 0 && (
+                    <polyline className="sun-arc-line" key={index} points={points.map((point) => `${point.x},${point.y}`).join(' ')} />
+                  ))}
+                </g>
+                {markers.map((marker) => {
+                  const point = sunMarkerPosition(marker.azimuth, heading);
+                  return (
+                    <g key={marker.key}>
+                      <line className="sun-label-line" x1={point.x} y1={point.y} x2={marker.x} y2={marker.y} />
+                      <g transform={`translate(${point.x} ${point.y}) scale(1.5)`}><SunSymbol event={marker.key} /></g>
+                      <text x={marker.x} y={marker.y + 5} textAnchor="middle">{timeFormatter.format(events[marker.key].time)}</text>
+                    </g>
+                  );
+                })}
               </svg>
-            </button>
+              <VehicleDiagram className="sun-vehicle-svg" vehicle={vehicle} t={t} language={language} />
+            </div>
           )}
+          {heading !== null && items.filter((item) => !events[item.key]).map((item) => (
+            <p key={item.key}>{t(item.label)}: {t('No event today')}</p>
+          ))}
           <details className="sun-info">
             <summary aria-label={t('Sun view information')}>ⓘ</summary>
             <p>{t('See today’s sun directions relative to your vehicle. Place the phone flat, screen up, in portrait orientation with its top toward the vehicle’s front.')}</p>
             <p>{t('Bearings are true north. Compass directions are approximate and may use magnetic north; calibrate your phone and keep it away from metal. Solar noon can be below the horizon.')}</p>
             <p>{t('Times use the device time zone. A dash means no event today.')}</p>
-            <p>{t('To reduce interference, move away from the vehicle, point the phone top parallel to its front, and lock the direction. Unlock and measure again if the vehicle moves.')}</p>
           </details>
         </>
       )}

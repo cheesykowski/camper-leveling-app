@@ -526,47 +526,24 @@ select:focus-visible {
 }
 
 .sun-diagram {
-  width: 100%;
+  position: relative;
+  width: min(100%, 400px);
   text-align: center;
 }
 
-.sun-lock {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  place-items: center;
-  padding: 5px;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--dim);
-  cursor: pointer;
-}
-
-.sun-lock.locked {
-  border-color: var(--amber);
-  color: var(--amber);
-}
-
-.sun-lock svg {
+.sun-directions {
+  display: block;
   width: 100%;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.7;
 }
 
 .sun-vehicle-svg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   display: block;
-  width: min(100%, 190px);
-  max-height: 32vh;
-  margin: auto;
-}
-
-.sun-marker-bg {
-  fill: var(--amber);
-  stroke: #241a05;
-  stroke-width: 2;
+  width: 40%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 
 .sun-symbol {
@@ -575,10 +552,6 @@ select:focus-visible {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.5;
-}
-
-.sun-marker .sun-symbol {
-  stroke: #241a05;
 }
 
 .sun-arc {
@@ -593,11 +566,24 @@ select:focus-visible {
   stroke-dasharray: 4 5;
 }
 
-.sun-arc text {
+.sun-label-line {
+  stroke: #826b35;
+  stroke-width: 1;
+}
+
+.sun-arc text,
+.sun-directions text {
   fill: var(--bright);
-  font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+.sun-arc text {
+  font-size: 13px;
+}
+
+.sun-directions text {
+  font-size: 20px;
 }
 
 .sun-info {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { calculateSunEvents, compassHeading, sunMarkerPosition } from './sun.js';
+import { calculateSunEvents, compassHeading, sunArcPoints, sunLabelPositions, sunMarkerPosition } from './sun.js';
 
 test('calculates seasonal event times and true-north azimuths for London', () => {
   const summer = calculateSunEvents(new Date('2024-06-21T12:00:00Z'), 51.5074, -0.1278);
@@ -44,6 +44,38 @@ test('uses only absolute compass readings and rotates markers relative to the ph
   assert.equal(compassHeading({ webkitCompassHeading: 42 }, 90), null);
   assert.equal(compassHeading({ webkitCompassHeading: 42 }), 42);
   const point = sunMarkerPosition(90, 90);
-  assert.ok(Math.abs(point.x - 180) < 0.001);
-  assert.ok(Math.abs(point.y - 50) < 0.001);
+  assert.ok(Math.abs(point.x - 240) < 0.001);
+  assert.ok(Math.abs(point.y - 95) < 0.001);
+});
+
+test('draws the sun arc between the calculated directions and rotates it with the compass', () => {
+  const previous = process.env.TZ;
+  process.env.TZ = 'UTC';
+  try {
+    const { sunrise, solarNoon, sunset } = calculateSunEvents(new Date('2024-06-21T12:00:00Z'), 51.5074, -0.1278);
+    const points = sunArcPoints(sunrise, solarNoon, 51.5074, -0.1278, 0);
+    assert.ok(points.length > 2);
+    const start = sunMarkerPosition(sunrise.azimuth, 0);
+    const end = sunMarkerPosition(solarNoon.azimuth, 0);
+    assert.ok(Math.hypot(points[0].x - start.x, points[0].y - start.y) < 0.001);
+    assert.ok(Math.hypot(points.at(-1).x - end.x, points.at(-1).y - end.y) < 0.001);
+    const rotated = sunArcPoints(sunrise, solarNoon, 51.5074, -0.1278, 90);
+    assert.ok(Math.abs(rotated[0].x - 240 - (points[0].y - 240)) < 0.001);
+    assert.ok(sunArcPoints(solarNoon, sunset, 51.5074, -0.1278, 0).length > 2);
+    assert.deepEqual(sunArcPoints(sunset, solarNoon, 51.5074, -0.1278, 0), []);
+    assert.deepEqual(sunArcPoints(null, solarNoon, 51.5074, -0.1278, 0), []);
+  } finally {
+    if (previous === undefined) delete process.env.TZ;
+    else process.env.TZ = previous;
+  }
+});
+
+test('separates time labels when sun directions are close', () => {
+  const labels = sunLabelPositions([
+    { key: 'sunrise', azimuth: 180, heading: 0 },
+    { key: 'solarNoon', azimuth: 180, heading: 0 },
+    { key: 'sunset', azimuth: 180, heading: 0 },
+  ]);
+  assert.ok(labels.every((label) => label.y >= 25 && label.y <= 455));
+  assert.equal(new Set(labels.map((label) => label.y)).size, 3);
 });
