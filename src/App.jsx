@@ -15,6 +15,7 @@ import { normalizeLanguage, translate } from './i18n.js';
 import { applyUpdate, checkForUpdates, installApp, refreshOfflineStatus, usePwa } from './pwa.js';
 import { initialSensorSource } from './appMode.js';
 import { updateMotionOrientation } from './motionOrientation.js';
+import { getSetupProgress } from './setupProgress.js';
 import { calculateSunEvents, compassHeading, sunArcPoints, sunLabelPositions, sunMarkerPosition } from './sun.js';
 
 const STORAGE_KEY = 'camper-leveling-demo-v1';
@@ -925,6 +926,13 @@ function App() {
   const [sourceMessage, setSourceMessage] = useState('');
   const dragStart = useRef(null);
   const [activeMenu, setActiveMenu] = useState(null);
+  const [sideMenuOpen, setSideMenuOpen] = useState(false);
+  const sideMenuRef = useRef(null);
+  const sideMenuButtonRef = useRef(null);
+  const sideMenuCloseRef = useRef(null);
+  const menuDialogCloseRef = useRef(null);
+  const sideDialogOriginRef = useRef(null);
+  const calibrateButtonRef = useRef(null);
   const [sunRequest, setSunRequest] = useState(null);
   const [isHoldingCalibration, setIsHoldingCalibration] = useState(false);
   const [calibrationComplete, setCalibrationComplete] = useState(false);
@@ -1042,6 +1050,45 @@ function App() {
       document.body.style.overflow = previousOverflow;
       window.scrollTo(0, scrollPosition);
     };
+  }, [activeMenu]);
+
+  useEffect(() => {
+    if (!sideMenuOpen) return undefined;
+    sideMenuCloseRef.current?.focus();
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setSideMenuOpen(false);
+        sideMenuButtonRef.current?.focus();
+      } else if (event.key === 'Tab') {
+        const focusable = Array.from(sideMenuRef.current.querySelectorAll(
+          'button:not([disabled]), summary, [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        )).filter((element) => element.getClientRects().length > 0
+          && (element.tagName === 'SUMMARY' || !element.closest('details:not([open])')));
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [sideMenuOpen]);
+
+  useEffect(() => {
+    if (!sideDialogOriginRef.current) return;
+    if (activeMenu) {
+      if (!document.activeElement?.closest('.menu-sheet')) menuDialogCloseRef.current?.focus();
+    } else {
+      const returnTarget = sideDialogOriginRef.current;
+      (returnTarget?.isConnected ? returnTarget : sideMenuButtonRef.current)?.focus();
+      sideDialogOriginRef.current = null;
+    }
   }, [activeMenu]);
 
   useEffect(
@@ -1201,6 +1248,13 @@ function App() {
   const activeSlotId = calibrationSlotIds[calibrationSlotSource];
   const activeSlot = calibrationSlots[calibrationSlotSource].find((slot) => slot.id === activeSlotId);
   const needsCalibration = !activeSlot || activeSlot.pitch === null || activeSlot.roll === null;
+  const setupSensorAvailable = source === 'simulation' || (source === 'phone' && phoneSensorData.available);
+  const setupProgress = getSetupProgress({
+    vehicleConfirmed: setupConfirmed.vehicle,
+    wedgesConfirmed,
+    calibrated: !needsCalibration,
+    sensorAvailable: setupSensorAvailable,
+  });
   const activeSlotLabel = activeSlot?.name.trim() || String(calibrationSlotKeys.indexOf(activeSlotId) + 1);
   const noCalibration = source === 'external'
     ? !activeSlot || activeSlot.pitch === null || activeSlot.roll === null
@@ -1415,76 +1469,36 @@ function App() {
     dragStart.current = null;
   };
 
+  const closeSideMenu = () => {
+    setSideMenuOpen(false);
+    sideMenuButtonRef.current?.focus();
+  };
+
+  const openSideDialog = (menu) => {
+    sideDialogOriginRef.current = sideMenuOpen ? sideMenuButtonRef.current : document.activeElement;
+    setSideMenuOpen(false);
+    setActiveMenu(menu);
+  };
+
   return (
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
           <h1>KEIL<span>OMAT</span> <small>{pwa.standalone ? 'APP' : 'WEB'}</small></h1>
         </div>
-        <div className="header-actions">
-          <div className="source-picker" role="group" aria-label={t('Select data source')}>
-            {[
-              {
-                id: 'phone',
-                label: 'PHONE',
-                available: phoneSensorData.available,
-              },
-              { id: 'external', label: 'EXTERNAL', available: false },
-            ].map((option) => (
-              <button
-                key={option.id}
-                className={`source-option ${source === option.id ? 'selected' : ''} ${
-                  option.available ? '' : 'unavailable'
-                }`}
-                type="button"
-                aria-pressed={source === option.id}
-                aria-label={`${t(option.label)}: ${t(option.available ? 'available' : 'unavailable')}`}
-                onClick={() => selectSource(option.id)}
-              >
-                <span className="source-icon" aria-hidden="true">
-                  {option.id === 'external' ? (
-                    <svg viewBox="0 0 24 24" role="presentation">
-                      <path d="M7 7 17 17 12 22V2l5 5L7 17" />
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" role="presentation">
-                      <rect x="6.5" y="2.5" width="11" height="19" rx="2" />
-                      <path d="M10 5h4M10 18.5h4" />
-                    </svg>
-                  )}
-                </span>
-                <span>{t(option.label)}</span>
-                <span className="source-availability">
-                  {t(option.available ? 'LIVE' : 'OFFLINE')}
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="header-controls">
-            <button
-              className={`offline-button${pwa.updateAvailable ? ' has-update' : ''}`}
-              type="button"
-              aria-haspopup="dialog"
-              aria-label={`${t('App and updates')}${pwa.updateAvailable ? ` · ${t('An update is available.')}` : ''}`}
-              title={`${t('App and updates')}${pwa.updateAvailable ? ` · ${t('An update is available.')}` : ''}`}
-              onClick={() => {
-                refreshOfflineStatus();
-                setActiveMenu('offline');
-              }}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 3v11m-4-4 4 4 4-4M4 16v4h16v-4" />
-              </svg>
-            </button>
-            <AppDropdown
-              className="language-select"
-              label={t('Language')}
-              value={language}
-              options={[{ value: 'en', label: 'EN' }, { value: 'de', label: 'DE' }]}
-              onChange={(value) => setLanguage(normalizeLanguage(value))}
-            />
-          </div>
-        </div>
+        <button
+          ref={sideMenuButtonRef}
+          className={`side-menu-toggle${pwa.updateAvailable || !setupConfirmed.vehicle || !wedgesConfirmed ? ' has-notice' : ''}`}
+          type="button"
+          aria-label={t('Open menu')}
+          aria-expanded={sideMenuOpen}
+          aria-controls="side-menu"
+          onClick={() => setSideMenuOpen(true)}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
       </header>
 
       {pwa.updateAvailable && (
@@ -1516,6 +1530,52 @@ function App() {
           </div>
         </div>
 
+        {setupProgress.next && (
+          <section className="setup-guide" aria-label={t('Setup progress')}>
+            <div className="setup-guide-heading">
+              <span>{t('Setup')}</span>
+              <span>{t('{completed} of {total}', { completed: setupProgress.completed, total: setupProgress.steps.length })}</span>
+            </div>
+            <ol className="setup-guide-steps">
+              {setupProgress.steps.map((step) => (
+                <li key={step.id} className={step.complete ? 'complete' : ''}>
+                  <span aria-hidden="true">{step.complete ? '✓' : '○'}</span>
+                  {t(step.id === 'vehicle' ? 'VEHICLE' : step.id === 'wedges' ? (vehicle.levelingMode === 'height' ? 'HEIGHT' : 'WEDGES') : 'CALIBRATION')}
+                  <span className="visually-hidden"> {t(step.complete ? 'Complete' : step.id === 'calibration' && !setupSensorAvailable ? 'unavailable' : 'Not complete')}</span>
+                </li>
+              ))}
+            </ol>
+            {setupProgress.next === 'calibration' && (
+              <p>{t(!setupSensorAvailable
+                ? 'Sensor unavailable. Select PHONE and allow sensor access.'
+                : 'Level the vehicle with a spirit level, then hold the calibration button below for 3 seconds.')}</p>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                if (setupProgress.next === 'calibration') {
+                  if (!setupSensorAvailable) {
+                    selectSource('phone');
+                  } else {
+                    calibrateButtonRef.current?.focus();
+                  }
+                } else {
+                  openSideDialog(setupProgress.next);
+                }
+              }}
+            >
+              {t(setupProgress.next === 'vehicle'
+                ? 'SET UP VEHICLE'
+                : setupProgress.next === 'wedges'
+                  ? 'SET UP SUPPORT'
+                  : !setupSensorAvailable
+                    ? 'SELECT PHONE SENSOR'
+                    : 'GO TO CALIBRATION')}
+              <span aria-hidden="true"> →</span>
+            </button>
+          </section>
+        )}
+
         <section className="hero-panel" aria-label={t('Leveling recommendation')}>
           <div className="hero-heading">
             <h2 className={recommendation.axis === 'unavailable' ? 'sensor-unavailable' : ''}>
@@ -1531,22 +1591,6 @@ function App() {
           <div className="vehicle-diagram">
             <div className="diagram-heading">
               <span>{t('TOP VIEW')}{source === 'simulation' ? ` · ${t('SIMULATION')}` : ''}</span>
-              <button
-                className="sun-open"
-                type="button"
-                aria-haspopup="dialog"
-                aria-label={t('Sun directions')}
-                title={t('Sun directions')}
-                onClick={() => {
-                  setSunRequest(requestSunData());
-                  setActiveMenu('sun');
-                }}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="12" cy="12" r="4" />
-                  <path d="M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M19 5l-2 2M7 17l-2 2" />
-                </svg>
-              </button>
               {source === 'simulation' && (
                 <div
                   className={`simulator-stage${vehicle.wheelbaseCm > 300 ? ' long-wheelbase' : ''}`}
@@ -1616,6 +1660,7 @@ function App() {
 
         <div className="action-area">
           <button
+            ref={calibrateButtonRef}
             className={`calibrate-button${needsCalibration ? ' needs-calibration' : ''} ${isHoldingCalibration ? 'is-holding' : ''} ${
               calibrationComplete ? 'is-complete' : ''
             }`}
@@ -1710,94 +1755,183 @@ function App() {
         </div>
       </main>
 
-      <nav className="bottom-menu" aria-label={t('Configuration, help and feedback')}>
-        <button
-          className={`menu-button${activeMenu === 'vehicle' ? ' selected' : ''}${!setupConfirmed.vehicle ? ' needs-setup' : ''}`}
-          type="button"
-          aria-haspopup="dialog"
-          aria-label={`${t('VEHICLE')}${!setupConfirmed.vehicle ? ` · ${t('Confirmation needed')}` : ''}`}
-          onClick={() => setActiveMenu('vehicle')}
-        >
-          <span className="menu-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path d="M3 16v-4l2-1 2-4h9l3 4 2 1v4h-2m-11 0h8M3 16h1" />
-              <circle cx="6" cy="16" r="2" />
-              <circle cx="18" cy="16" r="2" />
-              <path d="M7 11h11M12 7v4" />
-            </svg>
-          </span>
-          <span>{t('VEHICLE')}</span>
-        </button>
-        <span className="menu-divider" />
-        <button
-          className={`menu-button${activeMenu === 'wedges' ? ' selected' : ''}${!wedgesConfirmed ? ' needs-setup' : ''}`}
-          type="button"
-          aria-haspopup="dialog"
-          aria-label={`${t('WEDGES')}${!wedgesConfirmed ? ` · ${t('Confirmation needed')}` : ''}`}
-          onClick={() => setActiveMenu('wedges')}
-        >
-          <span className="menu-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path d="M4 19h16L4 5Z" />
-            </svg>
-          </span>
-          <span>{t('WEDGES')}</span>
-        </button>
-        <span className="menu-divider" />
-        <button
-          className={activeMenu === 'calibration' ? 'menu-button selected' : 'menu-button'}
-          type="button"
-          aria-haspopup="dialog"
-          onClick={() => {
-            setCalibrationSettingsSource(source === 'external' ? 'phoneMotion' : calibrationSlotSource);
-            setActiveMenu('calibration');
+      {sideMenuOpen && (
+        <div
+          className="side-menu-backdrop"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) closeSideMenu();
           }}
         >
-          <span className="menu-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="8.5" />
-              <path d="M12 2v5m0 10v5M2 12h5m10 0h5" />
-              <circle cx="12" cy="12" r="2" />
-            </svg>
-          </span>
-          <span>{t('CALIBRATION')}</span>
-        </button>
-        <span className="menu-divider" />
-        <button
-          className={activeMenu === 'help' ? 'menu-button help-button selected' : 'menu-button help-button'}
-          type="button"
-          aria-haspopup="dialog"
-          aria-label={t('Help')}
-          title={t('Help')}
-          onClick={() => setActiveMenu('help')}
-        >
-          <span className="menu-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M9.5 9a2.5 2.5 0 1 1 3.9 2.1c-1 .7-1.4 1.1-1.4 2.4M12 17h.01" />
-            </svg>
-          </span>
-        </button>
-        <span className="menu-divider" />
-        <button
-          className={
-            activeMenu === 'feedback'
-              ? 'menu-button feedback-button selected'
-              : 'menu-button feedback-button'
-          }
-          type="button"
-          aria-haspopup="dialog"
-          aria-label={t('Send feedback')}
-          title={t('Send feedback')}
-          onClick={() => setActiveMenu('feedback')}
-        >
-          <span className="menu-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path d="M3 5.5h18v13H3zM3.5 6l8.5 7 8.5-7" />
-            </svg>
-          </span>
-        </button>
-      </nav>
+          <aside
+            ref={sideMenuRef}
+            id="side-menu"
+            className="side-menu"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="side-menu-title"
+          >
+            <header className="side-menu-header">
+              <h2 id="side-menu-title">{t('Menu')}</h2>
+              <button
+                ref={sideMenuCloseRef}
+                className="close-menu"
+                type="button"
+                aria-label={t('Close menu')}
+                onClick={closeSideMenu}
+              >
+                ×
+              </button>
+            </header>
+            <div className="side-section">
+              <span className="eyebrow">{t('Select data source')}</span>
+              <div className="source-picker" role="group" aria-label={t('Select data source')}>
+                {[
+                  { id: 'phone', label: 'PHONE', available: phoneSensorData.available },
+                  { id: 'external', label: 'EXTERNAL', available: false },
+                ].map((option) => (
+                  <button
+                    key={option.id}
+                    className={`source-option ${source === option.id ? 'selected' : ''} ${
+                      option.available ? '' : 'unavailable'
+                    }`}
+                    type="button"
+                    aria-pressed={source === option.id}
+                    aria-label={`${t(option.label)}: ${t(option.available ? 'available' : 'unavailable')}`}
+                    onClick={() => {
+                      selectSource(option.id);
+                      closeSideMenu();
+                    }}
+                  >
+                    <span className="source-icon" aria-hidden="true">
+                      {option.id === 'external' ? (
+                        <svg viewBox="0 0 24 24" role="presentation">
+                          <path d="M7 7 17 17 12 22V2l5 5L7 17" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" role="presentation">
+                          <rect x="6.5" y="2.5" width="11" height="19" rx="2" />
+                          <path d="M10 5h4M10 18.5h4" />
+                        </svg>
+                      )}
+                    </span>
+                    <span>{t(option.label)}</span>
+                    <span className="source-availability">
+                      {t(option.available ? 'LIVE' : 'OFFLINE')}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <nav className="side-nav" aria-label={t('Configuration, help and feedback')}>
+              <button
+                className={`menu-button${activeMenu === 'vehicle' ? ' selected' : ''}${!setupConfirmed.vehicle ? ' needs-setup' : ''}`}
+                type="button"
+                aria-haspopup="dialog"
+                aria-label={`${t('VEHICLE')}${!setupConfirmed.vehicle ? ` · ${t('Confirmation needed')}` : ''}`}
+                onClick={() => openSideDialog('vehicle')}
+              >
+                <span className="menu-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M3 16v-4l2-1 2-4h9l3 4 2 1v4h-2m-11 0h8M3 16h1" />
+                    <circle cx="6" cy="16" r="2" />
+                    <circle cx="18" cy="16" r="2" />
+                    <path d="M7 11h11M12 7v4" />
+                  </svg>
+                </span>
+                <span>{t('VEHICLE')}</span>
+              </button>
+              <button
+                className={`menu-button${activeMenu === 'wedges' ? ' selected' : ''}${!wedgesConfirmed ? ' needs-setup' : ''}`}
+                type="button"
+                aria-haspopup="dialog"
+                aria-label={`${t('WEDGES')}${!wedgesConfirmed ? ` · ${t('Confirmation needed')}` : ''}`}
+                onClick={() => openSideDialog('wedges')}
+              >
+                <span className="menu-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M4 19h16L4 5Z" />
+                  </svg>
+                </span>
+                <span>{t('WEDGES')}</span>
+              </button>
+              <button
+                className={activeMenu === 'calibration' ? 'menu-button selected' : 'menu-button'}
+                type="button"
+                aria-haspopup="dialog"
+                onClick={() => {
+                  setCalibrationSettingsSource(source === 'external' ? 'phoneMotion' : calibrationSlotSource);
+                  openSideDialog('calibration');
+                }}
+              >
+                <span className="menu-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="8.5" />
+                    <path d="M12 2v5m0 10v5M2 12h5m10 0h5" />
+                    <circle cx="12" cy="12" r="2" />
+                  </svg>
+                </span>
+                <span>{t('CALIBRATION')}</span>
+              </button>
+              <button
+                className={activeMenu === 'help' ? 'menu-button selected' : 'menu-button'}
+                type="button"
+                aria-haspopup="dialog"
+                aria-label={t('Help')}
+                onClick={() => openSideDialog('help')}
+              >
+                <span className="menu-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M9.5 9a2.5 2.5 0 1 1 3.9 2.1c-1 .7-1.4 1.1-1.4 2.4M12 17h.01" />
+                  </svg>
+                </span>
+                <span>{t('Help')}</span>
+              </button>
+              <button
+                className={activeMenu === 'feedback' ? 'menu-button selected' : 'menu-button'}
+                type="button"
+                aria-haspopup="dialog"
+                aria-label={t('Send feedback')}
+                onClick={() => openSideDialog('feedback')}
+              >
+                <span className="menu-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M3 5.5h18v13H3zM3.5 6l8.5 7 8.5-7" />
+                  </svg>
+                </span>
+                <span>{t('Send feedback')}</span>
+              </button>
+              <button
+                className={`menu-button${pwa.updateAvailable ? ' has-update' : ''}`}
+                type="button"
+                aria-haspopup="dialog"
+                aria-label={`${t('App and updates')}${pwa.updateAvailable ? ` · ${t('An update is available.')}` : ''}`}
+                onClick={() => {
+                  refreshOfflineStatus();
+                  openSideDialog('offline');
+                }}
+              >
+                <span className="menu-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M12 3v11m-4-4 4 4 4-4M4 16v4h16v-4" />
+                  </svg>
+                </span>
+                <span>{t('App and updates')}</span>
+              </button>
+            </nav>
+            <div className="side-language">
+              <span className="eyebrow">{t('Language')}</span>
+              <AppDropdown
+                className="language-select"
+                label={t('Language')}
+                value={language}
+                options={[{ value: 'en', label: 'EN' }, { value: 'de', label: 'DE' }]}
+                onChange={(value) => setLanguage(normalizeLanguage(value))}
+              />
+            </div>
+          </aside>
+        </div>
+      )}
 
       {activeMenu && (
         <div
@@ -1834,6 +1968,7 @@ function App() {
                 </h2>
               </div>
               <button
+                ref={menuDialogCloseRef}
                 className="close-menu"
                 type="button"
                 aria-label={t('Close dialog')}

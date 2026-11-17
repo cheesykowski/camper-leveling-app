@@ -83,7 +83,6 @@ select:focus-visible {
 .telemetry,
 .telemetry-item,
 .diagram-heading,
-.bottom-menu,
 .menu-header {
   display: flex;
   align-items: center;
@@ -127,33 +126,21 @@ select:focus-visible {
   font-size: 0.7em;
 }
 
-.header-actions {
-  display: grid;
-  gap: 4px;
-  justify-items: end;
-}
-
-.header-controls {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.offline-button {
+.side-menu-toggle {
   position: relative;
   display: grid;
-  width: 26px;
-  height: 26px;
+  width: 44px;
+  height: 44px;
   place-items: center;
-  padding: 3px;
+  padding: 8px;
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--glow);
   cursor: pointer;
 }
 
-.offline-button svg {
-  width: 18px;
+.side-menu-toggle svg {
+  width: 22px;
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
@@ -161,10 +148,10 @@ select:focus-visible {
   stroke-width: 1.8;
 }
 
-.offline-button.has-update::after {
+.side-menu-toggle.has-notice::after {
   position: absolute;
-  top: -3px;
-  right: -3px;
+  top: 4px;
+  right: 4px;
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -314,6 +301,82 @@ select:focus-visible {
   width: 1px;
   height: 20px;
   background: var(--line);
+}
+
+.setup-guide {
+  display: grid;
+  width: min(100%, 520px);
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 5px 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.setup-guide-heading {
+  display: flex;
+  gap: 8px;
+  color: var(--bright);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.setup-guide-steps {
+  display: flex;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  color: var(--dim);
+  font-size: 0.57rem;
+  list-style: none;
+}
+
+.setup-guide-steps li {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.setup-guide-steps .complete {
+  color: var(--glow);
+}
+
+.setup-guide p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--text);
+  font-size: 0.6rem;
+  line-height: 1.35;
+}
+
+.setup-guide button {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 34px;
+  padding: 5px 8px;
+  border: 1px solid #65af63;
+  background: #102719;
+  color: var(--bright);
+  font-size: 0.58rem;
+  cursor: pointer;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.calibrate-button:focus {
+  outline: 2px solid var(--glow);
+  outline-offset: 3px;
 }
 
 .simulator-stage {
@@ -979,7 +1042,8 @@ select:focus-visible {
 }
 
 .language-select summary {
-  min-height: 24px;
+  min-width: 76px;
+  min-height: 44px;
   gap: 5px;
   padding: 2px 4px;
   border-color: var(--line);
@@ -996,8 +1060,9 @@ select:focus-visible {
 
 .language-select .app-dropdown-options {
   right: 0;
+  bottom: calc(100% + 4px);
   left: auto;
-  min-width: 60px;
+  min-width: 76px;
 }
 
 .calibration-slot-settings {
@@ -1084,32 +1149,79 @@ select:focus-visible {
   color: var(--dim);
 }
 
-.bottom-menu {
-  z-index: 1;
-  width: min(100%, 480px);
-  min-height: 60px;
-  justify-content: center;
-  align-self: center;
-  gap: 10px;
-  padding: 5px;
-  border: 1px solid var(--line);
-  background: #0a120d;
-  box-shadow: 0 0 24px rgb(0 0 0 / 30%);
+.side-menu-backdrop {
+  position: fixed;
+  z-index: 6;
+  display: flex;
+  justify-content: flex-end;
+  background: rgb(2 7 4 / 76%);
+  inset: 0;
+}
+
+.side-menu {
+  width: min(320px, 90vw);
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  border-left: 1px solid #376447;
+  background: #0b130e;
+  box-shadow: -16px 0 70px rgb(0 0 0 / 65%);
+  animation: side-menu-enter 180ms ease-out;
+}
+
+.side-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.side-menu-header h2 {
+  margin: 0;
+  color: var(--bright);
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.side-section {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.side-nav {
+  display: grid;
+  gap: 4px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.side-language {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 0;
 }
 
 .menu-button {
   display: flex;
-  flex: 1;
+  width: 100%;
   min-width: 0;
   min-height: 46px;
   align-items: center;
-  justify-content: center;
-  gap: 5px;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 8px 10px;
   border: 1px solid transparent;
   background: transparent;
   color: #aebdb2;
   cursor: pointer;
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.08em;
 }
@@ -1119,20 +1231,6 @@ select:focus-visible {
   border-color: rgb(167 255 117 / 55%);
   background: rgb(167 255 117 / 11%);
   color: var(--glow);
-}
-
-.menu-button.feedback-button,
-.menu-button.help-button {
-  min-width: 38px;
-  flex: 0 0 38px;
-  opacity: 0.82;
-}
-
-.menu-button.feedback-button:hover,
-.menu-button.feedback-button.selected,
-.menu-button.help-button:hover,
-.menu-button.help-button.selected {
-  opacity: 1;
 }
 
 .menu-button > span:last-child {
@@ -1147,6 +1245,7 @@ select:focus-visible {
 }
 
 .menu-button.needs-setup .menu-icon::after,
+.menu-button.has-update .menu-icon::after,
 .menu-tab.needs-setup::after {
   width: 6px;
   height: 6px;
@@ -1159,6 +1258,13 @@ select:focus-visible {
   position: absolute;
   top: -2px;
   right: -3px;
+}
+
+.menu-button.has-update .menu-icon::after {
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  background: var(--amber);
 }
 
 .menu-tab.needs-setup::after {
@@ -1176,12 +1282,6 @@ select:focus-visible {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.6;
-}
-
-.menu-divider {
-  width: 1px;
-  height: 28px;
-  background: var(--line);
 }
 
 .menu-backdrop {
@@ -1755,33 +1855,6 @@ select:focus-visible {
   font-weight: 400;
 }
 
-@media (max-width: 420px) {
-  .topbar {
-    gap: 10px;
-  }
-
-  .source-picker {
-    width: 100%;
-  }
-
-  .source-option {
-    min-width: 0;
-  }
-}
-
-@media (min-width: 481px) and (max-width: 560px) {
-  .bottom-menu {
-    gap: 4px;
-  }
-
-  .menu-button {
-    flex-direction: column;
-    gap: 1px;
-    font-size: 0.5rem;
-    letter-spacing: 0.02em;
-  }
-}
-
 @keyframes calibrate-progress {
   to {
     transform: scaleX(1);
@@ -1798,6 +1871,12 @@ select:focus-visible {
   from {
     opacity: 0;
     transform: translateY(10px);
+  }
+}
+
+@keyframes side-menu-enter {
+  from {
+    transform: translateX(100%);
   }
 }
 
@@ -1833,35 +1912,6 @@ select:focus-visible {
     letter-spacing: 0.04em;
   }
 
-  .header-actions {
-    flex: 0 0 126px;
-  }
-
-  .source-picker {
-    width: 100%;
-    min-width: 0;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 3px;
-  }
-
-  .source-option {
-    min-width: 0;
-    min-height: 46px;
-    gap: 1px;
-    font-size: 0.52rem;
-    padding: 2px;
-    letter-spacing: 0.02em;
-  }
-
-  .source-icon svg {
-    width: 15px;
-    height: 15px;
-  }
-
-  .source-availability {
-    font-size: 0.38rem;
-  }
-
   .main-screen {
     min-height: 0;
     gap: clamp(4px, 1svh, 8px);
@@ -1877,6 +1927,11 @@ select:focus-visible {
 
   .telemetry-item strong {
     font-size: 0.85rem;
+  }
+
+  .setup-guide {
+    flex: 0 0 auto;
+    padding: 5px 7px;
   }
 
   .simulator-stage.long-wheelbase {
@@ -1935,20 +1990,6 @@ select:focus-visible {
     min-height: 42px;
     gap: 6px;
     font-size: 0.62rem;
-  }
-
-  .bottom-menu {
-    min-height: 48px;
-    flex: 0 0 auto;
-    gap: 4px;
-  }
-
-  .menu-button {
-    min-height: 40px;
-    flex-direction: column;
-    gap: 1px;
-    font-size: 0.5rem;
-    letter-spacing: 0.02em;
   }
 
   .quick-calibration-button {
@@ -2104,13 +2145,6 @@ select:focus-visible {
     padding-top: 5px;
   }
 
-  .bottom-menu {
-    min-height: 52px;
-  }
-
-  .menu-button {
-    min-height: 40px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

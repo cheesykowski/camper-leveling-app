@@ -6,7 +6,7 @@ KEILOMAT is a mobile-first web app that helps level a parked camper van. It can 
 
 ## Prototype features
 
-- Live pitch and roll readings from the browser's device-orientation API, when available
+- Live pitch and roll readings from the browser's motion sensors, when available
 - A three-second calibration that stores the trimmed mean of phone readings or the current simulated tilt
 - Separate calibration slots for simulation and phone; one calibration for the fixed external sensor
 - Developer-only 3D tilt simulation in the browser, limited to ±30° on pitch and roll
@@ -16,8 +16,8 @@ KEILOMAT is a mobile-first web app that helps level a parked camper van. It can 
 - A color highlight when the required lift exceeds the configured maximum height
 - A vehicle top view showing the recommended wheel positions and wedge step numbers
 - A shared vehicle top view in the main screen and vehicle setup
-- An optional sun view with today's sunrise, solar noon, and sunset times and directions, calculated locally using SunCalc
-- A compact dashboard with sensor status, settings, and calibration controls
+- A compact dashboard with a slide-out menu for sensor selection, settings, language, help, feedback, and updates
+- A compact setup checklist with progress and a shortcut to the next step
 - Browser-local storage of vehicle settings and calibration slots
 - English and German language selection, saved locally on the device
 - An illustrated guide with separate setup and usage instructions for phone and external sensors
@@ -53,13 +53,13 @@ npm test
 
 ## Install and use offline
 
-Open the deployed HTTPS app while online; its offline files are downloaded automatically, independently of installation. Use the download icon beside the logo and wait for the offline preparation message to disappear before disconnecting. If offline access is unavailable, the dialog reports it. On Android, choose **Add to home screen** when offered, or use **Install app** or **Add to Home screen** in the browser menu. Depending on the browser, this can install the web app, not just create a shortcut.
+Open the deployed HTTPS app while online; its offline files are downloaded automatically, independently of installation. Open the menu and choose **App and updates**, then wait for the offline preparation message to disappear before disconnecting. If offline access is unavailable, the dialog reports it. On Android, choose **Add to home screen** when offered, or use **Install app** or **Add to Home screen** in the browser menu. Depending on the browser, this can install the web app, not just create a shortcut.
 
 The installed app is labeled KEILOMAT APP; the browser version is labeled KEILOMAT WEB. Both currently use the same release and, in the same browser profile, share the offline files. The app and its leveling calculations work offline. Feedback requires an internet connection and is not queued. The external sensor is not connected yet. A new version is downloaded when online; confirming the update in either view updates the shared offline files and reloads that view. Other open views offer their own reload so unfinished input is not interrupted.
 
 The download icon also offers a manual update check while online. If an older installed version's update button does nothing, close the installed app and all browser tabs for this site completely, then reopen the app while online. This allows the waiting update to activate without clearing saved settings.
 
-Confirm the vehicle dimensions and the wedge heights or maximum height in the settings; markers remain until each has been confirmed. A marker on the calibration button indicates that the selected slot or sensor is not calibrated. Existing settings are preserved, but must be confirmed once because earlier versions did not record confirmation.
+The setup checklist guides you through confirming vehicle dimensions, wedge heights or maximum height, and calibrating the selected sensor position. It disappears when all three steps are complete and the selected sensor is available, and reappears if a step needs attention. On level ground, use a spirit level to establish a reference before holding the calibration button for three seconds. Simulation uses its own calibration slots, and the external sensor is not available yet. Existing settings are preserved, but must be confirmed once because earlier versions did not record confirmation.
 
 Settings and calibration slots remain in the browser's local storage for the same site and browser profile; they are not synchronized across devices or browsers and can be lost when site data is cleared. Offline files can also be removed by the browser.
 
@@ -77,9 +77,7 @@ The phone source combines acceleration including gravity with gyroscope readings
 
 ## Sun directions
 
-Select the sun icon in the top view and allow location and compass access. The symbols and times for sunrise, solar noon (the highest point), and sunset appear around the vehicle according to their calculated directions. The curved line follows the sun's horizontal direction, so its span varies with location and season. Place the phone flat, screen up, in portrait orientation with its top toward the vehicle's front. Times use the device's current date and time zone. At high latitudes an event may not occur on that date, and solar noon may be below the horizon. If location access fails, close and reopen the view to retry.
-
-The app calculates sun positions on the device using SunCalc and does not store or send the location. GPS and compass access require browser support and typically HTTPS; GPS may take time or be unavailable indoors or offline. When the compass is unavailable, a symbolic arc shows the times without vehicle-relative directions. Compass headings may reference magnetic rather than true north and are sensitive to interference, especially inside a vehicle; calibrate the compass and verify directions outside, away from metal. Terrain, buildings, and atmospheric conditions can change the visible sunrise and sunset.
+The sun view is currently hidden. Its local SunCalc calculations and compass implementation remain available for future development.
 
 ## Feedback
 
