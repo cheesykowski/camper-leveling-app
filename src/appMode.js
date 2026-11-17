@@ -5,5 +5,5 @@ export function initialSensorSource(search, standalone) {
 }
 
 export function sensorDebugEnabled(search, standalone) {
-  return !standalone && new URLSearchParams(search).get('sensorDebug') === '1';
+  return standalone || new URLSearchParams(search).get('sensorDebug') === '1';
 }

@@ -10,7 +10,7 @@ Build an Android-friendly web app that measures the tilt of a parked camper and 
 
 - [x] React/Vite project with a responsive mobile interface
 - [x] Pitch and roll readings via `DeviceOrientationEvent`, when the browser provides sensor access
-- [x] Developer-only comparison with `RelativeOrientationSensor`, using independent, session-only calibration slots
+- [x] Sensor comparison with `RelativeOrientationSensor` in the installed app and opt-in web debug view, using independent, session-only calibration slots
 - [x] Developer-only 3D simulation in the browser, controlled by mouse or touch; pitch and roll are limited to ±30°
 - [x] Selection between phone sensor and an external sensor source that is not yet connected; unavailable data does not produce a leveling recommendation
 - [x] Independent calibration slots for simulation and phone; a single selected calibration for the fixed external sensor
@@ -80,7 +80,7 @@ Integration requires the Arduino project or BLE protocol, device details, servic
 - **Offline:** A service worker precaches the production app. Android installation is offered in the app when the browser supports it; feedback requires a connection. The offline dialog can check for updates; confirming an update activates the shared offline version and reloads only the confirming view; other open views offer their own reload.
 - **Initial setup:** Vehicle dimensions and wedge or height settings require explicit confirmation; the selected sensor position needs calibration. Subtle markers indicate unfinished steps.
 - **Initial sensor:** Phone orientation through the web `DeviceOrientationEvent` API.
-- **Sensor comparison:** The opt-in web debug view can select `RelativeOrientationSensor` instead; it uses separate calibration slots that are discarded on reload, signal loss, or when the page becomes hidden because the reference frame may change. The normal phone source remains the default.
+- **Sensor comparison:** The installed app and opt-in web debug view can select `RelativeOrientationSensor` instead; it uses separate calibration slots that are discarded on reload, signal loss, or when the page becomes hidden because the reference frame may change. The normal phone source remains the default.
 - **Sun view:** SunCalc calculates events locally from the device date and location; a supported absolute phone compass supplies approximate vehicle-relative directions. Location is not stored. Bearings are true-north based; compass readings can be magnetic and affected by nearby metal.
 - **Target platform:** Android browser. Sensor and BLE support varies by browser; the BLE protocol is not yet defined.
 - **Vehicle values:** Example values until actual measurements are available.
