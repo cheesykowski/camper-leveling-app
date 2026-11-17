@@ -488,6 +488,97 @@ select:focus-visible {
   letter-spacing: 0.14em;
 }
 
+.sun-open,
+.sun-start {
+  border: 1px solid var(--amber);
+  background: #211a0c;
+  color: var(--amber);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.sun-open {
+  position: relative;
+  z-index: 3;
+  margin-left: 10px;
+  margin-right: auto;
+  padding: 5px 9px;
+}
+
+.sun-start {
+  padding: 10px 14px;
+}
+
+.sun-start:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.sun-view {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 16px 0;
+}
+
+.sun-view p {
+  margin: 0;
+  color: var(--dim);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.sun-diagram {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: #09110c;
+  text-align: center;
+}
+
+.sun-vehicle-svg {
+  display: block;
+  width: min(100%, 300px);
+  max-height: 42vh;
+  margin: auto;
+}
+
+.sun-marker circle {
+  fill: var(--amber);
+  stroke: #241a05;
+  stroke-width: 2;
+}
+
+.sun-marker text {
+  fill: #241a05;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sun-events {
+  display: grid;
+  width: 100%;
+  gap: 7px;
+}
+
+.sun-event {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 3px 10px;
+  font-size: 0.78rem;
+}
+
+.sun-event b {
+  color: var(--amber);
+}
+
+.sun-event small {
+  grid-column: 2;
+  color: var(--dim);
+  text-align: right;
+}
+
 .vehicle-svg {
   z-index: 1;
   display: block;

@@ -14,6 +14,7 @@ import { calculateTwoWedgePlan, wheelCorners } from './leveling.js';
 import { normalizeLanguage, translate } from './i18n.js';
 import { applyUpdate, checkForUpdates, installApp, refreshOfflineStatus, usePwa } from './pwa.js';
 import { initialSensorSource } from './appMode.js';
+import { calculateSunEvents, compassHeading, sunMarkerPosition } from './sun.js';
 import logo from './assets/keilomat-logo.svg';
 
 const STORAGE_KEY = 'camper-leveling-demo-v1';
@@ -67,7 +68,7 @@ const getVehicleWheelPositions = ({ wheelbaseCm, trackWidthCm }) => {
   }));
 };
 
-function VehicleDiagram({ className, vehicle, recommendation, t, language, showMeasurements = false }) {
+function VehicleDiagram({ className, vehicle, recommendation, t, language, showMeasurements = false, sunMarkers = [] }) {
   const id = useId();
   const wheels = getVehicleWheelPositions(vehicle);
   const frontAxleY = wheels[0].y + 24;
@@ -169,6 +170,16 @@ function VehicleDiagram({ className, vehicle, recommendation, t, language, showM
         );
       })}
 
+      {sunMarkers.map(({ number, azimuth, heading }) => {
+        const point = sunMarkerPosition(azimuth, heading);
+        return (
+          <g className="sun-marker" key={number} aria-hidden="true">
+            <circle cx={point.x} cy={point.y} r="13" />
+            <text x={point.x} y={point.y + 4} textAnchor="middle">{number}</text>
+          </g>
+        );
+      })}
+
       {showMeasurements && (
         <g className="vehicle-measurements">
           <line
@@ -216,6 +227,149 @@ function VehicleDiagram({ className, vehicle, recommendation, t, language, showM
       )}
 
     </svg>
+  );
+}
+
+function SunView({ vehicle, t, language }) {
+  const [location, setLocation] = useState(null);
+  const [locationStatus, setLocationStatus] = useState('');
+  const [compassStatus, setCompassStatus] = useState('');
+  const [compassEnabled, setCompassEnabled] = useState(false);
+  const [heading, setHeading] = useState(null);
+  const [today, setToday] = useState(() => new Date());
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    mounted.current = true;
+    const timer = window.setInterval(() => setToday(new Date()), 60000);
+    return () => {
+      mounted.current = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!compassEnabled) return undefined;
+    let timeout;
+    const noSignal = () => {
+      setHeading(null);
+      setCompassStatus('Compass unavailable. Times and bearings are still shown.');
+    };
+    const onOrientation = (event) => {
+      const angle = window.screen.orientation?.angle ?? window.orientation ?? 0;
+      if (angle !== 0) {
+        setHeading(null);
+        setCompassStatus('Use portrait orientation for compass directions.');
+        return;
+      }
+      const value = compassHeading(event, angle);
+      if (value === null) return;
+      setHeading(value);
+      setCompassStatus('');
+      window.clearTimeout(timeout);
+      timeout = window.setTimeout(noSignal, 10000);
+    };
+    timeout = window.setTimeout(noSignal, 10000);
+    window.addEventListener('deviceorientationabsolute', onOrientation);
+    window.addEventListener('deviceorientation', onOrientation);
+    return () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener('deviceorientationabsolute', onOrientation);
+      window.removeEventListener('deviceorientation', onOrientation);
+    };
+  }, [compassEnabled]);
+
+  const start = () => {
+    setLocation(null);
+    if (!navigator.geolocation) {
+      setLocationStatus('Location is unavailable in this browser.');
+    } else {
+      setLocationStatus('Finding your location…');
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => {
+          if (!mounted.current) return;
+          setLocation({ latitude: coords.latitude, longitude: coords.longitude });
+          setLocationStatus('');
+        },
+        (error) => {
+          if (!mounted.current) return;
+          setLocationStatus(error.code === 1
+            ? 'Location permission was denied.'
+            : 'Could not get your location. Check GPS and try again.');
+        },
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
+      );
+    }
+
+    if (compassEnabled) return;
+    if (!('DeviceOrientationEvent' in window)) {
+      setCompassStatus('Compass unavailable. Times and bearings are still shown.');
+    } else if (typeof window.DeviceOrientationEvent.requestPermission === 'function') {
+      window.DeviceOrientationEvent.requestPermission(true).then((permission) => {
+        if (!mounted.current) return;
+        if (permission === 'granted') {
+          setCompassStatus('Waiting for compass…');
+          setCompassEnabled(true);
+        } else {
+          setCompassStatus('Compass permission was denied. Times and bearings are still shown.');
+        }
+      }).catch(() => {
+        if (mounted.current) setCompassStatus('Compass permission failed. Times and bearings are still shown.');
+      });
+    } else {
+      setCompassStatus('Waiting for compass…');
+      setCompassEnabled(true);
+    }
+  };
+
+  const events = useMemo(
+    () => location ? calculateSunEvents(today, location.latitude, location.longitude) : null,
+    [today, location],
+  );
+  const items = [
+    { key: 'sunrise', label: 'Sunrise', number: 1 },
+    { key: 'solarNoon', label: 'Highest point', number: 2 },
+    { key: 'sunset', label: 'Sunset', number: 3 },
+  ];
+  const markers = events && heading !== null
+    ? items.filter((item) => events[item.key]).map((item) => ({
+        number: item.number,
+        azimuth: events[item.key].azimuth,
+        heading,
+      }))
+    : [];
+  const timeFormatter = new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <div className="sun-view">
+      <p>{t('See today’s sun directions relative to your vehicle. Place the phone flat, screen up, in portrait orientation with its top toward the vehicle’s front.')}</p>
+      <button className="sun-start" type="button" onClick={start} disabled={locationStatus === 'Finding your location…'}>
+        {t(location ? 'REFRESH LOCATION' : 'USE MY LOCATION')}
+      </button>
+      {locationStatus && <p role="status">{t(locationStatus)}</p>}
+      {compassStatus && <p role="status">{t(compassStatus)}</p>}
+      {events && (
+        <>
+          <p>{new Intl.DateTimeFormat(language, { dateStyle: 'full' }).format(today)} · {t('Device time zone')}</p>
+          <div className="sun-diagram">
+            <VehicleDiagram className="sun-vehicle-svg" vehicle={vehicle} t={t} language={language} sunMarkers={markers} />
+          </div>
+          <div className="sun-events">
+            {items.map((item) => {
+              const event = events[item.key];
+              return (
+                <div className="sun-event" key={item.key}>
+                  <span><b>{item.number}</b> {t(item.label)}</span>
+                  <strong>{event ? timeFormatter.format(event.time) : t('No event today')}</strong>
+                  <small>{event ? t('{degrees}° from north', { degrees: Math.round(event.azimuth) % 360 }) : '—'}</small>
+                </div>
+              );
+            })}
+          </div>
+          <p>{t('Bearings are true north. Compass directions are approximate and may use magnetic north; calibrate your phone and keep it away from metal. Solar noon can be below the horizon.')}</p>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -1338,6 +1492,9 @@ function App() {
           <div className="vehicle-diagram">
             <div className="diagram-heading">
               <span>{t('TOP VIEW')}{source === 'simulation' ? ` · ${t('SIMULATION')}` : ''}</span>
+              <button className="sun-open" type="button" onClick={() => setActiveMenu('sun')}>
+                {t('SUN')}
+              </button>
               {source === 'simulation' && (
                 <div
                   className={`simulator-stage${vehicle.wheelbaseCm > 300 ? ' long-wheelbase' : ''}`}
@@ -1606,7 +1763,7 @@ function App() {
             <header className="menu-header">
               <div>
                 <span className="eyebrow">
-                  {t(activeMenu === 'feedback' ? 'FRIEND BETA' : activeMenu === 'help' ? 'GUIDE' : activeMenu === 'offline' ? 'APP' : 'CONFIGURATION')}
+                  {t(activeMenu === 'feedback' ? 'FRIEND BETA' : activeMenu === 'help' ? 'GUIDE' : activeMenu === 'offline' ? 'APP' : activeMenu === 'sun' ? 'TOP VIEW' : 'CONFIGURATION')}
                 </span>
                 <h2 id="menu-title">
                   {t(activeMenu === 'vehicle'
@@ -1619,6 +1776,8 @@ function App() {
                           ? 'How it works'
                           : activeMenu === 'offline'
                             ? 'App and updates'
+                          : activeMenu === 'sun'
+                            ? 'Sun directions'
                           : 'Send feedback')}
                 </h2>
               </div>
@@ -1632,7 +1791,9 @@ function App() {
               </button>
             </header>
 
-            {activeMenu !== 'feedback' && activeMenu !== 'help' && activeMenu !== 'offline' && (
+            {activeMenu === 'sun' && <SunView vehicle={vehicle} t={t} language={language} />}
+
+            {activeMenu !== 'feedback' && activeMenu !== 'help' && activeMenu !== 'offline' && activeMenu !== 'sun' && (
               <div className="menu-tabs" role="tablist" aria-label={t('Configuration sections')}>
                 <button
                   className={`menu-tab${activeMenu === 'vehicle' ? ' active' : ''}${!setupConfirmed.vehicle ? ' needs-setup' : ''}`}
@@ -1984,11 +2145,11 @@ function App() {
                 </button>
                 {pwa.error && <p className="input-error" role="alert">{t(pwa.error)}</p>}
               </div>
-            ) : (
+            ) : activeMenu === 'feedback' ? (
               <div className="menu-content">
                 <FeedbackForm endpoint={FORMSPREE_ENDPOINT} t={t} online={pwa.online} />
               </div>
-            )}
+            ) : null}
           </section>
         </div>
       )}

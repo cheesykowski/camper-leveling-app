@@ -16,6 +16,7 @@ KEILOMAT is a mobile-first web app that helps level a parked camper van. It can 
 - A color highlight when the required lift exceeds the configured maximum height
 - A vehicle top view showing the recommended wheel positions and wedge step numbers
 - A shared vehicle top view in the main screen and vehicle setup
+- An optional sun view with today's sunrise, solar noon, and sunset times and directions, calculated locally using SunCalc
 - A compact dashboard with sensor status, settings, and calibration controls
 - Browser-local storage of vehicle settings and calibration slots
 - English and German language selection, saved locally on the device
@@ -72,6 +73,12 @@ Open the app in a supported mobile browser. Motion-sensor access may require a s
 
 Place the phone flat and securely, screen up and top toward the vehicle's front. For each calibration slot, use the same phone position and orientation when calibrating and measuring. Verify the sensor axes and recommendations on the actual vehicle. An external sensor is intended to be mounted permanently and calibrated in place; it is not connected yet. Existing external calibration data is retained, with the previously selected calibration used as the single reference.
 
+## Sun directions
+
+Select **SUN** in the top view and allow location and compass access. Place the phone flat, screen up, in portrait orientation with its top toward the vehicle's front. Numbered markers show sunrise, solar noon (the highest point), and sunset relative to the vehicle. Times use the device's current date and time zone; bearings are degrees clockwise from true north. At high latitudes an event may not occur on that date, and solar noon may be below the horizon.
+
+The app calculates sun positions on the device using SunCalc and does not store or send the location. GPS and compass access require browser support and typically HTTPS; GPS may take time or be unavailable indoors or offline. Times and bearings remain available if the compass is unavailable, but vehicle-relative markers are hidden. Compass headings may reference magnetic rather than true north and are sensitive to interference, especially inside a vehicle; calibrate the compass and verify directions outside, away from metal. Terrain, buildings, and atmospheric conditions can change the visible sunrise and sunset.
+
 ## Feedback
 
 The feedback form uses Formspree for email notifications and stores submissions in the app owner's Formspree account. Providing a name is optional. Responses are not automatically written to this public repository; only reviewed, anonymized findings should be added here.
@@ -91,6 +98,7 @@ The endpoint URL is included in the public app bundle and is not a secret. Do no
 - `src/pwa.js` — offline readiness, installation, and update handling
 - `src/*.test.js` — unit tests
 - `src/leveling.js` — wedge recommendation calculations
+- `src/sun.js` — solar event and compass direction calculations
 - `src/styles.css` — styling and responsive layouts
 - `src/main.jsx` — React entry point
 - `vite.config.js` — Vite configuration
