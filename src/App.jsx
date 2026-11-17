@@ -13,8 +13,7 @@ import {
 import { calculateTwoWedgePlan, wheelCorners } from './leveling.js';
 import { normalizeLanguage, translate } from './i18n.js';
 import { applyUpdate, checkForUpdates, installApp, refreshOfflineStatus, usePwa } from './pwa.js';
-import { initialSensorSource, sensorDebugEnabled } from './appMode.js';
-import { quaternionToTilt } from './orientation.js';
+import { initialSensorSource } from './appMode.js';
 import { updateMotionOrientation } from './motionOrientation.js';
 import { calculateSunEvents, compassHeading, sunArcPoints, sunLabelPositions, sunMarkerPosition } from './sun.js';
 
@@ -47,8 +46,7 @@ const vehicleDimensionLimits = {
 const calibrationSourceLabels = {
   simulation: 'Simulation',
   phone: 'Phone sensor',
-  phoneRelative: 'Relative orientation sensor',
-  phoneMotion: 'Motion sensor',
+  phoneMotion: 'Phone sensor',
   external: 'External sensor',
 };
 
@@ -810,7 +808,6 @@ function FeedbackForm({ endpoint, t, online }) {
 function App() {
   const pwa = usePwa();
   const simulationEnabled = initialSensorSource(window.location.search, pwa.standalone) === 'simulation';
-  const debugEnabled = sensorDebugEnabled(window.location.search, pwa.standalone);
   const loadedState = useMemo(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
@@ -897,7 +894,7 @@ function App() {
   const [calibrationSlotIds, setCalibrationSlotIds] = useState(
     loadedState.calibrationSlotIds,
   );
-  const [calibrationSettingsSource, setCalibrationSettingsSource] = useState('phone');
+  const [calibrationSettingsSource, setCalibrationSettingsSource] = useState('phoneMotion');
   const [vehicle, setVehicle] = useState(loadedState.vehicle);
   const [setupConfirmed, setSetupConfirmed] = useState(loadedState.setupConfirmed);
   const wedgesConfirmed = setupConfirmed[vehicle.levelingMode === 'height' ? 'height' : 'wedges'];
@@ -912,40 +909,21 @@ function App() {
   const [wedgeHeightErrors, setWedgeHeightErrors] = useState([]);
   const [maximumHeightInput, setMaximumHeightInput] = useState(String(loadedState.vehicle.maximumHeightCm));
   const [maximumHeightError, setMaximumHeightError] = useState(false);
-  const [sensorData, setSensorData] = useState({
-    pitch: 0,
-    roll: 0,
-    supported: false,
-    available: false,
-    permissionGranted: false,
-  });
-  const sensorDataRef = useRef(sensorData);
-  const [phoneSensorSource, setPhoneSensorSource] = useState('event');
-  const [relativeRequested, setRelativeRequested] = useState(false);
-  const [relativeSensorData, setRelativeSensorData] = useState({ pitch: 0, roll: 0, available: false });
-  const relativeSensorDataRef = useRef(relativeSensorData);
-  const [relativeSensorStatus, setRelativeSensorStatus] = useState('');
   const [motionSensorData, setMotionSensorData] = useState({ pitch: 0, roll: 0, available: false });
   const motionSensorDataRef = useRef(motionSensorData);
   const [motionSensorStatus, setMotionSensorStatus] = useState('');
-  const [motionPermissionGranted, setMotionPermissionGranted] = useState(false);
+  const [motionPermissionGranted, setMotionPermissionGranted] = useState(
+    () => !!window.DeviceMotionEvent && typeof window.DeviceMotionEvent.requestPermission !== 'function',
+  );
   const motionRequestId = useRef(0);
   const [simulatedTilt, setSimulatedTilt] = useState({ pitch: 0, roll: 0 });
   const simulatedTiltRef = useRef(simulatedTilt);
   const [selectedSource, setSource] = useState(() => initialSensorSource(window.location.search, pwa.standalone));
   const source = pwa.standalone && selectedSource === 'simulation' ? 'phone' : selectedSource;
-  const useRelativeSensor = debugEnabled && phoneSensorSource === 'relative';
-  const useMotionSensor = debugEnabled && phoneSensorSource === 'motion';
-  const phoneSensorData = useRelativeSensor ? relativeSensorData : useMotionSensor ? motionSensorData : sensorData;
-  const calibrationSlotSource = source === 'phone'
-    ? useRelativeSensor ? 'phoneRelative' : useMotionSensor ? 'phoneMotion' : 'phone'
-    : source;
-  const calibrationSlotSourceRef = useRef(calibrationSlotSource);
-  calibrationSlotSourceRef.current = calibrationSlotSource;
+  const phoneSensorData = motionSensorData;
+  const calibrationSlotSource = source === 'phone' ? 'phoneMotion' : source;
   const [sourceMessage, setSourceMessage] = useState('');
-  const sourceSelectionLocked = useRef(simulationEnabled);
   const dragStart = useRef(null);
-  const sensorTimeout = useRef(null);
   const [activeMenu, setActiveMenu] = useState(null);
   const [sunRequest, setSunRequest] = useState(null);
   const [isHoldingCalibration, setIsHoldingCalibration] = useState(false);
@@ -982,142 +960,15 @@ function App() {
   }, [language, calibrationSlots, calibrationSlotIds, vehicle, setupConfirmed]);
 
   useEffect(() => {
-    const hasSensorAPI = 'DeviceOrientationEvent' in window;
-    if (!hasSensorAPI) {
-      setSensorData((current) => ({ ...current, supported: false, available: false }));
+    if (source !== 'phone') return undefined;
+    if (!window.DeviceMotionEvent) {
+      setMotionSensorStatus('Motion sensor is not supported by this browser.');
       return undefined;
     }
-
-    setSensorData((current) => ({ ...current, supported: true }));
-    sensorTimeout.current = window.setTimeout(() => {
-      setSensorData((current) => ({ ...current, available: false }));
-      sensorTimeout.current = null;
-    }, SENSOR_STALE_TIMEOUT_MS);
-
-    const onOrientation = (event) => {
-      if (!Number.isFinite(event.beta) || !Number.isFinite(event.gamma)) return;
-      const pitch = event.beta;
-      const roll = event.gamma;
-      if (calibrationCaptureSource.current === 'phone') {
-        calibrationSamples.current.push({ pitch, roll });
-      }
-      const nextSensorData = {
-        pitch,
-        roll,
-        supported: true,
-        available: true,
-        permissionGranted: true,
-      };
-
-      sensorDataRef.current = nextSensorData;
-      setSensorData(nextSensorData);
-      if (!sourceSelectionLocked.current && calibrationCaptureSource.current !== 'simulation') {
-        setSource('phone');
-      }
-      setSourceMessage((current) =>
-        current.toLowerCase().includes('external sensor') ? current : '',
-      );
-      if (sensorTimeout.current !== null) {
-        window.clearTimeout(sensorTimeout.current);
-      }
-      sensorTimeout.current = window.setTimeout(() => {
-        setSensorData((current) => ({ ...current, available: false }));
-        setSourceMessage((current) =>
-          current.startsWith('Waiting for a signal')
-            ? 'Phone sensor signal lost. Check the device and browser permission.'
-            : current,
-        );
-        sensorTimeout.current = null;
-      }, SENSOR_STALE_TIMEOUT_MS);
-    };
-
-    window.addEventListener('deviceorientation', onOrientation, true);
-
-    return () => {
-      window.removeEventListener('deviceorientation', onOrientation, true);
-      if (sensorTimeout.current !== null) window.clearTimeout(sensorTimeout.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!debugEnabled || !relativeRequested) return undefined;
-    if (!('RelativeOrientationSensor' in window)) {
-      setRelativeSensorStatus('Relative orientation sensor is not supported by this browser.');
+    if (!motionPermissionGranted) {
+      setMotionSensorStatus('Tap PHONE to allow motion sensor access.');
       return undefined;
     }
-
-    let sensor;
-    let timeout;
-    const unavailable = (message) => {
-      window.clearTimeout(timeout);
-      if (calibrationCaptureSource.current === 'phoneRelative') cancelCalibrationHold();
-      setRelativeSensorData((current) => ({ ...current, available: false }));
-      setRelativeSensorStatus(message);
-      if (calibrationSlotSourceRef.current === 'phoneRelative') setCalibrationComplete(false);
-      setCalibrationSlots((current) => {
-        if (!current.phoneRelative.some((slot) => slot.pitch !== null || slot.roll !== null)) return current;
-        return {
-          ...current,
-          phoneRelative: current.phoneRelative.map((slot) => ({ ...slot, pitch: null, roll: null })),
-        };
-      });
-    };
-    const onVisibilityChange = () => {
-      if (document.hidden) unavailable('No signal from the relative orientation sensor.');
-    };
-    const waitForSignal = () => {
-      window.clearTimeout(timeout);
-      timeout = window.setTimeout(
-        () => unavailable('No signal from the relative orientation sensor.'),
-        SENSOR_STALE_TIMEOUT_MS,
-      );
-    };
-    try {
-      sensor = new window.RelativeOrientationSensor({ frequency: 60, referenceFrame: 'device' });
-      sensor.onreading = () => {
-        let tilt;
-        try {
-          tilt = quaternionToTilt(sensor.quaternion);
-        } catch {
-          unavailable('Invalid relative orientation sensor reading.');
-          return;
-        }
-        if (calibrationCaptureSource.current === 'phoneRelative') {
-          calibrationSamples.current.push(tilt);
-        }
-        const next = { ...tilt, available: true };
-        relativeSensorDataRef.current = next;
-        setRelativeSensorData(next);
-        setRelativeSensorStatus('');
-        waitForSignal();
-      };
-      sensor.onerror = (event) => {
-        unavailable(event.error?.name === 'NotAllowedError' || event.error?.name === 'SecurityError'
-          ? 'Relative orientation sensor access was denied.'
-          : 'Relative orientation sensor failed or is unavailable.');
-      };
-      setRelativeSensorStatus('Waiting for the relative orientation sensor…');
-      waitForSignal();
-      sensor.start();
-    } catch (error) {
-      unavailable(error.name === 'NotAllowedError' || error.name === 'SecurityError'
-        ? 'Relative orientation sensor access was denied.'
-        : 'Relative orientation sensor failed or is unavailable.');
-    }
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    return () => {
-      window.clearTimeout(timeout);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      if (sensor) {
-        sensor.onreading = null;
-        sensor.onerror = null;
-        sensor.stop();
-      }
-    };
-  }, [debugEnabled, relativeRequested]);
-
-  useEffect(() => {
-    if (!useMotionSensor || source !== 'phone' || !motionPermissionGranted) return undefined;
     let filter = null;
     let timeout;
     const unavailable = (message) => {
@@ -1128,7 +979,7 @@ function App() {
       motionSensorDataRef.current = next;
       setMotionSensorData(next);
       setMotionSensorStatus(message);
-      if (calibrationSlotSourceRef.current === 'phoneMotion') setCalibrationComplete(false);
+      setCalibrationComplete(false);
     };
     const waitForSignal = () => {
       window.clearTimeout(timeout);
@@ -1172,7 +1023,7 @@ function App() {
       motionSensorDataRef.current = { ...motionSensorDataRef.current, available: false };
       setMotionSensorData(motionSensorDataRef.current);
     };
-  }, [useMotionSensor, source, motionPermissionGranted]);
+  }, [source, motionPermissionGranted]);
 
   useEffect(() => {
     if (!activeMenu) return undefined;
@@ -1288,11 +1139,7 @@ function App() {
     const selectedSource = calibrationSlotSource;
     const selectedSlotId = calibrationSlotIds[selectedSource];
     calibrationCaptureSource.current = selectedSource;
-    const selectedSensor = selectedSource === 'phoneRelative'
-      ? relativeSensorDataRef.current
-      : selectedSource === 'phoneMotion'
-        ? motionSensorDataRef.current
-        : sensorDataRef.current;
+    const selectedSensor = motionSensorDataRef.current;
     calibrationSamples.current = selectedSource !== 'simulation'
       ? [{ pitch: selectedSensor.pitch, roll: selectedSensor.roll }]
       : [];
@@ -1329,10 +1176,7 @@ function App() {
   };
 
   useEffect(() => {
-    if (!phoneSensorData.available && (
-      calibrationCaptureSource.current === 'phone' || calibrationCaptureSource.current === 'phoneRelative'
-      || calibrationCaptureSource.current === 'phoneMotion'
-    )) {
+    if (!phoneSensorData.available && calibrationCaptureSource.current === 'phoneMotion') {
       cancelCalibrationHold();
     }
   }, [phoneSensorData.available]);
@@ -1340,9 +1184,8 @@ function App() {
   useEffect(() => {
     if (pwa.standalone && selectedSource === 'simulation') {
       cancelCalibrationHold();
-      sourceSelectionLocked.current = true;
       setSource('phone');
-      setCalibrationSettingsSource('phone');
+      setCalibrationSettingsSource('phoneMotion');
     }
   }, [pwa.standalone, selectedSource]);
 
@@ -1364,14 +1207,11 @@ function App() {
     : !calibrationSlots[calibrationSlotSource].some(
         (slot) => slot.pitch !== null && slot.roll !== null,
       );
-  const localizedSourceMessage = sourceMessage.startsWith('Sensor access failed: ')
-    ? t('Sensor access failed: {error}', { error: sourceMessage.slice('Sensor access failed: '.length) })
-    : sourceMessage ? t(sourceMessage) : '';
   const additionalInfo = [
     recommendation.axis === 'unavailable'
-      ? source === 'phone' && ((useRelativeSensor && relativeSensorStatus) || (useMotionSensor && motionSensorStatus))
-        ? t(useRelativeSensor ? relativeSensorStatus : motionSensorStatus)
-        : localizedSourceMessage || recommendation.description
+      ? source === 'phone' && motionSensorStatus
+        ? t(motionSensorStatus)
+        : sourceMessage ? t(sourceMessage) : recommendation.description
       : '',
     recommendation.wedgeCapacityExceeded
       ? t(vehicle.levelingMode === 'height'
@@ -1511,55 +1351,37 @@ function App() {
   };
 
   const selectSource = async (nextSource) => {
+    const requestId = ++motionRequestId.current;
     dragStart.current = null;
     cancelCalibrationHold();
     setCalibrationComplete(false);
     setSourceMessage('');
     if (nextSource === 'external') {
-      sourceSelectionLocked.current = true;
       setSource(nextSource);
       setSourceMessage('No external sensor is connected. Bluetooth support is not available yet.');
       return;
     }
-    sourceSelectionLocked.current = true;
     setSource(nextSource);
-    if (useRelativeSensor || useMotionSensor) return;
-    if (sensorData.available) {
+    if (!window.DeviceMotionEvent) {
+      setMotionSensorStatus('Motion sensor is not supported by this browser.');
       return;
     }
-    if (!sensorData.supported) {
-      setSourceMessage('This browser does not support phone motion sensors.');
-      return;
-    }
-
-    if (typeof window.DeviceOrientationEvent.requestPermission === 'function') {
+    if (!motionPermissionGranted && typeof window.DeviceMotionEvent.requestPermission === 'function') {
       try {
-        const permission = await window.DeviceOrientationEvent.requestPermission();
+        const permission = await window.DeviceMotionEvent.requestPermission();
+        if (requestId !== motionRequestId.current) return;
         if (permission !== 'granted') {
-          setSourceMessage('Phone sensor access was not allowed.');
+          setMotionSensorStatus('Motion sensor access was denied.');
           return;
         }
-        setSensorData((current) => ({ ...current, permissionGranted: true }));
+        setMotionPermissionGranted(true);
       } catch (error) {
-        setSourceMessage(`Sensor access failed: ${error.message}`);
+        if (requestId !== motionRequestId.current) return;
+        console.error('Unable to access motion sensors:', error);
+        setMotionSensorStatus('Motion sensor access failed.');
         return;
       }
-    } else {
-      setSourceMessage('Check the device, browser permission, and HTTPS.');
-      return;
     }
-
-    setSourceMessage('Waiting for a signal from the phone sensor…');
-    if (sensorTimeout.current !== null) window.clearTimeout(sensorTimeout.current);
-    sensorTimeout.current = window.setTimeout(() => {
-      setSensorData((current) => ({ ...current, available: false }));
-      setSourceMessage((current) =>
-        current.startsWith('Waiting for a signal')
-          ? 'No signal was received from the phone sensor.'
-          : current,
-      );
-      sensorTimeout.current = null;
-    }, SENSOR_STALE_TIMEOUT_MS);
   };
 
   const startSimulationDrag = (event) => {
@@ -1693,61 +1515,6 @@ function App() {
             </strong>
           </div>
         </div>
-
-        {debugEnabled && source === 'phone' && (
-          <div className="sensor-debug" role="group" aria-label={t('Debug phone orientation source')}>
-            <span>{t('DEBUG')}</span>
-            {[
-              { value: 'event', label: 'DEVICE ORIENTATION' },
-              { value: 'relative', label: 'RELATIVE SENSOR' },
-              { value: 'motion', label: 'MOTION SENSOR' },
-            ].map((option) => (
-              <button
-                type="button"
-                key={option.value}
-                className={phoneSensorSource === option.value ? 'selected' : ''}
-                aria-pressed={phoneSensorSource === option.value}
-                onClick={async () => {
-                  if (phoneSensorSource === option.value && option.value !== 'motion') return;
-                  if (phoneSensorSource === 'motion' && option.value === 'motion' && motionPermissionGranted) return;
-                  const requestId = ++motionRequestId.current;
-                  cancelCalibrationHold();
-                  setCalibrationComplete(false);
-                  setSourceMessage('');
-                  if (option.value === 'relative' && !relativeRequested) {
-                    setRelativeSensorStatus('Waiting for the relative orientation sensor…');
-                    setRelativeRequested(true);
-                  }
-                  setPhoneSensorSource(option.value);
-                  if (option.value === 'motion') {
-                    if (!('DeviceMotionEvent' in window)) {
-                      setMotionSensorStatus('Motion sensor is not supported by this browser.');
-                      return;
-                    }
-                    setMotionSensorStatus('Waiting for the motion sensor…');
-                    try {
-                      const permission = typeof window.DeviceMotionEvent.requestPermission === 'function'
-                        ? await window.DeviceMotionEvent.requestPermission()
-                        : 'granted';
-                      if (requestId !== motionRequestId.current) return;
-                      if (permission !== 'granted') {
-                        setMotionSensorStatus('Motion sensor access was denied.');
-                        return;
-                      }
-                      setMotionPermissionGranted(true);
-                    } catch (error) {
-                      if (requestId !== motionRequestId.current) return;
-                      console.error('Unable to access motion sensors:', error);
-                      setMotionSensorStatus('Motion sensor access failed.');
-                    }
-                  }
-                }}
-              >
-                {t(option.label)}
-              </button>
-            ))}
-          </div>
-        )}
 
         <section className="hero-panel" aria-label={t('Leveling recommendation')}>
           <div className="hero-heading">
@@ -1982,7 +1749,7 @@ function App() {
           type="button"
           aria-haspopup="dialog"
           onClick={() => {
-            setCalibrationSettingsSource(source === 'external' ? 'phone' : calibrationSlotSource);
+            setCalibrationSettingsSource(source === 'external' ? 'phoneMotion' : calibrationSlotSource);
             setActiveMenu('calibration');
           }}
         >
@@ -2323,7 +2090,7 @@ function App() {
             ) : activeMenu === 'calibration' ? (
               <div className="menu-content calibration-content">
                 <div className="settings-card calibration-settings-card">
-                  {(simulationEnabled || debugEnabled) && (
+                  {simulationEnabled && (
                     <div className="calibration-sensor">
                       <span>{t('Sensor')}</span>
                       <AppDropdown
@@ -2331,9 +2098,7 @@ function App() {
                         value={calibrationSettingsSource}
                         options={[
                           ...(simulationEnabled ? [{ value: 'simulation', label: t('Simulation') }] : []),
-                          { value: 'phone', label: t('Phone sensor') },
-                          ...(debugEnabled ? [{ value: 'phoneRelative', label: t('Relative orientation sensor') }] : []),
-                          ...(debugEnabled ? [{ value: 'phoneMotion', label: t('Motion sensor') }] : []),
+                          { value: 'phoneMotion', label: t('Phone sensor') },
                         ]}
                         onChange={setCalibrationSettingsSource}
                       />
