@@ -374,11 +374,6 @@ select:focus-visible {
   white-space: nowrap;
 }
 
-.calibrate-button:focus {
-  outline: 2px solid var(--glow);
-  outline-offset: 3px;
-}
-
 .simulator-stage {
   position: absolute;
   z-index: 2;
@@ -760,106 +755,6 @@ select:focus-visible {
   gap: 7px;
 }
 
-.calibrate-button {
-  position: relative;
-  display: flex;
-  width: 100%;
-  min-height: 48px;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  overflow: hidden;
-  border: 1px solid #65af63;
-  border-radius: 2px;
-  background: #102719;
-  color: var(--glow);
-  cursor: pointer;
-  font-size: 0.69rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.calibrate-button::before {
-  position: absolute;
-  z-index: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 3px;
-  background: var(--glow);
-  box-shadow: 0 0 10px var(--glow);
-  content: "";
-  transform: scaleX(0);
-  transform-origin: left;
-}
-
-.calibrate-button.needs-calibration::after {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--glow);
-  content: "";
-}
-
-.calibrate-button.is-holding {
-  border-color: var(--glow);
-  background: #18371f;
-  box-shadow: 0 0 17px rgb(167 255 117 / 18%);
-}
-
-.calibrate-button.is-holding::before {
-  animation: calibrate-progress 3s linear forwards;
-}
-
-.calibrate-button.is-complete {
-  border-color: var(--glow);
-  color: var(--bright);
-}
-
-.calibrate-button:not(:disabled):hover {
-  border-color: var(--glow);
-  background: #17351f;
-}
-
-.calibrate-button:disabled {
-  border-color: #47634f;
-  background: #0e1a12;
-  color: #b6c8ba;
-  cursor: not-allowed;
-  opacity: 1;
-}
-
-.calibrate-button:disabled .hold-duration {
-  color: #a2b3a6;
-}
-
-.calibrate-button > span {
-  z-index: 1;
-}
-
-.calibrate-button > span:nth-child(2) {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.calibrate-icon {
-  font-size: 1rem;
-  line-height: 1;
-}
-
-.hold-duration {
-  padding-left: 8px;
-  border-left: 1px solid var(--line);
-  color: var(--dim);
-  font-size: 0.58rem;
-}
-
 .quick-calibrations {
   display: flex;
   width: 100%;
@@ -869,6 +764,7 @@ select:focus-visible {
 }
 
 .quick-calibration-button {
+  position: relative;
   display: flex;
   min-width: 0;
   min-height: 48px;
@@ -889,6 +785,30 @@ select:focus-visible {
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.quick-calibration-button.can-hold {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.quick-calibration-button.is-holding {
+  border-color: var(--glow);
+  background: #18371f;
+}
+
+.quick-calibration-button.is-holding::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--glow);
+  content: "";
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: calibrate-progress 3s linear forwards;
 }
 
 .quick-calibration-name {
@@ -958,18 +878,93 @@ select:focus-visible {
   gap: 10px;
 }
 
-.calibration-sensor {
+.calibration-steps {
   display: grid;
-  gap: 6px;
-  color: var(--text);
-  font-size: 0.7rem;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.calibration-steps li {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+}
+
+.calibration-step-illustration {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  background: #080e0a;
+}
+
+.calibration-step-illustration svg {
+  display: block;
+  width: 52px;
+  height: 40px;
+  fill: none;
+  stroke: var(--glow);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.calibration-step-illustration span {
+  position: absolute;
+  top: 0;
+  left: 2px;
+  color: var(--bright);
+  font-size: 0.58rem;
   font-weight: 700;
 }
 
-.calibration-settings-card label small {
-  color: var(--dim);
-  font-size: 0.55rem;
-  font-weight: 400;
+.calibration-steps strong {
+  color: var(--bright);
+  font-size: 0.72rem;
+}
+
+.calibration-steps p,
+.calibration-position-hint {
+  margin: 3px 0 0;
+  color: var(--text);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.calibration-position-hint {
+  margin: 0;
+  padding-left: 8px;
+  border-left: 2px solid var(--glow);
+}
+
+.calibration-instructions {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.setup-flow-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.setup-skip {
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.65rem;
+}
+
+.setup-flow-actions .feedback-submit:disabled {
+  cursor: not-allowed;
 }
 
 .app-dropdown {
@@ -1065,88 +1060,32 @@ select:focus-visible {
   min-width: 76px;
 }
 
-.calibration-slot-settings {
-  display: grid;
-  gap: 6px;
-}
-
-.calibration-slot-card {
-  display: grid;
-  gap: 4px;
-  padding: 6px;
-  border: 1px solid var(--line);
-  background: #0c1511;
-}
-
-.calibration-slot-card.selected {
-  border-color: rgb(167 255 117 / 45%);
-}
-
-.calibration-slot-heading {
-  display: flex;
-  min-height: 1em;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  color: var(--glow);
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-
-.calibration-slot-detail {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: end;
-  gap: 6px;
-}
-
 .calibration-slot-name {
   display: grid;
   min-width: 0;
-  gap: 3px;
+  gap: 6px;
   color: var(--text);
-  font-size: 0.55rem;
+  font-size: 0.68rem;
   font-weight: 700;
-}
-
-.calibration-slot-heading small {
-  color: var(--dim);
-  font-size: 0.47rem;
-  font-weight: 500;
 }
 
 .calibration-slot-name small {
   margin-left: 4px;
   color: var(--dim);
-  font-size: 0.46rem;
+  font-size: 0.55rem;
   font-weight: 400;
 }
 
 .calibration-slot-name input {
   width: 100%;
   min-width: 0;
-  min-height: 32px;
+  min-height: 40px;
   padding: 5px 7px;
   border: 1px solid #31533a;
   border-radius: 0;
   background: #070d0a;
   color: var(--bright);
-  font: inherit;
-}
-
-.calibration-slot-offsets {
-  display: grid;
-  gap: 2px;
-  margin: 0;
-  color: var(--glow);
-  font-size: 0.5rem;
-  line-height: 1.15;
-}
-
-.calibration-slot-offsets.empty {
-  color: var(--dim);
+  font-size: 0.85rem;
 }
 
 .side-menu-backdrop {
@@ -1986,12 +1925,6 @@ select:focus-visible {
     gap: 4px;
   }
 
-  .calibrate-button {
-    min-height: 42px;
-    gap: 6px;
-    font-size: 0.62rem;
-  }
-
   .quick-calibration-button {
     font-size: 0.55rem;
   }
@@ -2155,5 +2088,9 @@ select:focus-visible {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .quick-calibration-button.is-holding::after {
+    display: none;
   }
 }

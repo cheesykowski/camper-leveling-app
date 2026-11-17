@@ -10,3 +10,9 @@ export function getSetupProgress({ vehicleConfirmed, wedgesConfirmed, calibrated
     next: steps.find((step) => !step.complete)?.id ?? null,
   };
 }
+
+export function nextSetupStep(steps, currentId) {
+  const index = steps.findIndex((step) => step.id === currentId);
+  if (index === -1) throw new RangeError(`Unknown setup step: ${currentId}`);
+  return steps.slice(index + 1).find((step) => !step.complete)?.id ?? null;
+}

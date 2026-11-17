@@ -17,7 +17,7 @@ KEILOMAT is a mobile-first web app that helps level a parked camper van. It can 
 - A vehicle top view showing the recommended wheel positions and wedge step numbers
 - A shared vehicle top view in the main screen and vehicle setup
 - A compact dashboard with a slide-out menu for sensor selection, settings, language, help, feedback, and updates
-- A compact setup checklist with progress and a shortcut to the next step
+- A guided setup with a compact checklist, progress, and the option to skip unfinished steps
 - Browser-local storage of vehicle settings and calibration slots
 - English and German language selection, saved locally on the device
 - An illustrated guide with separate setup and usage instructions for phone and external sensors
@@ -59,7 +59,7 @@ The installed app is labeled KEILOMAT APP; the browser version is labeled KEILOM
 
 The download icon also offers a manual update check while online. If an older installed version's update button does nothing, close the installed app and all browser tabs for this site completely, then reopen the app while online. This allows the waiting update to activate without clearing saved settings.
 
-The setup checklist guides you through confirming vehicle dimensions, wedge heights or maximum height, and calibrating the selected sensor position. It disappears when all three steps are complete and the selected sensor is available, and reappears if a step needs attention. On level ground, use a spirit level to establish a reference before holding the calibration button for three seconds. Simulation uses its own calibration slots, and the external sensor is not available yet. Existing settings are preserved, but must be confirmed once because earlier versions did not record confirmation.
+Start the guided setup from the home-screen checklist. Confirm vehicle dimensions and wedge heights or maximum height, then calibrate a sensor slot; each step advances to the next. Skipped steps remain open on the checklist and can be revisited. It disappears when all three steps are complete and the selected sensor is available, and reappears if a step needs attention. Calibration uses the currently selected sensor. For the phone, illustrated steps explain how to level the vehicle with a spirit level, place the phone, then hold a slot for three seconds to calibrate and select it. Use a separate slot for each phone position, such as the dashboard or table; when measuring, select the matching slot and place the phone exactly as during calibration. Tap a slot to edit its name. The same slots can be selected on the home screen; selecting an uncalibrated slot opens Calibration. Simulation uses its own calibration slots, and the external sensor is not available yet. Existing settings are preserved, but must be confirmed once because earlier versions did not record confirmation.
 
 Settings and calibration slots remain in the browser's local storage for the same site and browser profile; they are not synchronized across devices or browsers and can be lost when site data is cleared. Offline files can also be removed by the browser.
 

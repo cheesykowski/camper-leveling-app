@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getSetupProgress } from './setupProgress.js';
+import { getSetupProgress, nextSetupStep } from './setupProgress.js';
 
 test('points to the first incomplete setup step, including out-of-order completion', () => {
   const progress = getSetupProgress({ vehicleConfirmed: false, wedgesConfirmed: true, calibrated: false, sensorAvailable: true });
@@ -20,4 +20,11 @@ test('does not count a saved calibration as ready while its sensor is unavailabl
   const progress = getSetupProgress({ vehicleConfirmed: true, wedgesConfirmed: true, calibrated: true, sensorAvailable: false });
   assert.equal(progress.completed, 2);
   assert.equal(progress.next, 'calibration');
+});
+
+test('advances past completed steps without revisiting skipped steps', () => {
+  const { steps } = getSetupProgress({ vehicleConfirmed: false, wedgesConfirmed: true, calibrated: false, sensorAvailable: true });
+  assert.equal(nextSetupStep(steps, 'vehicle'), 'calibration');
+  assert.equal(nextSetupStep(steps, 'calibration'), null);
+  assert.throws(() => nextSetupStep(steps, 'unknown'), RangeError);
 });
