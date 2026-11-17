@@ -25,6 +25,8 @@ KEILOMAT is a mobile-first web app that helps level a parked camper van. It can 
 
 The default vehicle dimensions and wedge heights are examples. Update them before relying on the app.
 
+The selected sensor slot must be calibrated before the app displays tilt readings or leveling recommendations. A different calibrated slot does not make an uncalibrated selection usable.
+
 The recommendation identifies the lowest corner using the combined pitch and roll correction, then a second wheel along the geometrically dominant axis. In wedge mode it selects the highest configured step that does not exceed each calculated lift; below the smallest step, the vehicle is shown as level. In height mode it shows the required lift rounded to 0.1 cm; below 3 cm it is shown as level. Orange means the calculated lift exceeds the tallest wedge or the separately configured maximum height, respectively. If the maximum is exceeded, a warning takes precedence over the level indication. Settings with more than five wedge heights are reduced to the five lowest. The model prioritizes correction along the dominant axis; it does not guarantee that both axes are fully level. It treats the vehicle as a rigid plane on level ground. Tire deformation, suspension travel, uneven ground, and chassis flex are not modeled. Verify sensor axes, signs, support suitability, and heights on the vehicle before use.
 
 For development, open the web version with `?simulation=1` to enable the interactive simulation. It is not available in the installed app. Simulation calibration slots are saved independently of phone slots; the readings and 3D box show tilt relative to the simulated calibration.

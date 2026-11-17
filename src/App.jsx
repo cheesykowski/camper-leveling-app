@@ -192,7 +192,9 @@ function VehicleDiagram({ className, vehicle, recommendation, t, language, showM
         return (
           <g key={wheel.id} className={active ? 'diagram-wheel active' : 'diagram-wheel'}>
             <title>
-              {active
+              {recommendation?.axis === 'unavailable'
+                ? t('{wheel}: recommendation unavailable', { wheel: t(wheel.label) })
+                : active
                 ? heightMode
                   ? t('{wheel}: {height} cm{warning}', {
                       wheel: t(wheel.label),
@@ -1213,22 +1215,31 @@ function App() {
     [],
   );
 
+  const activeSlotId = calibrationSlotIds[calibrationSlotSource];
+  const activeSlot = calibrationSlots[calibrationSlotSource].find((slot) => slot.id === activeSlotId);
+  const activeSlotNumber = calibrationSlots[calibrationSlotSource].findIndex((slot) => slot.id === activeSlotId) + 1;
   const activeCalibration = getActiveCalibration(calibrationSlotSource, calibrationSlots, calibrationSlotIds);
+  const needsCalibration = activeCalibration === null;
+  const setupSensorAvailable = source === 'simulation' || (source === 'phone' && phoneSensorData.available);
   const currentRoll =
-    source === 'simulation'
-      ? simulatedTilt.roll - activeCalibration.roll
-      : source === 'phone' && phoneSensorData.available
-        ? phoneSensorData.roll - activeCalibration.roll
-        : null;
+    !activeCalibration
+      ? null
+      : source === 'simulation'
+        ? simulatedTilt.roll - activeCalibration.roll
+        : source === 'phone' && phoneSensorData.available
+          ? phoneSensorData.roll - activeCalibration.roll
+          : null;
   const currentPitch =
-    source === 'simulation'
-      ? simulatedTilt.pitch - activeCalibration.pitch
-      : source === 'phone' && phoneSensorData.available
-        ? phoneSensorData.pitch - activeCalibration.pitch
-        : null;
+    !activeCalibration
+      ? null
+      : source === 'simulation'
+        ? simulatedTilt.pitch - activeCalibration.pitch
+        : source === 'phone' && phoneSensorData.available
+          ? phoneSensorData.pitch - activeCalibration.pitch
+          : null;
 
   const recommendation = useMemo(() => {
-    if (currentPitch === null || currentRoll === null) {
+    if (!setupSensorAvailable) {
       return {
         axis: 'unavailable',
         title: t(source === 'external' ? 'External sensor unavailable' : 'No sensor signal'),
@@ -1236,6 +1247,16 @@ function App() {
           source === 'external'
             ? t('The external Bluetooth connection is not available yet.')
             : t('Check the device, browser permission, and HTTPS.'),
+        wedgePlacements: [],
+      };
+    }
+
+    if (needsCalibration) {
+      return {
+        axis: 'unavailable',
+        reason: 'calibration',
+        title: t('Calibration needed'),
+        description: t('Calibrate the selected slot before using leveling recommendations.'),
         wedgePlacements: [],
       };
     }
@@ -1286,7 +1307,7 @@ function App() {
       }),
       ...plan,
     };
-  }, [currentPitch, currentRoll, source, vehicle, t, language]);
+  }, [currentPitch, currentRoll, source, vehicle, t, language, needsCalibration, setupSensorAvailable]);
 
   const startCalibrationHold = (slotId) => {
     if (
@@ -1359,35 +1380,27 @@ function App() {
     }));
   };
 
-  const activeSlotId = calibrationSlotIds[calibrationSlotSource];
-  const activeSlot = calibrationSlots[calibrationSlotSource].find((slot) => slot.id === activeSlotId);
-  const activeSlotNumber = calibrationSlots[calibrationSlotSource].findIndex((slot) => slot.id === activeSlotId) + 1;
-  const needsCalibration = !activeSlot || activeSlot.pitch === null || activeSlot.roll === null;
-  const setupSensorAvailable = source === 'simulation' || (source === 'phone' && phoneSensorData.available);
   const setupProgress = getSetupProgress({
     vehicleConfirmed: setupConfirmed.vehicle,
     wedgesConfirmed,
     calibrated: !needsCalibration,
     sensorAvailable: setupSensorAvailable,
   });
-  const noCalibration = source === 'external'
-    ? !activeSlot || activeSlot.pitch === null || activeSlot.roll === null
-    : !calibrationSlots[calibrationSlotSource].some(
-        (slot) => slot.pitch !== null && slot.roll !== null,
-      );
   const additionalInfo = [
     recommendation.axis === 'unavailable'
-      ? source === 'phone' && motionSensorStatus
-        ? t(motionSensorStatus)
-        : sourceMessage ? t(sourceMessage) : recommendation.description
+      ? recommendation.reason === 'calibration'
+        ? recommendation.description
+        : source === 'phone' && motionSensorStatus
+          ? t(motionSensorStatus)
+          : sourceMessage ? t(sourceMessage) : recommendation.description
       : '',
     recommendation.wedgeCapacityExceeded
       ? t(vehicle.levelingMode === 'height'
         ? 'Required lift exceeds maximum height.'
         : 'Required lift exceeds wedge capacity.')
       : '',
-    noCalibration
-      ? t(source === 'external' ? 'External sensor has not been calibrated.' : 'No calibration slot has been set.')
+    needsCalibration && !setupSensorAvailable
+      ? t('Calibration needed')
       : '',
   ].filter(Boolean).join(' ') || (recommendation.axis === 'level' ? recommendation.description : '');
   const handleVehicleDimensionChange = (event, dimension) => {
@@ -1717,9 +1730,11 @@ function App() {
                 <div
                   className={`simulator-stage${vehicle.wheelbaseCm > 300 ? ' long-wheelbase' : ''}`}
                   role="application"
-                  aria-label={t('Simulate vehicle tilt. Drag vertically for pitch and horizontally for roll, or use the arrow keys. Calibrated pitch {pitch} degrees, roll {roll} degrees. Simulated sensor range is ±{max} degrees.', {
-                    pitch: currentPitch.toFixed(1),
-                    roll: currentRoll.toFixed(1),
+                  aria-label={t(needsCalibration
+                    ? 'Simulate vehicle tilt. Drag vertically for pitch and horizontally for roll, or use the arrow keys. Uncalibrated simulated pitch {pitch} degrees, roll {roll} degrees. Simulated sensor range is ±{max} degrees.'
+                    : 'Simulate vehicle tilt. Drag vertically for pitch and horizontally for roll, or use the arrow keys. Calibrated pitch {pitch} degrees, roll {roll} degrees. Simulated sensor range is ±{max} degrees.', {
+                    pitch: (currentPitch === null ? simulatedTilt.pitch : currentPitch).toFixed(1),
+                    roll: (currentRoll === null ? simulatedTilt.roll : currentRoll).toFixed(1),
                     max: SIMULATION_MAX_TILT,
                   })}
                   onPointerDown={startSimulationDrag}
@@ -1762,7 +1777,7 @@ function App() {
                     <div
                       className="sim-box"
                       style={{
-                        transform: `rotateX(${currentPitch}deg) rotateY(${currentRoll}deg)`,
+                        transform: `rotateX(${currentPitch === null ? simulatedTilt.pitch : currentPitch}deg) rotateY(${currentRoll === null ? simulatedTilt.roll : currentRoll}deg)`,
                       }}
                     />
                   </div>

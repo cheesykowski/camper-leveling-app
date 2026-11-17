@@ -13,6 +13,7 @@ Build an Android-friendly web app that measures the tilt of a parked camper and 
 - [x] Developer-only 3D simulation in the browser, controlled by mouse or touch; pitch and roll are limited to ±30°
 - [x] Selection between phone sensor and an external sensor source that is not yet connected; unavailable data does not produce a leveling recommendation
 - [x] Independent calibration slots for simulation and phone; a single selected calibration for the fixed external sensor
+- [x] Suppress tilt readings and leveling recommendations until the selected slot is calibrated
 - [x] Three-second calibration that stores a trimmed mean of phone samples or the current simulated tilt
 - [x] Vehicle settings stored in browser `localStorage`
 - [x] Configurable wheelbase, track width, up to five wedge heights, and an alternative lift-height mode
