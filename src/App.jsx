@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
+  calibrationSlotIds as calibrationSlotKeys,
   defaultCalibration,
   defaultCalibrationSlotIds,
   defaultCalibrationSlots,
@@ -14,7 +15,6 @@ import { normalizeLanguage, translate } from './i18n.js';
 import { applyUpdate, checkForUpdates, installApp, refreshOfflineStatus, usePwa } from './pwa.js';
 import { initialSensorSource } from './appMode.js';
 import { updateMotionOrientation } from './motionOrientation.js';
-import { getSetupProgress, nextSetupStep } from './setupProgress.js';
 import { calculateSunEvents, compassHeading, sunArcPoints, sunLabelPositions, sunMarkerPosition } from './sun.js';
 
 const STORAGE_KEY = 'camper-leveling-demo-v1';
@@ -24,6 +24,7 @@ const MAX_WEDGE_STEPS = 5;
 const HEIGHT_MODE_TOLERANCE_CM = 3;
 const FORMSPREE_ENDPOINT = import.meta.env.VITE_FORMSPREE_ENDPOINT?.trim() || '';
 
+const formatCalibrationAngle = (angle) => `${angle >= 0 ? '+' : ''}${angle.toFixed(1)}°`;
 const formatHeightCm = (height, language) => new Intl.NumberFormat(language, {
   minimumFractionDigits: 1,
   maximumFractionDigits: 1,
@@ -50,37 +51,6 @@ const calibrationSourceLabels = {
 };
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-
-function CalibrationSlotButtons({ slots, selectedId, sourceName, t, onSelect }) {
-  return (
-    <div
-      className="quick-calibrations"
-      role="group"
-      aria-label={t('Select {source} calibration slot', { source: t(calibrationSourceLabels[sourceName]) })}
-    >
-      {slots.map((slot, index) => {
-        const isSelected = slot.id === selectedId;
-        const isCalibrated = slot.pitch !== null && slot.roll !== null;
-        const label = slot.name.trim() || t('SLOT {slot}', { slot: index + 1 });
-        const status = t(isCalibrated ? 'calibrated' : 'not calibrated');
-        return (
-          <button
-            className={`quick-calibration-button${isSelected ? ' selected' : ''}${isCalibrated ? ' calibrated' : ' empty'}`}
-            key={slot.id}
-            type="button"
-            aria-label={`${label}, ${status}${isSelected ? t(', selected') : ''}`}
-            aria-pressed={isSelected}
-            title={`${label} · ${t(isCalibrated ? 'Calibrated' : 'Not calibrated')}`}
-            onClick={() => onSelect(slot.id)}
-          >
-            <span className="quick-calibration-name">{label}</span>
-            <span className="quick-calibration-status">{t(isCalibrated ? 'CALIBRATED' : 'NOT CALIBRATED')}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 function SunSymbol({ event }) {
   return (
@@ -168,9 +138,7 @@ function VehicleDiagram({ className, vehicle, recommendation, t, language, showM
         return (
           <g key={wheel.id} className={active ? 'diagram-wheel active' : 'diagram-wheel'}>
             <title>
-              {recommendation?.axis === 'unavailable'
-                ? t('{wheel}: recommendation unavailable', { wheel: t(wheel.label) })
-                : active
+              {active
                 ? heightMode
                   ? t('{wheel}: {height} cm{warning}', {
                       wheel: t(wheel.label),
@@ -517,21 +485,6 @@ function HelpIllustration({ type }) {
           <circle cx="35" cy="48" r="6" /><circle cx="65" cy="48" r="6" />
           <path d="M36 21h28M50 13v16M44 16l6-5 6 5" />
         </>
-      ) : type === 'calibration-level' ? (
-        <>
-          <path d="M12 59h76M19 54V40l8-5 7-10h31l8 10 8 5v14" />
-          <circle cx="32" cy="54" r="5" /><circle cx="68" cy="54" r="5" />
-          <rect x="29" y="9" width="42" height="10" rx="2" />
-          <circle cx="50" cy="14" r="3" /><path d="M36 12v4M64 12v4" />
-        </>
-      ) : type === 'calibration-hold' ? (
-        <>
-          <rect x="9" y="5" width="82" height="14" rx="2" />
-          <path d="M36 5v14M64 5v14M17 12h11M45 12h10M72 12h11" />
-          <rect x="9" y="24" width="82" height="18" rx="2" />
-          <path d="M44 68 34 57c-2-3 1-6 4-4l6 5V40c0-5 7-5 7 0v8c2-3 6-1 6 2 3-3 7-1 7 2 3-2 7 0 7 4l-3 12" />
-          <path d="M42 34l-4-4m21 0-4 4" />
-        </>
       ) : (
         <>
           <rect x="35" y="9" width="30" height="46" rx="9" />
@@ -542,49 +495,7 @@ function HelpIllustration({ type }) {
   );
 }
 
-function CalibrationInstructions({ t }) {
-  const steps = [
-    {
-      icon: 'calibration-level',
-      title: 'Find a level reference',
-      text: 'First level the parked vehicle using a spirit level.',
-    },
-    {
-      icon: 'phone',
-      title: 'Place the phone',
-      text: 'Place it flat and securely, screen up and top toward the vehicle’s front.',
-    },
-    {
-      icon: 'calibration-hold',
-      title: 'Calibrate a slot',
-      text: 'Select a slot, then keep the phone in place and hold the calibration button for 3 seconds.',
-    },
-  ];
-
-  return (
-    <>
-      <ol className="calibration-steps">
-        {steps.map((step, index) => (
-          <li key={step.title}>
-            <div className="calibration-step-illustration">
-              <HelpIllustration type={step.icon} />
-              <span aria-hidden="true">{index + 1}</span>
-            </div>
-            <div>
-              <strong>{t(step.title)}</strong>
-              <p>{t(step.text)}</p>
-            </div>
-          </li>
-        ))}
-      </ol>
-      <p className="calibration-position-hint">
-        {t('Use a separate slot for each phone position, such as the dashboard or table. When measuring, select the matching slot and use the same position and orientation as during calibration.')}
-      </p>
-    </>
-  );
-}
-
-function HelpContent({ t, source, levelingMode, onNavigate }) {
+function HelpContent({ t, source, levelingMode }) {
   const id = useId();
   const [phase, setPhase] = useState('setup');
   const [mode, setMode] = useState(source === 'external' ? 'external' : 'phone');
@@ -593,24 +504,14 @@ function HelpContent({ t, source, levelingMode, onNavigate }) {
   const isPhone = mode === 'phone';
   const steps = phase === 'setup'
     ? [
-        {
-          icon: 'vehicle',
-          title: levelingMode === 'height' ? 'Set up vehicle and supports' : 'Set up vehicle and wedges',
-          text: levelingMode === 'height'
-            ? 'Enter your wheelbase, track width and maximum height in the settings.'
-            : 'Enter your wheelbase, track width and wedge step heights in the settings.',
-          actions: [
-            { target: 'vehicle', label: 'SET UP VEHICLE' },
-            { target: 'wedges', label: levelingMode === 'height' ? 'SET UP SUPPORT' : 'SET UP WEDGES' },
-          ],
-        },
+        { icon: 'vehicle', title: 'Set up vehicle and wedges', text: 'Enter your wheelbase, track width and wedge step heights in the settings.' },
         { icon: 'level', title: 'Find a level reference', text: 'First level the parked vehicle using a spirit level.' },
         isPhone
           ? { icon: 'phone', title: 'Place the phone', text: 'Place the phone flat and securely, screen up and top toward the front of the vehicle. Select PHONE and a calibration slot.' }
           : { icon: 'external', title: 'Mount the external sensor', text: 'Mount the sensor securely in the vehicle. Recalibrate if it moves.' },
         isPhone
-          ? { icon: 'level', title: 'Calibrate', text: 'With the phone in place, open Calibration, select a slot and hold the calibration button for 3 seconds. Calibrate a separate slot for each phone position.', actions: [{ target: 'calibration', label: 'GO TO CALIBRATION' }] }
-          : { icon: 'level', title: 'Calibrate', text: 'Once external sensors are supported, select EXTERNAL and calibrate the sensor in Calibration.', actions: [{ target: 'calibration', label: 'GO TO CALIBRATION' }] },
+          ? { icon: 'level', title: 'Calibrate', text: 'With the phone in place, hold the calibration button for 3 seconds. Calibrate a separate slot for each phone position.' }
+          : { icon: 'level', title: 'Calibrate', text: 'Once external sensors are supported, select EXTERNAL and hold the calibration button for 3 seconds.' },
       ]
     : [
         isPhone
@@ -657,15 +558,6 @@ function HelpContent({ t, source, levelingMode, onNavigate }) {
                         <span className="eyebrow">{String(index + 1).padStart(2, '0')}</span>
                         <h3>{t(step.title)}</h3>
                         <p>{t(step.text)}</p>
-                        {step.actions && (
-                          <div className="help-actions">
-                            {step.actions.map((action) => (
-                              <button type="button" key={action.target} onClick={() => onNavigate(action.target)}>
-                                {t(action.label)} <span aria-hidden="true">→</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
                       </div>
                     </article>
                   ))}
@@ -915,6 +807,7 @@ function FeedbackForm({ endpoint, t, online }) {
 
 function App() {
   const pwa = usePwa();
+  const simulationEnabled = initialSensorSource(window.location.search, pwa.standalone) === 'simulation';
   const loadedState = useMemo(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
@@ -1001,6 +894,7 @@ function App() {
   const [calibrationSlotIds, setCalibrationSlotIds] = useState(
     loadedState.calibrationSlotIds,
   );
+  const [calibrationSettingsSource, setCalibrationSettingsSource] = useState('phoneMotion');
   const [vehicle, setVehicle] = useState(loadedState.vehicle);
   const [setupConfirmed, setSetupConfirmed] = useState(loadedState.setupConfirmed);
   const wedgesConfirmed = setupConfirmed[vehicle.levelingMode === 'height' ? 'height' : 'wedges'];
@@ -1031,17 +925,9 @@ function App() {
   const [sourceMessage, setSourceMessage] = useState('');
   const dragStart = useRef(null);
   const [activeMenu, setActiveMenu] = useState(null);
-  const [setupFlowActive, setSetupFlowActive] = useState(false);
-  const [sideMenuOpen, setSideMenuOpen] = useState(false);
-  const sideMenuRef = useRef(null);
-  const sideMenuButtonRef = useRef(null);
-  const sideMenuCloseRef = useRef(null);
-  const menuSheetRef = useRef(null);
-  const menuDialogCloseRef = useRef(null);
-  const sideDialogOriginRef = useRef(null);
   const [sunRequest, setSunRequest] = useState(null);
-  const [holdingSlotId, setHoldingSlotId] = useState(null);
-  const [calibrationComplete, setCalibrationComplete] = useState(null);
+  const [isHoldingCalibration, setIsHoldingCalibration] = useState(false);
+  const [calibrationComplete, setCalibrationComplete] = useState(false);
   const calibrationTimeout = useRef(null);
   const calibrationSamples = useRef([]);
   const calibrationCaptureSource = useRef(null);
@@ -1093,7 +979,7 @@ function App() {
       motionSensorDataRef.current = next;
       setMotionSensorData(next);
       setMotionSensorStatus(message);
-      setCalibrationComplete(null);
+      setCalibrationComplete(false);
     };
     const waitForSignal = () => {
       window.clearTimeout(timeout);
@@ -1158,50 +1044,6 @@ function App() {
     };
   }, [activeMenu]);
 
-  useEffect(() => {
-    if (!activeMenu) setSetupFlowActive(false);
-    else if (menuSheetRef.current) menuSheetRef.current.scrollTop = 0;
-  }, [activeMenu]);
-
-  useEffect(() => {
-    if (!sideMenuOpen) return undefined;
-    sideMenuCloseRef.current?.focus();
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        setSideMenuOpen(false);
-        sideMenuButtonRef.current?.focus();
-      } else if (event.key === 'Tab') {
-        const focusable = Array.from(sideMenuRef.current.querySelectorAll(
-          'button:not([disabled]), summary, [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        )).filter((element) => element.getClientRects().length > 0
-          && (element.tagName === 'SUMMARY' || !element.closest('details:not([open])')));
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first.focus();
-        }
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [sideMenuOpen]);
-
-  useEffect(() => {
-    if (!sideDialogOriginRef.current) return;
-    if (activeMenu) {
-      if (!document.activeElement?.closest('.menu-sheet')) menuDialogCloseRef.current?.focus();
-    } else {
-      const returnTarget = sideDialogOriginRef.current;
-      (returnTarget?.isConnected ? returnTarget : sideMenuButtonRef.current)?.focus();
-      sideDialogOriginRef.current = null;
-    }
-  }, [activeMenu]);
-
   useEffect(
     () => () => {
       if (calibrationTimeout.current !== null) {
@@ -1211,31 +1053,22 @@ function App() {
     [],
   );
 
-  const activeSlotId = calibrationSlotIds[calibrationSlotSource];
-  const activeSlot = calibrationSlots[calibrationSlotSource].find((slot) => slot.id === activeSlotId);
-  const activeSlotNumber = calibrationSlots[calibrationSlotSource].findIndex((slot) => slot.id === activeSlotId) + 1;
   const activeCalibration = getActiveCalibration(calibrationSlotSource, calibrationSlots, calibrationSlotIds);
-  const needsCalibration = activeCalibration === null;
-  const setupSensorAvailable = source === 'simulation' || (source === 'phone' && phoneSensorData.available);
   const currentRoll =
-    !activeCalibration
-      ? null
-      : source === 'simulation'
-        ? simulatedTilt.roll - activeCalibration.roll
-        : source === 'phone' && phoneSensorData.available
-          ? phoneSensorData.roll - activeCalibration.roll
-          : null;
+    source === 'simulation'
+      ? simulatedTilt.roll - activeCalibration.roll
+      : source === 'phone' && phoneSensorData.available
+        ? phoneSensorData.roll - activeCalibration.roll
+        : null;
   const currentPitch =
-    !activeCalibration
-      ? null
-      : source === 'simulation'
-        ? simulatedTilt.pitch - activeCalibration.pitch
-        : source === 'phone' && phoneSensorData.available
-          ? phoneSensorData.pitch - activeCalibration.pitch
-          : null;
+    source === 'simulation'
+      ? simulatedTilt.pitch - activeCalibration.pitch
+      : source === 'phone' && phoneSensorData.available
+        ? phoneSensorData.pitch - activeCalibration.pitch
+        : null;
 
   const recommendation = useMemo(() => {
-    if (!setupSensorAvailable) {
+    if (currentPitch === null || currentRoll === null) {
       return {
         axis: 'unavailable',
         title: t(source === 'external' ? 'External sensor unavailable' : 'No sensor signal'),
@@ -1243,16 +1076,6 @@ function App() {
           source === 'external'
             ? t('The external Bluetooth connection is not available yet.')
             : t('Check the device, browser permission, and HTTPS.'),
-        wedgePlacements: [],
-      };
-    }
-
-    if (needsCalibration) {
-      return {
-        axis: 'unavailable',
-        reason: 'calibration',
-        title: t('Calibration needed'),
-        description: t('Calibrate the selected slot before using leveling recommendations.'),
         wedgePlacements: [],
       };
     }
@@ -1303,17 +1126,18 @@ function App() {
       }),
       ...plan,
     };
-  }, [currentPitch, currentRoll, source, vehicle, t, language, needsCalibration, setupSensorAvailable]);
+  }, [currentPitch, currentRoll, source, vehicle, t, language]);
 
-  const startCalibrationHold = (slotId) => {
+  const startCalibrationHold = () => {
     if (
       calibrationTimeout.current !== null ||
       (source !== 'simulation' && (source !== 'phone' || !phoneSensorData.available))
     ) return;
 
-    setCalibrationComplete(null);
-    setHoldingSlotId(slotId);
+    setCalibrationComplete(false);
+    setIsHoldingCalibration(true);
     const selectedSource = calibrationSlotSource;
+    const selectedSlotId = calibrationSlotIds[selectedSource];
     calibrationCaptureSource.current = selectedSource;
     const selectedSensor = motionSensorDataRef.current;
     calibrationSamples.current = selectedSource !== 'simulation'
@@ -1328,17 +1152,16 @@ function App() {
           };
       setCalibrationSlots((current) => ({
         ...current,
-        [selectedSource]: replaceCalibrationSlotOffsets(current[selectedSource], slotId, {
+        [selectedSource]: replaceCalibrationSlotOffsets(current[selectedSource], selectedSlotId, {
           pitch,
           roll,
         }),
       }));
-      setCalibrationSlotIds((current) => ({ ...current, [selectedSource]: slotId }));
       calibrationSamples.current = [];
       calibrationCaptureSource.current = null;
       calibrationTimeout.current = null;
-      setHoldingSlotId(null);
-      setCalibrationComplete(slotId);
+      setIsHoldingCalibration(false);
+      setCalibrationComplete(true);
     }, 3000);
   };
 
@@ -1348,7 +1171,7 @@ function App() {
       calibrationTimeout.current = null;
       calibrationSamples.current = [];
       calibrationCaptureSource.current = null;
-      setHoldingSlotId(null);
+      setIsHoldingCalibration(false);
     }
   };
 
@@ -1358,12 +1181,11 @@ function App() {
     }
   }, [phoneSensorData.available]);
 
-  useEffect(() => () => cancelCalibrationHold(), [activeMenu, calibrationSlotSource]);
-
   useEffect(() => {
     if (pwa.standalone && selectedSource === 'simulation') {
       cancelCalibrationHold();
       setSource('phone');
+      setCalibrationSettingsSource('phoneMotion');
     }
   }, [pwa.standalone, selectedSource]);
 
@@ -1376,27 +1198,28 @@ function App() {
     }));
   };
 
-  const setupProgress = getSetupProgress({
-    vehicleConfirmed: setupConfirmed.vehicle,
-    wedgesConfirmed,
-    calibrated: !needsCalibration,
-    sensorAvailable: setupSensorAvailable,
-  });
+  const activeSlotId = calibrationSlotIds[calibrationSlotSource];
+  const activeSlot = calibrationSlots[calibrationSlotSource].find((slot) => slot.id === activeSlotId);
+  const needsCalibration = !activeSlot || activeSlot.pitch === null || activeSlot.roll === null;
+  const activeSlotLabel = activeSlot?.name.trim() || String(calibrationSlotKeys.indexOf(activeSlotId) + 1);
+  const noCalibration = source === 'external'
+    ? !activeSlot || activeSlot.pitch === null || activeSlot.roll === null
+    : !calibrationSlots[calibrationSlotSource].some(
+        (slot) => slot.pitch !== null && slot.roll !== null,
+      );
   const additionalInfo = [
     recommendation.axis === 'unavailable'
-      ? recommendation.reason === 'calibration'
-        ? recommendation.description
-        : source === 'phone' && motionSensorStatus
-          ? t(motionSensorStatus)
-          : sourceMessage ? t(sourceMessage) : recommendation.description
+      ? source === 'phone' && motionSensorStatus
+        ? t(motionSensorStatus)
+        : sourceMessage ? t(sourceMessage) : recommendation.description
       : '',
     recommendation.wedgeCapacityExceeded
       ? t(vehicle.levelingMode === 'height'
         ? 'Required lift exceeds maximum height.'
         : 'Required lift exceeds wedge capacity.')
       : '',
-    needsCalibration && !setupSensorAvailable
-      ? t('Calibration needed')
+    noCalibration
+      ? t(source === 'external' ? 'External sensor has not been calibrated.' : 'No calibration slot has been set.')
       : '',
   ].filter(Boolean).join(' ') || (recommendation.axis === 'level' ? recommendation.description : '');
   const handleVehicleDimensionChange = (event, dimension) => {
@@ -1494,14 +1317,13 @@ function App() {
       }
     }
     setVehicleInputErrors(errors);
-    if (Object.keys(errors).length) return false;
+    if (Object.keys(errors).length) return;
     setVehicle((current) => ({
       ...current,
       wheelbaseCm: Number(vehicleInputs.wheelbaseCm),
       trackWidthCm: Number(vehicleInputs.trackWidthCm),
     }));
     setSetupConfirmed((current) => ({ ...current, vehicle: true }));
-    return true;
   };
 
   const confirmWedges = () => {
@@ -1509,7 +1331,7 @@ function App() {
       const height = Number(maximumHeightInput.replace(',', '.'));
       if (!Number.isFinite(height) || height <= 0) {
         setMaximumHeightError(true);
-        return false;
+        return;
       }
       setVehicle((current) => ({ ...current, maximumHeightCm: height }));
       setMaximumHeightInput(String(height));
@@ -1517,7 +1339,7 @@ function App() {
       const heights = wedgeHeightInputs.map((value) => Number(value.replace(',', '.')));
       const errors = heights.map((height) => !Number.isFinite(height) || height <= 0);
       setWedgeHeightErrors(errors);
-      if (errors.some(Boolean)) return false;
+      if (errors.some(Boolean)) return;
       heights.sort((a, b) => a - b);
       setVehicle((current) => ({ ...current, wedgeHeightsCm: heights }));
       setWedgeHeightInputs(heights.map(String));
@@ -1526,14 +1348,13 @@ function App() {
       ...current,
       [vehicle.levelingMode === 'height' ? 'height' : 'wedges']: true,
     }));
-    return true;
   };
 
   const selectSource = async (nextSource) => {
     const requestId = ++motionRequestId.current;
     dragStart.current = null;
     cancelCalibrationHold();
-    setCalibrationComplete(null);
+    setCalibrationComplete(false);
     setSourceMessage('');
     if (nextSource === 'external') {
       setSource(nextSource);
@@ -1594,59 +1415,76 @@ function App() {
     dragStart.current = null;
   };
 
-  const closeSideMenu = () => {
-    setSideMenuOpen(false);
-    sideMenuButtonRef.current?.focus();
-  };
-
-  const openSideDialog = (menu) => {
-    sideDialogOriginRef.current = sideMenuOpen ? sideMenuButtonRef.current : document.activeElement;
-    setSideMenuOpen(false);
-    setActiveMenu(menu);
-  };
-
-  const selectCalibrationSlot = (sourceName, slotId) => {
-    cancelCalibrationHold();
-    setCalibrationSlotIds((current) => ({ ...current, [sourceName]: slotId }));
-    if (calibrationComplete !== slotId) setCalibrationComplete(null);
-  };
-
-  const openCalibration = () => {
-    setCalibrationComplete(null);
-  };
-
-  const advanceSetup = () => {
-    const next = nextSetupStep(setupProgress.steps, activeMenu);
-    if (next === 'calibration') openCalibration();
-    if (!next) setSetupFlowActive(false);
-    setActiveMenu(next);
-  };
-
-  const beginSetup = () => {
-    setSetupFlowActive(true);
-    if (setupProgress.next === 'calibration') openCalibration();
-    openSideDialog(setupProgress.next);
-  };
-
   return (
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
           <h1>KEIL<span>OMAT</span> <small>{pwa.standalone ? 'APP' : 'WEB'}</small></h1>
         </div>
-        <button
-          ref={sideMenuButtonRef}
-          className={`side-menu-toggle${pwa.updateAvailable || !setupConfirmed.vehicle || !wedgesConfirmed ? ' has-notice' : ''}`}
-          type="button"
-          aria-label={t('Open menu')}
-          aria-expanded={sideMenuOpen}
-          aria-controls="side-menu"
-          onClick={() => setSideMenuOpen(true)}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
+        <div className="header-actions">
+          <div className="source-picker" role="group" aria-label={t('Select data source')}>
+            {[
+              {
+                id: 'phone',
+                label: 'PHONE',
+                available: phoneSensorData.available,
+              },
+              { id: 'external', label: 'EXTERNAL', available: false },
+            ].map((option) => (
+              <button
+                key={option.id}
+                className={`source-option ${source === option.id ? 'selected' : ''} ${
+                  option.available ? '' : 'unavailable'
+                }`}
+                type="button"
+                aria-pressed={source === option.id}
+                aria-label={`${t(option.label)}: ${t(option.available ? 'available' : 'unavailable')}`}
+                onClick={() => selectSource(option.id)}
+              >
+                <span className="source-icon" aria-hidden="true">
+                  {option.id === 'external' ? (
+                    <svg viewBox="0 0 24 24" role="presentation">
+                      <path d="M7 7 17 17 12 22V2l5 5L7 17" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" role="presentation">
+                      <rect x="6.5" y="2.5" width="11" height="19" rx="2" />
+                      <path d="M10 5h4M10 18.5h4" />
+                    </svg>
+                  )}
+                </span>
+                <span>{t(option.label)}</span>
+                <span className="source-availability">
+                  {t(option.available ? 'LIVE' : 'OFFLINE')}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="header-controls">
+            <button
+              className={`offline-button${pwa.updateAvailable ? ' has-update' : ''}`}
+              type="button"
+              aria-haspopup="dialog"
+              aria-label={`${t('App and updates')}${pwa.updateAvailable ? ` · ${t('An update is available.')}` : ''}`}
+              title={`${t('App and updates')}${pwa.updateAvailable ? ` · ${t('An update is available.')}` : ''}`}
+              onClick={() => {
+                refreshOfflineStatus();
+                setActiveMenu('offline');
+              }}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3v11m-4-4 4 4 4-4M4 16v4h16v-4" />
+              </svg>
+            </button>
+            <AppDropdown
+              className="language-select"
+              label={t('Language')}
+              value={language}
+              options={[{ value: 'en', label: 'EN' }, { value: 'de', label: 'DE' }]}
+              onChange={(value) => setLanguage(normalizeLanguage(value))}
+            />
+          </div>
+        </div>
       </header>
 
       {pwa.updateAvailable && (
@@ -1678,35 +1516,6 @@ function App() {
           </div>
         </div>
 
-        {setupProgress.next && (
-          <section className="setup-guide" aria-label={t('Setup progress')}>
-            <div className="setup-guide-heading">
-              <span>{t('Setup')}</span>
-              <span>{t('{completed} of {total}', { completed: setupProgress.completed, total: setupProgress.steps.length })}</span>
-            </div>
-            <ol className="setup-guide-steps">
-              {setupProgress.steps.map((step) => (
-                <li key={step.id} className={step.complete ? 'complete' : ''}>
-                  <span aria-hidden="true">{step.complete ? '✓' : '○'}</span>
-                  {t(step.id === 'vehicle' ? 'VEHICLE' : step.id === 'wedges' ? (vehicle.levelingMode === 'height' ? 'HEIGHT' : 'WEDGES') : 'CALIBRATION')}
-                  <span className="visually-hidden"> {t(step.complete ? 'Complete' : step.id === 'calibration' && !setupSensorAvailable ? 'unavailable' : 'Not complete')}</span>
-                </li>
-              ))}
-            </ol>
-            <button
-              type="button"
-              onClick={beginSetup}
-            >
-              {t(setupProgress.next === 'vehicle'
-                ? 'SET UP VEHICLE'
-                : setupProgress.next === 'wedges'
-                  ? 'SET UP SUPPORT'
-                  : 'GO TO CALIBRATION')}
-              <span aria-hidden="true"> →</span>
-            </button>
-          </section>
-        )}
-
         <section className="hero-panel" aria-label={t('Leveling recommendation')}>
           <div className="hero-heading">
             <h2 className={recommendation.axis === 'unavailable' ? 'sensor-unavailable' : ''}>
@@ -1722,15 +1531,29 @@ function App() {
           <div className="vehicle-diagram">
             <div className="diagram-heading">
               <span>{t('TOP VIEW')}{source === 'simulation' ? ` · ${t('SIMULATION')}` : ''}</span>
+              <button
+                className="sun-open"
+                type="button"
+                aria-haspopup="dialog"
+                aria-label={t('Sun directions')}
+                title={t('Sun directions')}
+                onClick={() => {
+                  setSunRequest(requestSunData());
+                  setActiveMenu('sun');
+                }}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M19 5l-2 2M7 17l-2 2" />
+                </svg>
+              </button>
               {source === 'simulation' && (
                 <div
                   className={`simulator-stage${vehicle.wheelbaseCm > 300 ? ' long-wheelbase' : ''}`}
                   role="application"
-                  aria-label={t(needsCalibration
-                    ? 'Simulate vehicle tilt. Drag vertically for pitch and horizontally for roll, or use the arrow keys. Uncalibrated simulated pitch {pitch} degrees, roll {roll} degrees. Simulated sensor range is ±{max} degrees.'
-                    : 'Simulate vehicle tilt. Drag vertically for pitch and horizontally for roll, or use the arrow keys. Calibrated pitch {pitch} degrees, roll {roll} degrees. Simulated sensor range is ±{max} degrees.', {
-                    pitch: (currentPitch === null ? simulatedTilt.pitch : currentPitch).toFixed(1),
-                    roll: (currentRoll === null ? simulatedTilt.roll : currentRoll).toFixed(1),
+                  aria-label={t('Simulate vehicle tilt. Drag vertically for pitch and horizontally for roll, or use the arrow keys. Calibrated pitch {pitch} degrees, roll {roll} degrees. Simulated sensor range is ±{max} degrees.', {
+                    pitch: currentPitch.toFixed(1),
+                    roll: currentRoll.toFixed(1),
                     max: SIMULATION_MAX_TILT,
                   })}
                   onPointerDown={startSimulationDrag}
@@ -1773,7 +1596,7 @@ function App() {
                     <div
                       className="sim-box"
                       style={{
-                        transform: `rotateX(${currentPitch === null ? simulatedTilt.pitch : currentPitch}deg) rotateY(${currentRoll === null ? simulatedTilt.roll : currentRoll}deg)`,
+                        transform: `rotateX(${currentPitch}deg) rotateY(${currentRoll}deg)`,
                       }}
                     />
                   </div>
@@ -1792,202 +1615,189 @@ function App() {
         </section>
 
         <div className="action-area">
+          <button
+            className={`calibrate-button${needsCalibration ? ' needs-calibration' : ''} ${isHoldingCalibration ? 'is-holding' : ''} ${
+              calibrationComplete ? 'is-complete' : ''
+            }`}
+            type="button"
+            disabled={source === 'external' || (source === 'phone' && !phoneSensorData.available)}
+            onPointerDown={(event) => {
+              event.currentTarget.setPointerCapture(event.pointerId);
+              startCalibrationHold();
+            }}
+            onPointerUp={cancelCalibrationHold}
+            onPointerCancel={cancelCalibrationHold}
+            onLostPointerCapture={cancelCalibrationHold}
+            onBlur={cancelCalibrationHold}
+            onKeyDown={(event) => {
+              if (event.key === ' ' || event.key === 'Enter') {
+                event.preventDefault();
+                if (!event.repeat) startCalibrationHold();
+              }
+            }}
+            onKeyUp={(event) => {
+              if (event.key === ' ' || event.key === 'Enter') {
+                event.preventDefault();
+                cancelCalibrationHold();
+              }
+            }}
+            onContextMenu={(event) => event.preventDefault()}
+            aria-label={`${source === 'external'
+              ? t('Hold for 3 seconds to calibrate the sensor on level ground')
+              : t('Hold for 3 seconds to overwrite calibration slot {slot} on level ground', {
+                  slot: activeSlotLabel,
+                })}${needsCalibration ? ` · ${t('Calibration needed')}` : ''}`}
+          >
+            <span className="calibrate-icon" aria-hidden="true">
+              {calibrationComplete ? '✓' : isHoldingCalibration ? '···' : '◎'}
+            </span>
+            <span>
+              {calibrationComplete
+                ? t(source === 'external' ? 'SENSOR CALIBRATED' : 'SLOT UPDATED')
+                : isHoldingCalibration
+                  ? t('KEEP HOLDING')
+                  : source === 'external'
+                    ? t('HOLD TO CALIBRATE SENSOR')
+                    : t('HOLD TO SET SLOT {slot}', { slot: activeSlotLabel })}
+            </span>
+            {!calibrationComplete && <span className="hold-duration">{t('3 SEC')}</span>}
+          </button>
           {source !== 'external' && (
-            <CalibrationSlotButtons
-              slots={calibrationSlots[calibrationSlotSource]}
-              selectedId={activeSlotId}
-              sourceName={calibrationSlotSource}
-              t={t}
-              onSelect={(slotId) => {
-                const slot = calibrationSlots[calibrationSlotSource].find((item) => item.id === slotId);
-                selectCalibrationSlot(calibrationSlotSource, slotId);
-                if (slot.pitch === null || slot.roll === null) {
-                  openCalibration();
-                  openSideDialog('calibration');
-                }
-              }}
-            />
+            <div
+              className="quick-calibrations"
+              role="group"
+              aria-label={t('Select {source} calibration slot', {
+                source: t(calibrationSourceLabels[calibrationSlotSource]),
+              })}
+            >
+              {calibrationSlots[calibrationSlotSource].map((slot, index) => {
+                const isSelected = slot.id === activeSlotId;
+                const isCalibrated = slot.pitch !== null && slot.roll !== null;
+                const label = slot.name.trim() || t('SLOT {slot}', { slot: index + 1 });
+
+                return (
+                  <button
+                    className={`quick-calibration-button${isSelected ? ' selected' : ''}${
+                      isCalibrated ? ' calibrated' : ' empty'
+                    }`}
+                    key={slot.id}
+                    type="button"
+                    aria-label={`${label}, ${
+                      t(isCalibrated ? 'calibrated' : 'not calibrated')
+                    }${isSelected ? t(', selected') : ''}`}
+                    aria-pressed={isSelected}
+                    title={`${label} · ${
+                      t(isCalibrated ? 'Calibrated' : 'Not calibrated')
+                    }`}
+                    onClick={() => {
+                      cancelCalibrationHold();
+                      setCalibrationSlotIds((current) => ({
+                        ...current,
+                        [calibrationSlotSource]: slot.id,
+                      }));
+                      setCalibrationComplete(false);
+                    }}
+                  >
+                    <span className="quick-calibration-name">{label}</span>
+                    <span className="quick-calibration-status">
+                      {t(isCalibrated ? 'CALIBRATED' : 'NOT CALIBRATED')}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           )}
         </div>
       </main>
 
-      {sideMenuOpen && (
-        <div
-          className="side-menu-backdrop"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) closeSideMenu();
+      <nav className="bottom-menu" aria-label={t('Configuration, help and feedback')}>
+        <button
+          className={`menu-button${activeMenu === 'vehicle' ? ' selected' : ''}${!setupConfirmed.vehicle ? ' needs-setup' : ''}`}
+          type="button"
+          aria-haspopup="dialog"
+          aria-label={`${t('VEHICLE')}${!setupConfirmed.vehicle ? ` · ${t('Confirmation needed')}` : ''}`}
+          onClick={() => setActiveMenu('vehicle')}
+        >
+          <span className="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M3 16v-4l2-1 2-4h9l3 4 2 1v4h-2m-11 0h8M3 16h1" />
+              <circle cx="6" cy="16" r="2" />
+              <circle cx="18" cy="16" r="2" />
+              <path d="M7 11h11M12 7v4" />
+            </svg>
+          </span>
+          <span>{t('VEHICLE')}</span>
+        </button>
+        <span className="menu-divider" />
+        <button
+          className={`menu-button${activeMenu === 'wedges' ? ' selected' : ''}${!wedgesConfirmed ? ' needs-setup' : ''}`}
+          type="button"
+          aria-haspopup="dialog"
+          aria-label={`${t('WEDGES')}${!wedgesConfirmed ? ` · ${t('Confirmation needed')}` : ''}`}
+          onClick={() => setActiveMenu('wedges')}
+        >
+          <span className="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M4 19h16L4 5Z" />
+            </svg>
+          </span>
+          <span>{t('WEDGES')}</span>
+        </button>
+        <span className="menu-divider" />
+        <button
+          className={activeMenu === 'calibration' ? 'menu-button selected' : 'menu-button'}
+          type="button"
+          aria-haspopup="dialog"
+          onClick={() => {
+            setCalibrationSettingsSource(source === 'external' ? 'phoneMotion' : calibrationSlotSource);
+            setActiveMenu('calibration');
           }}
         >
-          <aside
-            ref={sideMenuRef}
-            id="side-menu"
-            className="side-menu"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="side-menu-title"
-          >
-            <header className="side-menu-header">
-              <h2 id="side-menu-title">{t('Menu')}</h2>
-              <button
-                ref={sideMenuCloseRef}
-                className="close-menu"
-                type="button"
-                aria-label={t('Close menu')}
-                onClick={closeSideMenu}
-              >
-                ×
-              </button>
-            </header>
-            <div className="side-section">
-              <span className="eyebrow">{t('Select data source')}</span>
-              <div className="source-picker" role="group" aria-label={t('Select data source')}>
-                {[
-                  { id: 'phone', label: 'PHONE', available: phoneSensorData.available },
-                  { id: 'external', label: 'EXTERNAL', available: false },
-                ].map((option) => (
-                  <button
-                    key={option.id}
-                    className={`source-option ${source === option.id ? 'selected' : ''} ${
-                      option.available ? '' : 'unavailable'
-                    }`}
-                    type="button"
-                    aria-pressed={source === option.id}
-                    aria-label={`${t(option.label)}: ${t(option.available ? 'available' : 'unavailable')}`}
-                    onClick={() => {
-                      selectSource(option.id);
-                      closeSideMenu();
-                    }}
-                  >
-                    <span className="source-icon" aria-hidden="true">
-                      {option.id === 'external' ? (
-                        <svg viewBox="0 0 24 24" role="presentation">
-                          <path d="M7 7 17 17 12 22V2l5 5L7 17" />
-                        </svg>
-                      ) : (
-                        <svg viewBox="0 0 24 24" role="presentation">
-                          <rect x="6.5" y="2.5" width="11" height="19" rx="2" />
-                          <path d="M10 5h4M10 18.5h4" />
-                        </svg>
-                      )}
-                    </span>
-                    <span>{t(option.label)}</span>
-                    <span className="source-availability">
-                      {t(option.available ? 'LIVE' : 'OFFLINE')}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <nav className="side-nav" aria-label={t('Configuration, help and feedback')}>
-              <button
-                className={`menu-button${activeMenu === 'vehicle' ? ' selected' : ''}${!setupConfirmed.vehicle ? ' needs-setup' : ''}`}
-                type="button"
-                aria-haspopup="dialog"
-                aria-label={`${t('VEHICLE')}${!setupConfirmed.vehicle ? ` · ${t('Confirmation needed')}` : ''}`}
-                onClick={() => openSideDialog('vehicle')}
-              >
-                <span className="menu-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24">
-                    <path d="M3 16v-4l2-1 2-4h9l3 4 2 1v4h-2m-11 0h8M3 16h1" />
-                    <circle cx="6" cy="16" r="2" />
-                    <circle cx="18" cy="16" r="2" />
-                    <path d="M7 11h11M12 7v4" />
-                  </svg>
-                </span>
-                <span>{t('VEHICLE')}</span>
-              </button>
-              <button
-                className={`menu-button${activeMenu === 'wedges' ? ' selected' : ''}${!wedgesConfirmed ? ' needs-setup' : ''}`}
-                type="button"
-                aria-haspopup="dialog"
-                aria-label={`${t('WEDGES')}${!wedgesConfirmed ? ` · ${t('Confirmation needed')}` : ''}`}
-                onClick={() => openSideDialog('wedges')}
-              >
-                <span className="menu-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24">
-                    <path d="M4 19h16L4 5Z" />
-                  </svg>
-                </span>
-                <span>{t('WEDGES')}</span>
-              </button>
-              <button
-                className={activeMenu === 'calibration' ? 'menu-button selected' : 'menu-button'}
-                type="button"
-                aria-haspopup="dialog"
-                onClick={() => {
-                  openCalibration();
-                  openSideDialog('calibration');
-                }}
-              >
-                <span className="menu-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="8.5" />
-                    <path d="M12 2v5m0 10v5M2 12h5m10 0h5" />
-                    <circle cx="12" cy="12" r="2" />
-                  </svg>
-                </span>
-                <span>{t('CALIBRATION')}</span>
-              </button>
-              <button
-                className={activeMenu === 'help' ? 'menu-button selected' : 'menu-button'}
-                type="button"
-                aria-haspopup="dialog"
-                aria-label={t('Help')}
-                onClick={() => openSideDialog('help')}
-              >
-                <span className="menu-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="9" />
-                    <path d="M9.5 9a2.5 2.5 0 1 1 3.9 2.1c-1 .7-1.4 1.1-1.4 2.4M12 17h.01" />
-                  </svg>
-                </span>
-                <span>{t('Help')}</span>
-              </button>
-              <button
-                className={activeMenu === 'feedback' ? 'menu-button selected' : 'menu-button'}
-                type="button"
-                aria-haspopup="dialog"
-                aria-label={t('Send feedback')}
-                onClick={() => openSideDialog('feedback')}
-              >
-                <span className="menu-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24">
-                    <path d="M3 5.5h18v13H3zM3.5 6l8.5 7 8.5-7" />
-                  </svg>
-                </span>
-                <span>{t('Send feedback')}</span>
-              </button>
-              <button
-                className={`menu-button${pwa.updateAvailable ? ' has-update' : ''}`}
-                type="button"
-                aria-haspopup="dialog"
-                aria-label={`${t('App and updates')}${pwa.updateAvailable ? ` · ${t('An update is available.')}` : ''}`}
-                onClick={() => {
-                  refreshOfflineStatus();
-                  openSideDialog('offline');
-                }}
-              >
-                <span className="menu-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24">
-                    <path d="M12 3v11m-4-4 4 4 4-4M4 16v4h16v-4" />
-                  </svg>
-                </span>
-                <span>{t('App and updates')}</span>
-              </button>
-            </nav>
-            <div className="side-language">
-              <span className="eyebrow">{t('Language')}</span>
-              <AppDropdown
-                className="language-select"
-                label={t('Language')}
-                value={language}
-                options={[{ value: 'en', label: 'EN' }, { value: 'de', label: 'DE' }]}
-                onChange={(value) => setLanguage(normalizeLanguage(value))}
-              />
-            </div>
-          </aside>
-        </div>
-      )}
+          <span className="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="8.5" />
+              <path d="M12 2v5m0 10v5M2 12h5m10 0h5" />
+              <circle cx="12" cy="12" r="2" />
+            </svg>
+          </span>
+          <span>{t('CALIBRATION')}</span>
+        </button>
+        <span className="menu-divider" />
+        <button
+          className={activeMenu === 'help' ? 'menu-button help-button selected' : 'menu-button help-button'}
+          type="button"
+          aria-haspopup="dialog"
+          aria-label={t('Help')}
+          title={t('Help')}
+          onClick={() => setActiveMenu('help')}
+        >
+          <span className="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M9.5 9a2.5 2.5 0 1 1 3.9 2.1c-1 .7-1.4 1.1-1.4 2.4M12 17h.01" />
+            </svg>
+          </span>
+        </button>
+        <span className="menu-divider" />
+        <button
+          className={
+            activeMenu === 'feedback'
+              ? 'menu-button feedback-button selected'
+              : 'menu-button feedback-button'
+          }
+          type="button"
+          aria-haspopup="dialog"
+          aria-label={t('Send feedback')}
+          title={t('Send feedback')}
+          onClick={() => setActiveMenu('feedback')}
+        >
+          <span className="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M3 5.5h18v13H3zM3.5 6l8.5 7 8.5-7" />
+            </svg>
+          </span>
+        </button>
+      </nav>
 
       {activeMenu && (
         <div
@@ -1997,7 +1807,6 @@ function App() {
           }}
         >
           <section
-            ref={menuSheetRef}
             className="menu-sheet"
             role="dialog"
             aria-modal="true"
@@ -2014,7 +1823,7 @@ function App() {
                     : activeMenu === 'wedges'
                       ? 'Wedge setup'
                       : activeMenu === 'calibration'
-                        ? 'Calibration'
+                        ? 'Rename calibration slots'
                         : activeMenu === 'help'
                           ? 'How it works'
                           : activeMenu === 'offline'
@@ -2025,7 +1834,6 @@ function App() {
                 </h2>
               </div>
               <button
-                ref={menuDialogCloseRef}
                 className="close-menu"
                 type="button"
                 aria-label={t('Close dialog')}
@@ -2037,7 +1845,7 @@ function App() {
 
             {activeMenu === 'sun' && <SunView vehicle={vehicle} t={t} language={language} request={sunRequest} />}
 
-            {!setupFlowActive && activeMenu !== 'feedback' && activeMenu !== 'help' && activeMenu !== 'offline' && activeMenu !== 'sun' && (
+            {activeMenu !== 'feedback' && activeMenu !== 'help' && activeMenu !== 'offline' && activeMenu !== 'sun' && (
               <div className="menu-tabs" role="tablist" aria-label={t('Configuration sections')}>
                 <button
                   className={`menu-tab${activeMenu === 'vehicle' ? ' active' : ''}${!setupConfirmed.vehicle ? ' needs-setup' : ''}`}
@@ -2064,7 +1872,7 @@ function App() {
                   type="button"
                   role="tab"
                   aria-selected={activeMenu === 'calibration'}
-                  onClick={() => { openCalibration(); setActiveMenu('calibration'); }}
+                  onClick={() => setActiveMenu('calibration')}
                 >
                   {t('CALIBRATION')}
                 </button>
@@ -2129,13 +1937,10 @@ function App() {
                     )}
                   </label>
                 </div>
-                {setupFlowActive ? (
-                  <div className="setup-flow-actions">
-                    <button className="feedback-submit" type="button" onClick={() => { if (confirmVehicle()) advanceSetup(); }}>{t('ACCEPT AND NEXT')}</button>
-                    <button className="setup-skip" type="button" onClick={advanceSetup}>{t('SKIP')}</button>
-                  </div>
-                ) : !setupConfirmed.vehicle && (
-                  <button className="feedback-submit" type="button" onClick={confirmVehicle}>{t('CONFIRM VEHICLE DIMENSIONS')}</button>
+                {!setupConfirmed.vehicle && (
+                  <button className="feedback-submit" type="button" onClick={confirmVehicle}>
+                    {t('CONFIRM VEHICLE DIMENSIONS')}
+                  </button>
                 )}
               </div>
             ) : activeMenu === 'wedges' ? (
@@ -2276,108 +2081,90 @@ function App() {
                     </>
                   )}
                 </div>
-                {setupFlowActive ? (
-                  <div className="setup-flow-actions">
-                    <button className="feedback-submit" type="button" onClick={() => { if (confirmWedges()) advanceSetup(); }}>{t('ACCEPT AND NEXT')}</button>
-                    <button className="setup-skip" type="button" onClick={advanceSetup}>{t('SKIP')}</button>
-                  </div>
-                ) : !wedgesConfirmed && (
-                  <button className="feedback-submit" type="button" onClick={confirmWedges}>{t(vehicle.levelingMode === 'height' ? 'CONFIRM MAXIMUM HEIGHT' : 'CONFIRM WEDGE HEIGHTS')}</button>
+                {!wedgesConfirmed && (
+                  <button className="feedback-submit" type="button" onClick={confirmWedges}>
+                    {t(vehicle.levelingMode === 'height' ? 'CONFIRM MAXIMUM HEIGHT' : 'CONFIRM WEDGE HEIGHTS')}
+                  </button>
                 )}
               </div>
             ) : activeMenu === 'calibration' ? (
               <div className="menu-content calibration-content">
                 <div className="settings-card calibration-settings-card">
-                  {source === 'external' ? (
-                    <p className="calibration-instructions" role="status">{t('External sensor support is not available yet.')}</p>
-                  ) : (
-                    <>
-                      {source === 'phone' && <CalibrationInstructions t={t} />}
-                      {!setupSensorAvailable && (
-                        <p className="calibration-instructions" role="status">{t(motionSensorStatus === 'Tap PHONE to allow motion sensor access.'
-                          ? 'Allow sensor access to calibrate.'
-                          : motionSensorStatus || 'No sensor signal')}</p>
-                      )}
-                      {source === 'phone' && !motionPermissionGranted && typeof window.DeviceMotionEvent?.requestPermission === 'function' && (
-                        <button type="button" className="setup-skip" onClick={() => selectSource('phone')}>
-                          {t('ALLOW SENSOR ACCESS')}
-                        </button>
-                      )}
-                      <CalibrationSlotButtons
-                        slots={calibrationSlots[calibrationSlotSource]}
-                        selectedId={activeSlotId}
-                        sourceName={calibrationSlotSource}
-                        t={t}
-                        onSelect={(slotId) => selectCalibrationSlot(calibrationSlotSource, slotId)}
+                  {simulationEnabled && (
+                    <div className="calibration-sensor">
+                      <span>{t('Sensor')}</span>
+                      <AppDropdown
+                        label={t('Sensor')}
+                        value={calibrationSettingsSource}
+                        options={[
+                          ...(simulationEnabled ? [{ value: 'simulation', label: t('Simulation') }] : []),
+                          { value: 'phoneMotion', label: t('Phone sensor') },
+                        ]}
+                        onChange={setCalibrationSettingsSource}
                       />
-                      <button
-                        className={`calibrate-button${holdingSlotId ? ' is-holding' : ''}`}
-                        type="button"
-                        disabled={!setupSensorAvailable || !activeSlot}
-                        aria-label={t('Hold for 3 seconds to calibrate slot {slot}', {
-                          slot: activeSlot?.name.trim() || String(activeSlotNumber),
-                        })}
-                        onPointerDown={(event) => {
-                          if (event.button !== 0) return;
-                          event.currentTarget.setPointerCapture(event.pointerId);
-                          startCalibrationHold(activeSlotId);
-                        }}
-                        onPointerUp={cancelCalibrationHold}
-                        onPointerCancel={cancelCalibrationHold}
-                        onLostPointerCapture={cancelCalibrationHold}
-                        onBlur={cancelCalibrationHold}
-                        onKeyDown={(event) => {
-                          if (event.key === ' ' || event.key === 'Enter') {
-                            event.preventDefault();
-                            if (!event.repeat) startCalibrationHold(activeSlotId);
-                          }
-                        }}
-                        onKeyUp={(event) => {
-                          if (event.key === ' ' || event.key === 'Enter') {
-                            event.preventDefault();
-                            cancelCalibrationHold();
-                          }
-                        }}
-                        onContextMenu={(event) => event.preventDefault()}
-                      >
-                        <span>{holdingSlotId ? t('KEEP HOLDING') : t('HOLD TO SET SLOT {slot}', {
-                          slot: activeSlot?.name.trim() || String(activeSlotNumber),
-                        })}</span>
-                        <span className="hold-duration">{t('3 SEC')}</span>
-                      </button>
-                      {calibrationComplete && <p className="calibration-instructions" role="status">{t('SLOT UPDATED')}</p>}
-                      {activeSlot && (
-                        <label className="calibration-slot-name">
-                          <span>{t('Name for slot {slot}', { slot: activeSlotNumber })} <small>{t('OPTIONAL')}</small></span>
-                          <input
-                            type="text"
-                            maxLength={60}
-                            placeholder={t('Slot {slot}', { slot: activeSlotNumber })}
-                            value={activeSlot.name}
-                            onChange={(event) => updateCalibrationSlotName(calibrationSlotSource, activeSlot.id, event.target.value)}
-                          />
-                        </label>
-                      )}
-                    </>
+                    </div>
                   )}
-                </div>
-                {setupFlowActive && (
-                  <div className="setup-flow-actions">
-                    <button className="feedback-submit" type="button" disabled={needsCalibration || !setupSensorAvailable} onClick={advanceSetup}>{t('FINISH')}</button>
-                    <button className="setup-skip" type="button" onClick={advanceSetup}>{t('SKIP')}</button>
+                  <div className="calibration-slot-settings">
+                    {calibrationSlots[calibrationSettingsSource].map((slot, index) => {
+                      const hasCalibration = slot.pitch !== null && slot.roll !== null;
+                      const isSelected =
+                        calibrationSlotIds[calibrationSettingsSource] === slot.id;
+
+                      return (
+                        <div
+                          className={`calibration-slot-card${isSelected ? ' selected' : ''}`}
+                          key={slot.id}
+                        >
+                          <div className="calibration-slot-heading">
+                            <span>{t('SLOT {slot}', { slot: index + 1 })}</span>
+                            <small>{isSelected ? t('SELECTED ON MAIN SCREEN') : ''}</small>
+                          </div>
+                          <div className="calibration-slot-detail">
+                            <label className="calibration-slot-name">
+                              <span>{t('Name')} <small>{t('OPTIONAL')}</small></span>
+                              <input
+                                type="text"
+                                maxLength={60}
+                                placeholder={t('Slot {slot}', { slot: index + 1 })}
+                                value={slot.name}
+                                aria-label={t('Name for {source} slot {slot}', {
+                                  source: t(calibrationSourceLabels[calibrationSettingsSource]),
+                                  slot: index + 1,
+                                })}
+                                onChange={(event) =>
+                                  updateCalibrationSlotName(
+                                    calibrationSettingsSource,
+                                    slot.id,
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                            </label>
+                            <p
+                              className={
+                                hasCalibration
+                                  ? 'calibration-slot-offsets'
+                                  : 'calibration-slot-offsets empty'
+                              }
+                            >
+                              {hasCalibration ? (
+                                <>
+                                  <span>{t('Pitch')} {formatCalibrationAngle(slot.pitch)}</span>
+                                  <span>{t('Roll')} {formatCalibrationAngle(slot.roll)}</span>
+                                </>
+                              ) : (
+                                t('Not calibrated')
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                )}
+                </div>
               </div>
             ) : activeMenu === 'help' ? (
-              <HelpContent
-                t={t}
-                source={source}
-                levelingMode={vehicle.levelingMode}
-                onNavigate={(menu) => {
-                  if (menu === 'calibration') openCalibration();
-                  setActiveMenu(menu);
-                }}
-              />
+              <HelpContent t={t} source={source} levelingMode={vehicle.levelingMode} />
             ) : activeMenu === 'offline' ? (
               <div className="menu-content pwa-content">
                 {pwa.offline !== 'ready' && (

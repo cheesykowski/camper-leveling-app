@@ -155,9 +155,9 @@ export function normalizeCalibrationSlotIds(value) {
 
 export function getActiveCalibration(source, slots, slotIds) {
   const selectedSlot = slots[source].find((slot) => slot.id === slotIds[source]);
-  return Number.isFinite(selectedSlot?.pitch) && Number.isFinite(selectedSlot?.roll)
+  return selectedSlot?.pitch !== null && selectedSlot?.roll !== null
     ? { pitch: selectedSlot.pitch, roll: selectedSlot.roll }
-    : null;
+    : defaultCalibration;
 }
 
 export function replaceCalibrationSlotOffsets(slots, slotId, calibration) {

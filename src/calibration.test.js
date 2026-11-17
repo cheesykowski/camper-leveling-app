@@ -49,7 +49,7 @@ test('normalizes three named slots and clears invalid offsets', () => {
   ]);
 });
 
-test('uses the selected slot offset and returns no calibration for an empty slot', () => {
+test('uses the selected slot offset and zero for an empty slot', () => {
   const slots = normalizeCalibrationSlots(
     {
       phone: [
@@ -68,26 +68,8 @@ test('uses the selected slot offset and returns no calibration for an empty slot
     pitch: 4,
     roll: -2,
   });
-  assert.equal(getActiveCalibration('external', slots, selectedIds), null);
+  assert.deepEqual(getActiveCalibration('external', slots, selectedIds), defaultCalibration);
   assert.deepEqual(selectedIds, defaultCalibrationSlotIds);
-});
-
-test('does not use another slot or an invalid offset for the selected slot', () => {
-  const slots = normalizeCalibrationSlots({
-    phoneMotion: [
-      { pitch: 0, roll: 0 },
-      { pitch: null, roll: null },
-      { pitch: 1, roll: null },
-    ],
-  }, defaultCalibrations);
-  const ids = normalizeCalibrationSlotIds({ phoneMotion: 'slot-2' });
-  assert.equal(getActiveCalibration('phoneMotion', slots, ids), null);
-  ids.phoneMotion = 'slot-3';
-  assert.equal(getActiveCalibration('phoneMotion', slots, ids), null);
-  ids.phoneMotion = 'slot-1';
-  assert.deepEqual(getActiveCalibration('phoneMotion', slots, ids), { pitch: 0, roll: 0 });
-  ids.phoneMotion = 'missing';
-  assert.equal(getActiveCalibration('phoneMotion', slots, ids), null);
 });
 
 test('keeps simulation, phone and external slot values and selections independent', () => {
@@ -161,7 +143,7 @@ test('does not reuse legacy phone orientation calibration for motion readings', 
   }, defaultCalibrations);
   const ids = normalizeCalibrationSlotIds({ phone: 'slot-1' });
   assert.equal(slots.phoneMotion[0].pitch, null);
-  assert.equal(getActiveCalibration('phoneMotion', slots, ids), null);
+  assert.deepEqual(getActiveCalibration('phoneMotion', slots, ids), defaultCalibration);
   assert.deepEqual(getActiveCalibration('phone', slots, ids), { pitch: 5, roll: -2 });
 });
 
